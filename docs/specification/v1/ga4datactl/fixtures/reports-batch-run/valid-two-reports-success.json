@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "marketing-tools/v1",
+  "command": "ga4datactl reports batch-run",
+  "data": {
+    "kind": "analyticsData#batchRunReports",
+    "reports": [
+      {
+        "dimensionHeaders": [{"name": "eventName"}],
+        "metricHeaders": [{"name": "eventCount", "type": "TYPE_INTEGER"}],
+        "rows": [{"dimensionValues": [{"value": "page_view"}], "metricValues": [{"value": "42"}]}],
+        "rowCount": 1
+      },
+      {
+        "dimensionHeaders": [{"name": "country"}],
+        "metricHeaders": [{"name": "activeUsers", "type": "TYPE_INTEGER"}],
+        "rows": [{"dimensionValues": [{"value": "US"}], "metricValues": [{"value": "10"}]}],
+        "rowCount": 1
+      }
+    ]
+  }
+}

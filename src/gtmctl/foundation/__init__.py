@@ -1,0 +1,1 @@
+"""Shared GTM CLI foundations."""

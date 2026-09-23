@@ -1,0 +1,14 @@
+{
+  "property": "properties/1234",
+  "dateRanges": [
+    {
+      "startDate": "2026-07-01",
+      "endDate": "2026-07-07"
+    }
+  ],
+  "metrics": [
+    {
+      "name": "eventCount"
+    }
+  ]
+}

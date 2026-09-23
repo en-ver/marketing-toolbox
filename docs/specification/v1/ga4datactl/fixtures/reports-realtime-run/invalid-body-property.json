@@ -1,0 +1,4 @@
+{
+  "property": "properties/1234",
+  "metrics": [{"name": "activeUsers"}]
+}

@@ -1,0 +1,4134 @@
+{
+  "source": {
+    "discoveryUrl": "https://www.googleapis.com/discovery/v1/apis/tagmanager/v2/rest",
+    "title": "Tag Manager API",
+    "version": "v2",
+    "revision": "20260722",
+    "retrievedAt": "2026-07-25T21:26:06Z"
+  },
+  "methods": [
+    {
+      "number": 1,
+      "resource": "accounts.containers",
+      "method": "combine",
+      "cliCommand": "gtmctl accounts containers combine",
+      "googleMethod": "tagmanager.accounts.containers.combine",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "POST",
+      "restPath": "tagmanager/v2/{+path}:combine",
+      "requestSchema": null,
+      "responseSchema": "Container",
+      "parameters": [
+        {
+          "name": "containerId",
+          "required": false,
+          "location": "query",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": null
+        },
+        {
+          "name": "allowUserPermissionFeatureUpdate",
+          "required": false,
+          "location": "query",
+          "type": "boolean",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": null
+        },
+        {
+          "name": "settingSource",
+          "required": false,
+          "location": "query",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [
+            "settingSourceUnspecified",
+            "current",
+            "other"
+          ],
+          "pattern": null
+        },
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+$"
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers"
+      ],
+      "operationKind": "mutation"
+    },
+    {
+      "number": 2,
+      "resource": "accounts.containers",
+      "method": "create",
+      "cliCommand": "gtmctl accounts containers create",
+      "googleMethod": "tagmanager.accounts.containers.create",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "POST",
+      "restPath": "tagmanager/v2/{+parent}/containers",
+      "requestSchema": "Container",
+      "responseSchema": "Container",
+      "parameters": [
+        {
+          "name": "parent",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+$"
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers"
+      ],
+      "operationKind": "mutation"
+    },
+    {
+      "number": 3,
+      "resource": "accounts.containers",
+      "method": "delete",
+      "cliCommand": "gtmctl accounts containers delete",
+      "googleMethod": "tagmanager.accounts.containers.delete",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "DELETE",
+      "restPath": "tagmanager/v2/{+path}",
+      "requestSchema": null,
+      "responseSchema": null,
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+$"
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.delete.containers"
+      ],
+      "operationKind": "destructive"
+    },
+    {
+      "number": 4,
+      "resource": "accounts.containers.destinations",
+      "method": "get",
+      "cliCommand": "gtmctl accounts containers destinations get",
+      "googleMethod": "tagmanager.accounts.containers.destinations.get",
+      "publicContractStatus": "excluded",
+      "deprecated": true,
+      "httpMethod": "GET",
+      "restPath": "tagmanager/v2/{+path}",
+      "requestSchema": null,
+      "responseSchema": "Destination",
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/destinations/[^/]+$"
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers",
+        "https://www.googleapis.com/auth/tagmanager.readonly"
+      ],
+      "operationKind": "excluded"
+    },
+    {
+      "number": 5,
+      "resource": "accounts.containers.destinations",
+      "method": "link",
+      "cliCommand": "gtmctl accounts containers destinations link",
+      "googleMethod": "tagmanager.accounts.containers.destinations.link",
+      "publicContractStatus": "excluded",
+      "deprecated": true,
+      "httpMethod": "POST",
+      "restPath": "tagmanager/v2/{+parent}/destinations:link",
+      "requestSchema": null,
+      "responseSchema": "Destination",
+      "parameters": [
+        {
+          "name": "parent",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+$"
+        },
+        {
+          "name": "destinationId",
+          "required": false,
+          "location": "query",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": null
+        },
+        {
+          "name": "allowUserPermissionFeatureUpdate",
+          "required": false,
+          "location": "query",
+          "type": "boolean",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": null
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers"
+      ],
+      "operationKind": "excluded"
+    },
+    {
+      "number": 6,
+      "resource": "accounts.containers.destinations",
+      "method": "list",
+      "cliCommand": "gtmctl accounts containers destinations list",
+      "googleMethod": "tagmanager.accounts.containers.destinations.list",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "GET",
+      "restPath": "tagmanager/v2/{+parent}/destinations",
+      "requestSchema": null,
+      "responseSchema": "ListDestinationsResponse",
+      "parameters": [
+        {
+          "name": "parent",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+$"
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers",
+        "https://www.googleapis.com/auth/tagmanager.readonly"
+      ],
+      "operationKind": "read"
+    },
+    {
+      "number": 7,
+      "resource": "accounts.containers.environments",
+      "method": "create",
+      "cliCommand": "gtmctl accounts containers environments create",
+      "googleMethod": "tagmanager.accounts.containers.environments.create",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "POST",
+      "restPath": "tagmanager/v2/{+parent}/environments",
+      "requestSchema": "Environment",
+      "responseSchema": "Environment",
+      "parameters": [
+        {
+          "name": "parent",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+$"
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers"
+      ],
+      "operationKind": "mutation"
+    },
+    {
+      "number": 8,
+      "resource": "accounts.containers.environments",
+      "method": "delete",
+      "cliCommand": "gtmctl accounts containers environments delete",
+      "googleMethod": "tagmanager.accounts.containers.environments.delete",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "DELETE",
+      "restPath": "tagmanager/v2/{+path}",
+      "requestSchema": null,
+      "responseSchema": null,
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/environments/[^/]+$"
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers"
+      ],
+      "operationKind": "destructive"
+    },
+    {
+      "number": 9,
+      "resource": "accounts.containers.environments",
+      "method": "get",
+      "cliCommand": "gtmctl accounts containers environments get",
+      "googleMethod": "tagmanager.accounts.containers.environments.get",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "GET",
+      "restPath": "tagmanager/v2/{+path}",
+      "requestSchema": null,
+      "responseSchema": "Environment",
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/environments/[^/]+$"
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers",
+        "https://www.googleapis.com/auth/tagmanager.readonly"
+      ],
+      "operationKind": "read"
+    },
+    {
+      "number": 10,
+      "resource": "accounts.containers.environments",
+      "method": "list",
+      "cliCommand": "gtmctl accounts containers environments list",
+      "googleMethod": "tagmanager.accounts.containers.environments.list",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "GET",
+      "restPath": "tagmanager/v2/{+parent}/environments",
+      "requestSchema": null,
+      "responseSchema": "ListEnvironmentsResponse",
+      "parameters": [
+        {
+          "name": "pageToken",
+          "required": false,
+          "location": "query",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": null
+        },
+        {
+          "name": "parent",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+$"
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers",
+        "https://www.googleapis.com/auth/tagmanager.readonly"
+      ],
+      "operationKind": "read"
+    },
+    {
+      "number": 11,
+      "resource": "accounts.containers.environments",
+      "method": "reauthorize",
+      "cliCommand": "gtmctl accounts containers environments reauthorize",
+      "googleMethod": "tagmanager.accounts.containers.environments.reauthorize",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "POST",
+      "restPath": "tagmanager/v2/{+path}:reauthorize",
+      "requestSchema": "Environment",
+      "responseSchema": "Environment",
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/environments/[^/]+$"
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.publish"
+      ],
+      "operationKind": "high-impact"
+    },
+    {
+      "number": 12,
+      "resource": "accounts.containers.environments",
+      "method": "update",
+      "cliCommand": "gtmctl accounts containers environments update",
+      "googleMethod": "tagmanager.accounts.containers.environments.update",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "PUT",
+      "restPath": "tagmanager/v2/{+path}",
+      "requestSchema": "Environment",
+      "responseSchema": "Environment",
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/environments/[^/]+$"
+        },
+        {
+          "name": "fingerprint",
+          "required": false,
+          "location": "query",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": null
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers"
+      ],
+      "operationKind": "mutation"
+    },
+    {
+      "number": 13,
+      "resource": "accounts.containers",
+      "method": "get",
+      "cliCommand": "gtmctl accounts containers get",
+      "googleMethod": "tagmanager.accounts.containers.get",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "GET",
+      "restPath": "tagmanager/v2/{+path}",
+      "requestSchema": null,
+      "responseSchema": "Container",
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+$"
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers",
+        "https://www.googleapis.com/auth/tagmanager.readonly"
+      ],
+      "operationKind": "read"
+    },
+    {
+      "number": 14,
+      "resource": "accounts.containers",
+      "method": "list",
+      "cliCommand": "gtmctl accounts containers list",
+      "googleMethod": "tagmanager.accounts.containers.list",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "GET",
+      "restPath": "tagmanager/v2/{+parent}/containers",
+      "requestSchema": null,
+      "responseSchema": "ListContainersResponse",
+      "parameters": [
+        {
+          "name": "pageToken",
+          "required": false,
+          "location": "query",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": null
+        },
+        {
+          "name": "parent",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+$"
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers",
+        "https://www.googleapis.com/auth/tagmanager.readonly"
+      ],
+      "operationKind": "read"
+    },
+    {
+      "number": 15,
+      "resource": "accounts.containers",
+      "method": "lookup",
+      "cliCommand": "gtmctl accounts containers lookup",
+      "googleMethod": "tagmanager.accounts.containers.lookup",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "GET",
+      "restPath": "tagmanager/v2/accounts/containers:lookup",
+      "requestSchema": null,
+      "responseSchema": "Container",
+      "parameters": [
+        {
+          "name": "destinationId",
+          "required": false,
+          "location": "query",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": null
+        },
+        {
+          "name": "tagId",
+          "required": false,
+          "location": "query",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": null
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers",
+        "https://www.googleapis.com/auth/tagmanager.readonly"
+      ],
+      "operationKind": "read"
+    },
+    {
+      "number": 16,
+      "resource": "accounts.containers",
+      "method": "move_tag_id",
+      "cliCommand": "gtmctl accounts containers move-tag-id",
+      "googleMethod": "tagmanager.accounts.containers.move_tag_id",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "POST",
+      "restPath": "tagmanager/v2/{+path}:move_tag_id",
+      "requestSchema": null,
+      "responseSchema": "Container",
+      "parameters": [
+        {
+          "name": "copySettings",
+          "required": false,
+          "location": "query",
+          "type": "boolean",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": null
+        },
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+$"
+        },
+        {
+          "name": "allowUserPermissionFeatureUpdate",
+          "required": false,
+          "location": "query",
+          "type": "boolean",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": null
+        },
+        {
+          "name": "tagId",
+          "required": false,
+          "location": "query",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": null
+        },
+        {
+          "name": "tagName",
+          "required": false,
+          "location": "query",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": null
+        },
+        {
+          "name": "copyUsers",
+          "required": false,
+          "location": "query",
+          "type": "boolean",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": null
+        },
+        {
+          "name": "copyTermsOfService",
+          "required": false,
+          "location": "query",
+          "type": "boolean",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": null
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers"
+      ],
+      "operationKind": "mutation"
+    },
+    {
+      "number": 17,
+      "resource": "accounts.containers",
+      "method": "snippet",
+      "cliCommand": "gtmctl accounts containers snippet",
+      "googleMethod": "tagmanager.accounts.containers.snippet",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "GET",
+      "restPath": "tagmanager/v2/{+path}:snippet",
+      "requestSchema": null,
+      "responseSchema": "GetContainerSnippetResponse",
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+$"
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers",
+        "https://www.googleapis.com/auth/tagmanager.readonly"
+      ],
+      "operationKind": "read"
+    },
+    {
+      "number": 18,
+      "resource": "accounts.containers",
+      "method": "update",
+      "cliCommand": "gtmctl accounts containers update",
+      "googleMethod": "tagmanager.accounts.containers.update",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "PUT",
+      "restPath": "tagmanager/v2/{+path}",
+      "requestSchema": "Container",
+      "responseSchema": "Container",
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+$"
+        },
+        {
+          "name": "fingerprint",
+          "required": false,
+          "location": "query",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": null
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers"
+      ],
+      "operationKind": "mutation"
+    },
+    {
+      "number": 19,
+      "resource": "accounts.containers.version_headers",
+      "method": "latest",
+      "cliCommand": "gtmctl accounts containers version-headers latest",
+      "googleMethod": "tagmanager.accounts.containers.version_headers.latest",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "GET",
+      "restPath": "tagmanager/v2/{+parent}/version_headers:latest",
+      "requestSchema": null,
+      "responseSchema": "ContainerVersionHeader",
+      "parameters": [
+        {
+          "name": "parent",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+$"
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers",
+        "https://www.googleapis.com/auth/tagmanager.readonly"
+      ],
+      "operationKind": "read"
+    },
+    {
+      "number": 20,
+      "resource": "accounts.containers.version_headers",
+      "method": "list",
+      "cliCommand": "gtmctl accounts containers version-headers list",
+      "googleMethod": "tagmanager.accounts.containers.version_headers.list",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "GET",
+      "restPath": "tagmanager/v2/{+parent}/version_headers",
+      "requestSchema": null,
+      "responseSchema": "ListContainerVersionsResponse",
+      "parameters": [
+        {
+          "name": "pageToken",
+          "required": false,
+          "location": "query",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": null
+        },
+        {
+          "name": "parent",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+$"
+        },
+        {
+          "name": "includeDeleted",
+          "required": false,
+          "location": "query",
+          "type": "boolean",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": null
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers",
+        "https://www.googleapis.com/auth/tagmanager.edit.containerversions",
+        "https://www.googleapis.com/auth/tagmanager.readonly"
+      ],
+      "operationKind": "read"
+    },
+    {
+      "number": 21,
+      "resource": "accounts.containers.versions",
+      "method": "delete",
+      "cliCommand": "gtmctl accounts containers versions delete",
+      "googleMethod": "tagmanager.accounts.containers.versions.delete",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "DELETE",
+      "restPath": "tagmanager/v2/{+path}",
+      "requestSchema": null,
+      "responseSchema": null,
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/versions/[^/]+$"
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containerversions"
+      ],
+      "operationKind": "destructive"
+    },
+    {
+      "number": 22,
+      "resource": "accounts.containers.versions",
+      "method": "get",
+      "cliCommand": "gtmctl accounts containers versions get",
+      "googleMethod": "tagmanager.accounts.containers.versions.get",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "GET",
+      "restPath": "tagmanager/v2/{+path}",
+      "requestSchema": null,
+      "responseSchema": "ContainerVersion",
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/versions/[^/]+$"
+        },
+        {
+          "name": "containerVersionId",
+          "required": false,
+          "location": "query",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": null
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers",
+        "https://www.googleapis.com/auth/tagmanager.edit.containerversions",
+        "https://www.googleapis.com/auth/tagmanager.readonly"
+      ],
+      "operationKind": "read"
+    },
+    {
+      "number": 23,
+      "resource": "accounts.containers.versions",
+      "method": "live",
+      "cliCommand": "gtmctl accounts containers versions live",
+      "googleMethod": "tagmanager.accounts.containers.versions.live",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "GET",
+      "restPath": "tagmanager/v2/{+parent}/versions:live",
+      "requestSchema": null,
+      "responseSchema": "ContainerVersion",
+      "parameters": [
+        {
+          "name": "parent",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+$"
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers",
+        "https://www.googleapis.com/auth/tagmanager.readonly"
+      ],
+      "operationKind": "read"
+    },
+    {
+      "number": 24,
+      "resource": "accounts.containers.versions",
+      "method": "publish",
+      "cliCommand": "gtmctl accounts containers versions publish",
+      "googleMethod": "tagmanager.accounts.containers.versions.publish",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "POST",
+      "restPath": "tagmanager/v2/{+path}:publish",
+      "requestSchema": null,
+      "responseSchema": "PublishContainerVersionResponse",
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/versions/[^/]+$"
+        },
+        {
+          "name": "fingerprint",
+          "required": false,
+          "location": "query",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": null
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.publish"
+      ],
+      "operationKind": "publish"
+    },
+    {
+      "number": 25,
+      "resource": "accounts.containers.versions",
+      "method": "set_latest",
+      "cliCommand": "gtmctl accounts containers versions set-latest",
+      "googleMethod": "tagmanager.accounts.containers.versions.set_latest",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "POST",
+      "restPath": "tagmanager/v2/{+path}:set_latest",
+      "requestSchema": null,
+      "responseSchema": "ContainerVersion",
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/versions/[^/]+$"
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers"
+      ],
+      "operationKind": "mutation"
+    },
+    {
+      "number": 26,
+      "resource": "accounts.containers.versions",
+      "method": "undelete",
+      "cliCommand": "gtmctl accounts containers versions undelete",
+      "googleMethod": "tagmanager.accounts.containers.versions.undelete",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "POST",
+      "restPath": "tagmanager/v2/{+path}:undelete",
+      "requestSchema": null,
+      "responseSchema": "ContainerVersion",
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/versions/[^/]+$"
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containerversions"
+      ],
+      "operationKind": "mutation"
+    },
+    {
+      "number": 27,
+      "resource": "accounts.containers.versions",
+      "method": "update",
+      "cliCommand": "gtmctl accounts containers versions update",
+      "googleMethod": "tagmanager.accounts.containers.versions.update",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "PUT",
+      "restPath": "tagmanager/v2/{+path}",
+      "requestSchema": "ContainerVersion",
+      "responseSchema": "ContainerVersion",
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/versions/[^/]+$"
+        },
+        {
+          "name": "fingerprint",
+          "required": false,
+          "location": "query",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": null
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containerversions"
+      ],
+      "operationKind": "mutation"
+    },
+    {
+      "number": 28,
+      "resource": "accounts.containers.workspaces.built_in_variables",
+      "method": "create",
+      "cliCommand": "gtmctl accounts containers workspaces built-in-variables create",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.built_in_variables.create",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "POST",
+      "restPath": "tagmanager/v2/{+parent}/built_in_variables",
+      "requestSchema": null,
+      "responseSchema": "CreateBuiltInVariableResponse",
+      "parameters": [
+        {
+          "name": "type",
+          "required": false,
+          "location": "query",
+          "type": "string",
+          "format": null,
+          "repeated": true,
+          "enum": [
+            "builtInVariableTypeUnspecified",
+            "pageUrl",
+            "pageHostname",
+            "pagePath",
+            "referrer",
+            "event",
+            "clickElement",
+            "clickClasses",
+            "clickId",
+            "clickTarget",
+            "clickUrl",
+            "clickText",
+            "firstPartyServingUrl",
+            "formElement",
+            "formClasses",
+            "formId",
+            "formTarget",
+            "formUrl",
+            "formText",
+            "errorMessage",
+            "errorUrl",
+            "errorLine",
+            "newHistoryUrl",
+            "oldHistoryUrl",
+            "newHistoryFragment",
+            "oldHistoryFragment",
+            "newHistoryState",
+            "oldHistoryState",
+            "historySource",
+            "containerVersion",
+            "debugMode",
+            "randomNumber",
+            "containerId",
+            "appId",
+            "appName",
+            "appVersionCode",
+            "appVersionName",
+            "language",
+            "osVersion",
+            "platform",
+            "sdkVersion",
+            "deviceName",
+            "resolution",
+            "advertiserId",
+            "advertisingTrackingEnabled",
+            "htmlId",
+            "environmentName",
+            "ampBrowserLanguage",
+            "ampCanonicalPath",
+            "ampCanonicalUrl",
+            "ampCanonicalHost",
+            "ampReferrer",
+            "ampTitle",
+            "ampClientId",
+            "ampClientTimezone",
+            "ampClientTimestamp",
+            "ampClientScreenWidth",
+            "ampClientScreenHeight",
+            "ampClientScrollX",
+            "ampClientScrollY",
+            "ampClientMaxScrollX",
+            "ampClientMaxScrollY",
+            "ampTotalEngagedTime",
+            "ampPageViewId",
+            "ampPageLoadTime",
+            "ampPageDownloadTime",
+            "ampGtmEvent",
+            "eventName",
+            "firebaseEventParameterCampaign",
+            "firebaseEventParameterCampaignAclid",
+            "firebaseEventParameterCampaignAnid",
+            "firebaseEventParameterCampaignClickTimestamp",
+            "firebaseEventParameterCampaignContent",
+            "firebaseEventParameterCampaignCp1",
+            "firebaseEventParameterCampaignGclid",
+            "firebaseEventParameterCampaignSource",
+            "firebaseEventParameterCampaignTerm",
+            "firebaseEventParameterCurrency",
+            "firebaseEventParameterDynamicLinkAcceptTime",
+            "firebaseEventParameterDynamicLinkLinkid",
+            "firebaseEventParameterNotificationMessageDeviceTime",
+            "firebaseEventParameterNotificationMessageId",
+            "firebaseEventParameterNotificationMessageName",
+            "firebaseEventParameterNotificationMessageTime",
+            "firebaseEventParameterNotificationTopic",
+            "firebaseEventParameterPreviousAppVersion",
+            "firebaseEventParameterPreviousOsVersion",
+            "firebaseEventParameterPrice",
+            "firebaseEventParameterProductId",
+            "firebaseEventParameterQuantity",
+            "firebaseEventParameterValue",
+            "videoProvider",
+            "videoUrl",
+            "videoTitle",
+            "videoDuration",
+            "videoPercent",
+            "videoVisible",
+            "videoStatus",
+            "videoCurrentTime",
+            "scrollDepthThreshold",
+            "scrollDepthUnits",
+            "scrollDepthDirection",
+            "elementVisibilityRatio",
+            "elementVisibilityTime",
+            "elementVisibilityFirstTime",
+            "elementVisibilityRecentTime",
+            "requestPath",
+            "requestMethod",
+            "clientName",
+            "queryString",
+            "serverPageLocationUrl",
+            "serverPageLocationPath",
+            "serverPageLocationHostname",
+            "visitorRegion",
+            "analyticsClientId",
+            "analyticsSessionId",
+            "analyticsSessionNumber"
+          ],
+          "pattern": null
+        },
+        {
+          "name": "parent",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+$"
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers"
+      ],
+      "operationKind": "mutation"
+    },
+    {
+      "number": 29,
+      "resource": "accounts.containers.workspaces.built_in_variables",
+      "method": "delete",
+      "cliCommand": "gtmctl accounts containers workspaces built-in-variables delete",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.built_in_variables.delete",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "DELETE",
+      "restPath": "tagmanager/v2/{+path}",
+      "requestSchema": null,
+      "responseSchema": null,
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+/built_in_variables$"
+        },
+        {
+          "name": "type",
+          "required": false,
+          "location": "query",
+          "type": "string",
+          "format": null,
+          "repeated": true,
+          "enum": [
+            "builtInVariableTypeUnspecified",
+            "pageUrl",
+            "pageHostname",
+            "pagePath",
+            "referrer",
+            "event",
+            "clickElement",
+            "clickClasses",
+            "clickId",
+            "clickTarget",
+            "clickUrl",
+            "clickText",
+            "firstPartyServingUrl",
+            "formElement",
+            "formClasses",
+            "formId",
+            "formTarget",
+            "formUrl",
+            "formText",
+            "errorMessage",
+            "errorUrl",
+            "errorLine",
+            "newHistoryUrl",
+            "oldHistoryUrl",
+            "newHistoryFragment",
+            "oldHistoryFragment",
+            "newHistoryState",
+            "oldHistoryState",
+            "historySource",
+            "containerVersion",
+            "debugMode",
+            "randomNumber",
+            "containerId",
+            "appId",
+            "appName",
+            "appVersionCode",
+            "appVersionName",
+            "language",
+            "osVersion",
+            "platform",
+            "sdkVersion",
+            "deviceName",
+            "resolution",
+            "advertiserId",
+            "advertisingTrackingEnabled",
+            "htmlId",
+            "environmentName",
+            "ampBrowserLanguage",
+            "ampCanonicalPath",
+            "ampCanonicalUrl",
+            "ampCanonicalHost",
+            "ampReferrer",
+            "ampTitle",
+            "ampClientId",
+            "ampClientTimezone",
+            "ampClientTimestamp",
+            "ampClientScreenWidth",
+            "ampClientScreenHeight",
+            "ampClientScrollX",
+            "ampClientScrollY",
+            "ampClientMaxScrollX",
+            "ampClientMaxScrollY",
+            "ampTotalEngagedTime",
+            "ampPageViewId",
+            "ampPageLoadTime",
+            "ampPageDownloadTime",
+            "ampGtmEvent",
+            "eventName",
+            "firebaseEventParameterCampaign",
+            "firebaseEventParameterCampaignAclid",
+            "firebaseEventParameterCampaignAnid",
+            "firebaseEventParameterCampaignClickTimestamp",
+            "firebaseEventParameterCampaignContent",
+            "firebaseEventParameterCampaignCp1",
+            "firebaseEventParameterCampaignGclid",
+            "firebaseEventParameterCampaignSource",
+            "firebaseEventParameterCampaignTerm",
+            "firebaseEventParameterCurrency",
+            "firebaseEventParameterDynamicLinkAcceptTime",
+            "firebaseEventParameterDynamicLinkLinkid",
+            "firebaseEventParameterNotificationMessageDeviceTime",
+            "firebaseEventParameterNotificationMessageId",
+            "firebaseEventParameterNotificationMessageName",
+            "firebaseEventParameterNotificationMessageTime",
+            "firebaseEventParameterNotificationTopic",
+            "firebaseEventParameterPreviousAppVersion",
+            "firebaseEventParameterPreviousOsVersion",
+            "firebaseEventParameterPrice",
+            "firebaseEventParameterProductId",
+            "firebaseEventParameterQuantity",
+            "firebaseEventParameterValue",
+            "videoProvider",
+            "videoUrl",
+            "videoTitle",
+            "videoDuration",
+            "videoPercent",
+            "videoVisible",
+            "videoStatus",
+            "videoCurrentTime",
+            "scrollDepthThreshold",
+            "scrollDepthUnits",
+            "scrollDepthDirection",
+            "elementVisibilityRatio",
+            "elementVisibilityTime",
+            "elementVisibilityFirstTime",
+            "elementVisibilityRecentTime",
+            "requestPath",
+            "requestMethod",
+            "clientName",
+            "queryString",
+            "serverPageLocationUrl",
+            "serverPageLocationPath",
+            "serverPageLocationHostname",
+            "visitorRegion",
+            "analyticsClientId",
+            "analyticsSessionId",
+            "analyticsSessionNumber"
+          ],
+          "pattern": null
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers"
+      ],
+      "operationKind": "destructive"
+    },
+    {
+      "number": 30,
+      "resource": "accounts.containers.workspaces.built_in_variables",
+      "method": "list",
+      "cliCommand": "gtmctl accounts containers workspaces built-in-variables list",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.built_in_variables.list",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "GET",
+      "restPath": "tagmanager/v2/{+parent}/built_in_variables",
+      "requestSchema": null,
+      "responseSchema": "ListEnabledBuiltInVariablesResponse",
+      "parameters": [
+        {
+          "name": "pageToken",
+          "required": false,
+          "location": "query",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": null
+        },
+        {
+          "name": "parent",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+$"
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers",
+        "https://www.googleapis.com/auth/tagmanager.readonly"
+      ],
+      "operationKind": "read"
+    },
+    {
+      "number": 31,
+      "resource": "accounts.containers.workspaces.built_in_variables",
+      "method": "revert",
+      "cliCommand": "gtmctl accounts containers workspaces built-in-variables revert",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.built_in_variables.revert",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "POST",
+      "restPath": "tagmanager/v2/{+path}/built_in_variables:revert",
+      "requestSchema": null,
+      "responseSchema": "RevertBuiltInVariableResponse",
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+$"
+        },
+        {
+          "name": "type",
+          "required": false,
+          "location": "query",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [
+            "builtInVariableTypeUnspecified",
+            "pageUrl",
+            "pageHostname",
+            "pagePath",
+            "referrer",
+            "event",
+            "clickElement",
+            "clickClasses",
+            "clickId",
+            "clickTarget",
+            "clickUrl",
+            "clickText",
+            "firstPartyServingUrl",
+            "formElement",
+            "formClasses",
+            "formId",
+            "formTarget",
+            "formUrl",
+            "formText",
+            "errorMessage",
+            "errorUrl",
+            "errorLine",
+            "newHistoryUrl",
+            "oldHistoryUrl",
+            "newHistoryFragment",
+            "oldHistoryFragment",
+            "newHistoryState",
+            "oldHistoryState",
+            "historySource",
+            "containerVersion",
+            "debugMode",
+            "randomNumber",
+            "containerId",
+            "appId",
+            "appName",
+            "appVersionCode",
+            "appVersionName",
+            "language",
+            "osVersion",
+            "platform",
+            "sdkVersion",
+            "deviceName",
+            "resolution",
+            "advertiserId",
+            "advertisingTrackingEnabled",
+            "htmlId",
+            "environmentName",
+            "ampBrowserLanguage",
+            "ampCanonicalPath",
+            "ampCanonicalUrl",
+            "ampCanonicalHost",
+            "ampReferrer",
+            "ampTitle",
+            "ampClientId",
+            "ampClientTimezone",
+            "ampClientTimestamp",
+            "ampClientScreenWidth",
+            "ampClientScreenHeight",
+            "ampClientScrollX",
+            "ampClientScrollY",
+            "ampClientMaxScrollX",
+            "ampClientMaxScrollY",
+            "ampTotalEngagedTime",
+            "ampPageViewId",
+            "ampPageLoadTime",
+            "ampPageDownloadTime",
+            "ampGtmEvent",
+            "eventName",
+            "firebaseEventParameterCampaign",
+            "firebaseEventParameterCampaignAclid",
+            "firebaseEventParameterCampaignAnid",
+            "firebaseEventParameterCampaignClickTimestamp",
+            "firebaseEventParameterCampaignContent",
+            "firebaseEventParameterCampaignCp1",
+            "firebaseEventParameterCampaignGclid",
+            "firebaseEventParameterCampaignSource",
+            "firebaseEventParameterCampaignTerm",
+            "firebaseEventParameterCurrency",
+            "firebaseEventParameterDynamicLinkAcceptTime",
+            "firebaseEventParameterDynamicLinkLinkid",
+            "firebaseEventParameterNotificationMessageDeviceTime",
+            "firebaseEventParameterNotificationMessageId",
+            "firebaseEventParameterNotificationMessageName",
+            "firebaseEventParameterNotificationMessageTime",
+            "firebaseEventParameterNotificationTopic",
+            "firebaseEventParameterPreviousAppVersion",
+            "firebaseEventParameterPreviousOsVersion",
+            "firebaseEventParameterPrice",
+            "firebaseEventParameterProductId",
+            "firebaseEventParameterQuantity",
+            "firebaseEventParameterValue",
+            "videoProvider",
+            "videoUrl",
+            "videoTitle",
+            "videoDuration",
+            "videoPercent",
+            "videoVisible",
+            "videoStatus",
+            "videoCurrentTime",
+            "scrollDepthThreshold",
+            "scrollDepthUnits",
+            "scrollDepthDirection",
+            "elementVisibilityRatio",
+            "elementVisibilityTime",
+            "elementVisibilityFirstTime",
+            "elementVisibilityRecentTime",
+            "requestPath",
+            "requestMethod",
+            "clientName",
+            "queryString",
+            "serverPageLocationUrl",
+            "serverPageLocationPath",
+            "serverPageLocationHostname",
+            "visitorRegion",
+            "analyticsClientId",
+            "analyticsSessionId",
+            "analyticsSessionNumber"
+          ],
+          "pattern": null
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers"
+      ],
+      "operationKind": "mutation"
+    },
+    {
+      "number": 32,
+      "resource": "accounts.containers.workspaces",
+      "method": "bulk_update",
+      "cliCommand": "gtmctl accounts containers workspaces bulk-update",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.bulk_update",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "POST",
+      "restPath": "tagmanager/v2/{+path}/bulk_update",
+      "requestSchema": "ProposedChange",
+      "responseSchema": "BulkUpdateWorkspaceResponse",
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+$"
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers"
+      ],
+      "operationKind": "high-impact"
+    },
+    {
+      "number": 33,
+      "resource": "accounts.containers.workspaces.clients",
+      "method": "create",
+      "cliCommand": "gtmctl accounts containers workspaces clients create",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.clients.create",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "POST",
+      "restPath": "tagmanager/v2/{+parent}/clients",
+      "requestSchema": "Client",
+      "responseSchema": "Client",
+      "parameters": [
+        {
+          "name": "parent",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+$"
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers"
+      ],
+      "operationKind": "mutation"
+    },
+    {
+      "number": 34,
+      "resource": "accounts.containers.workspaces.clients",
+      "method": "delete",
+      "cliCommand": "gtmctl accounts containers workspaces clients delete",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.clients.delete",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "DELETE",
+      "restPath": "tagmanager/v2/{+path}",
+      "requestSchema": null,
+      "responseSchema": null,
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+/clients/[^/]+$"
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers"
+      ],
+      "operationKind": "destructive"
+    },
+    {
+      "number": 35,
+      "resource": "accounts.containers.workspaces.clients",
+      "method": "get",
+      "cliCommand": "gtmctl accounts containers workspaces clients get",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.clients.get",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "GET",
+      "restPath": "tagmanager/v2/{+path}",
+      "requestSchema": null,
+      "responseSchema": "Client",
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+/clients/[^/]+$"
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers",
+        "https://www.googleapis.com/auth/tagmanager.readonly"
+      ],
+      "operationKind": "read"
+    },
+    {
+      "number": 36,
+      "resource": "accounts.containers.workspaces.clients",
+      "method": "list",
+      "cliCommand": "gtmctl accounts containers workspaces clients list",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.clients.list",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "GET",
+      "restPath": "tagmanager/v2/{+parent}/clients",
+      "requestSchema": null,
+      "responseSchema": "ListClientsResponse",
+      "parameters": [
+        {
+          "name": "parent",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+$"
+        },
+        {
+          "name": "pageToken",
+          "required": false,
+          "location": "query",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": null
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers",
+        "https://www.googleapis.com/auth/tagmanager.readonly"
+      ],
+      "operationKind": "read"
+    },
+    {
+      "number": 37,
+      "resource": "accounts.containers.workspaces.clients",
+      "method": "revert",
+      "cliCommand": "gtmctl accounts containers workspaces clients revert",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.clients.revert",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "POST",
+      "restPath": "tagmanager/v2/{+path}:revert",
+      "requestSchema": null,
+      "responseSchema": "RevertClientResponse",
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+/clients/[^/]+$"
+        },
+        {
+          "name": "fingerprint",
+          "required": false,
+          "location": "query",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": null
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers"
+      ],
+      "operationKind": "mutation"
+    },
+    {
+      "number": 38,
+      "resource": "accounts.containers.workspaces.clients",
+      "method": "update",
+      "cliCommand": "gtmctl accounts containers workspaces clients update",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.clients.update",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "PUT",
+      "restPath": "tagmanager/v2/{+path}",
+      "requestSchema": "Client",
+      "responseSchema": "Client",
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+/clients/[^/]+$"
+        },
+        {
+          "name": "fingerprint",
+          "required": false,
+          "location": "query",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": null
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers"
+      ],
+      "operationKind": "mutation"
+    },
+    {
+      "number": 39,
+      "resource": "accounts.containers.workspaces",
+      "method": "create",
+      "cliCommand": "gtmctl accounts containers workspaces create",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.create",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "POST",
+      "restPath": "tagmanager/v2/{+parent}/workspaces",
+      "requestSchema": "Workspace",
+      "responseSchema": "Workspace",
+      "parameters": [
+        {
+          "name": "parent",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+$"
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers"
+      ],
+      "operationKind": "mutation"
+    },
+    {
+      "number": 40,
+      "resource": "accounts.containers.workspaces",
+      "method": "create_version",
+      "cliCommand": "gtmctl accounts containers workspaces create-version",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.create_version",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "POST",
+      "restPath": "tagmanager/v2/{+path}:create_version",
+      "requestSchema": "CreateContainerVersionRequestVersionOptions",
+      "responseSchema": "CreateContainerVersionResponse",
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+$"
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containerversions"
+      ],
+      "operationKind": "destructive"
+    },
+    {
+      "number": 41,
+      "resource": "accounts.containers.workspaces",
+      "method": "delete",
+      "cliCommand": "gtmctl accounts containers workspaces delete",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.delete",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "DELETE",
+      "restPath": "tagmanager/v2/{+path}",
+      "requestSchema": null,
+      "responseSchema": null,
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+$"
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.delete.containers"
+      ],
+      "operationKind": "destructive"
+    },
+    {
+      "number": 42,
+      "resource": "accounts.containers.workspaces.folders",
+      "method": "create",
+      "cliCommand": "gtmctl accounts containers workspaces folders create",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.folders.create",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "POST",
+      "restPath": "tagmanager/v2/{+parent}/folders",
+      "requestSchema": "Folder",
+      "responseSchema": "Folder",
+      "parameters": [
+        {
+          "name": "parent",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+$"
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers"
+      ],
+      "operationKind": "mutation"
+    },
+    {
+      "number": 43,
+      "resource": "accounts.containers.workspaces.folders",
+      "method": "delete",
+      "cliCommand": "gtmctl accounts containers workspaces folders delete",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.folders.delete",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "DELETE",
+      "restPath": "tagmanager/v2/{+path}",
+      "requestSchema": null,
+      "responseSchema": null,
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+/folders/[^/]+$"
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers"
+      ],
+      "operationKind": "destructive"
+    },
+    {
+      "number": 44,
+      "resource": "accounts.containers.workspaces.folders",
+      "method": "entities",
+      "cliCommand": "gtmctl accounts containers workspaces folders entities",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.folders.entities",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "POST",
+      "restPath": "tagmanager/v2/{+path}:entities",
+      "requestSchema": null,
+      "responseSchema": "FolderEntities",
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+/folders/[^/]+$"
+        },
+        {
+          "name": "pageToken",
+          "required": false,
+          "location": "query",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": null
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers",
+        "https://www.googleapis.com/auth/tagmanager.readonly"
+      ],
+      "operationKind": "read"
+    },
+    {
+      "number": 45,
+      "resource": "accounts.containers.workspaces.folders",
+      "method": "get",
+      "cliCommand": "gtmctl accounts containers workspaces folders get",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.folders.get",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "GET",
+      "restPath": "tagmanager/v2/{+path}",
+      "requestSchema": null,
+      "responseSchema": "Folder",
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+/folders/[^/]+$"
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers",
+        "https://www.googleapis.com/auth/tagmanager.readonly"
+      ],
+      "operationKind": "read"
+    },
+    {
+      "number": 46,
+      "resource": "accounts.containers.workspaces.folders",
+      "method": "list",
+      "cliCommand": "gtmctl accounts containers workspaces folders list",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.folders.list",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "GET",
+      "restPath": "tagmanager/v2/{+parent}/folders",
+      "requestSchema": null,
+      "responseSchema": "ListFoldersResponse",
+      "parameters": [
+        {
+          "name": "pageToken",
+          "required": false,
+          "location": "query",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": null
+        },
+        {
+          "name": "parent",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+$"
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers",
+        "https://www.googleapis.com/auth/tagmanager.readonly"
+      ],
+      "operationKind": "read"
+    },
+    {
+      "number": 47,
+      "resource": "accounts.containers.workspaces.folders",
+      "method": "move_entities_to_folder",
+      "cliCommand": "gtmctl accounts containers workspaces folders move-entities-to-folder",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.folders.move_entities_to_folder",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "POST",
+      "restPath": "tagmanager/v2/{+path}:move_entities_to_folder",
+      "requestSchema": "Folder",
+      "responseSchema": null,
+      "parameters": [
+        {
+          "name": "variableId",
+          "required": false,
+          "location": "query",
+          "type": "string",
+          "format": null,
+          "repeated": true,
+          "enum": [],
+          "pattern": null
+        },
+        {
+          "name": "triggerId",
+          "required": false,
+          "location": "query",
+          "type": "string",
+          "format": null,
+          "repeated": true,
+          "enum": [],
+          "pattern": null
+        },
+        {
+          "name": "tagId",
+          "required": false,
+          "location": "query",
+          "type": "string",
+          "format": null,
+          "repeated": true,
+          "enum": [],
+          "pattern": null
+        },
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+/folders/[^/]+$"
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers"
+      ],
+      "operationKind": "mutation"
+    },
+    {
+      "number": 48,
+      "resource": "accounts.containers.workspaces.folders",
+      "method": "revert",
+      "cliCommand": "gtmctl accounts containers workspaces folders revert",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.folders.revert",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "POST",
+      "restPath": "tagmanager/v2/{+path}:revert",
+      "requestSchema": null,
+      "responseSchema": "RevertFolderResponse",
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+/folders/[^/]+$"
+        },
+        {
+          "name": "fingerprint",
+          "required": false,
+          "location": "query",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": null
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers"
+      ],
+      "operationKind": "mutation"
+    },
+    {
+      "number": 49,
+      "resource": "accounts.containers.workspaces.folders",
+      "method": "update",
+      "cliCommand": "gtmctl accounts containers workspaces folders update",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.folders.update",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "PUT",
+      "restPath": "tagmanager/v2/{+path}",
+      "requestSchema": "Folder",
+      "responseSchema": "Folder",
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+/folders/[^/]+$"
+        },
+        {
+          "name": "fingerprint",
+          "required": false,
+          "location": "query",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": null
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers"
+      ],
+      "operationKind": "mutation"
+    },
+    {
+      "number": 50,
+      "resource": "accounts.containers.workspaces",
+      "method": "get",
+      "cliCommand": "gtmctl accounts containers workspaces get",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.get",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "GET",
+      "restPath": "tagmanager/v2/{+path}",
+      "requestSchema": null,
+      "responseSchema": "Workspace",
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+$"
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers",
+        "https://www.googleapis.com/auth/tagmanager.readonly"
+      ],
+      "operationKind": "read"
+    },
+    {
+      "number": 51,
+      "resource": "accounts.containers.workspaces",
+      "method": "getStatus",
+      "cliCommand": "gtmctl accounts containers workspaces get-status",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.getStatus",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "GET",
+      "restPath": "tagmanager/v2/{+path}/status",
+      "requestSchema": null,
+      "responseSchema": "GetWorkspaceStatusResponse",
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+$"
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers",
+        "https://www.googleapis.com/auth/tagmanager.readonly"
+      ],
+      "operationKind": "read"
+    },
+    {
+      "number": 52,
+      "resource": "accounts.containers.workspaces.gtag_config",
+      "method": "create",
+      "cliCommand": "gtmctl accounts containers workspaces gtag-config create",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.gtag_config.create",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "POST",
+      "restPath": "tagmanager/v2/{+parent}/gtag_config",
+      "requestSchema": "GtagConfig",
+      "responseSchema": "GtagConfig",
+      "parameters": [
+        {
+          "name": "parent",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+$"
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers"
+      ],
+      "operationKind": "mutation"
+    },
+    {
+      "number": 53,
+      "resource": "accounts.containers.workspaces.gtag_config",
+      "method": "delete",
+      "cliCommand": "gtmctl accounts containers workspaces gtag-config delete",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.gtag_config.delete",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "DELETE",
+      "restPath": "tagmanager/v2/{+path}",
+      "requestSchema": null,
+      "responseSchema": null,
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+/gtag_config/[^/]+$"
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers"
+      ],
+      "operationKind": "destructive"
+    },
+    {
+      "number": 54,
+      "resource": "accounts.containers.workspaces.gtag_config",
+      "method": "get",
+      "cliCommand": "gtmctl accounts containers workspaces gtag-config get",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.gtag_config.get",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "GET",
+      "restPath": "tagmanager/v2/{+path}",
+      "requestSchema": null,
+      "responseSchema": "GtagConfig",
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+/gtag_config/[^/]+$"
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers",
+        "https://www.googleapis.com/auth/tagmanager.readonly"
+      ],
+      "operationKind": "read"
+    },
+    {
+      "number": 55,
+      "resource": "accounts.containers.workspaces.gtag_config",
+      "method": "list",
+      "cliCommand": "gtmctl accounts containers workspaces gtag-config list",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.gtag_config.list",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "GET",
+      "restPath": "tagmanager/v2/{+parent}/gtag_config",
+      "requestSchema": null,
+      "responseSchema": "ListGtagConfigResponse",
+      "parameters": [
+        {
+          "name": "parent",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+$"
+        },
+        {
+          "name": "pageToken",
+          "required": false,
+          "location": "query",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": null
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers",
+        "https://www.googleapis.com/auth/tagmanager.readonly"
+      ],
+      "operationKind": "read"
+    },
+    {
+      "number": 56,
+      "resource": "accounts.containers.workspaces.gtag_config",
+      "method": "update",
+      "cliCommand": "gtmctl accounts containers workspaces gtag-config update",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.gtag_config.update",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "PUT",
+      "restPath": "tagmanager/v2/{+path}",
+      "requestSchema": "GtagConfig",
+      "responseSchema": "GtagConfig",
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+/gtag_config/[^/]+$"
+        },
+        {
+          "name": "fingerprint",
+          "required": false,
+          "location": "query",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": null
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers"
+      ],
+      "operationKind": "mutation"
+    },
+    {
+      "number": 57,
+      "resource": "accounts.containers.workspaces",
+      "method": "list",
+      "cliCommand": "gtmctl accounts containers workspaces list",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.list",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "GET",
+      "restPath": "tagmanager/v2/{+parent}/workspaces",
+      "requestSchema": null,
+      "responseSchema": "ListWorkspacesResponse",
+      "parameters": [
+        {
+          "name": "parent",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+$"
+        },
+        {
+          "name": "pageToken",
+          "required": false,
+          "location": "query",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": null
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers",
+        "https://www.googleapis.com/auth/tagmanager.readonly"
+      ],
+      "operationKind": "read"
+    },
+    {
+      "number": 58,
+      "resource": "accounts.containers.workspaces",
+      "method": "quick_preview",
+      "cliCommand": "gtmctl accounts containers workspaces quick-preview",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.quick_preview",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "POST",
+      "restPath": "tagmanager/v2/{+path}:quick_preview",
+      "requestSchema": null,
+      "responseSchema": "QuickPreviewResponse",
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+$"
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containerversions"
+      ],
+      "operationKind": "mutation"
+    },
+    {
+      "number": 59,
+      "resource": "accounts.containers.workspaces",
+      "method": "resolve_conflict",
+      "cliCommand": "gtmctl accounts containers workspaces resolve-conflict",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.resolve_conflict",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "POST",
+      "restPath": "tagmanager/v2/{+path}:resolve_conflict",
+      "requestSchema": "Entity",
+      "responseSchema": null,
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+$"
+        },
+        {
+          "name": "fingerprint",
+          "required": false,
+          "location": "query",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": null
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers"
+      ],
+      "operationKind": "mutation"
+    },
+    {
+      "number": 60,
+      "resource": "accounts.containers.workspaces",
+      "method": "sync",
+      "cliCommand": "gtmctl accounts containers workspaces sync",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.sync",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "POST",
+      "restPath": "tagmanager/v2/{+path}:sync",
+      "requestSchema": null,
+      "responseSchema": "SyncWorkspaceResponse",
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+$"
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers"
+      ],
+      "operationKind": "mutation"
+    },
+    {
+      "number": 61,
+      "resource": "accounts.containers.workspaces.tags",
+      "method": "create",
+      "cliCommand": "gtmctl accounts containers workspaces tags create",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.tags.create",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "POST",
+      "restPath": "tagmanager/v2/{+parent}/tags",
+      "requestSchema": "Tag",
+      "responseSchema": "Tag",
+      "parameters": [
+        {
+          "name": "parent",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+$"
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers"
+      ],
+      "operationKind": "mutation"
+    },
+    {
+      "number": 62,
+      "resource": "accounts.containers.workspaces.tags",
+      "method": "delete",
+      "cliCommand": "gtmctl accounts containers workspaces tags delete",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.tags.delete",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "DELETE",
+      "restPath": "tagmanager/v2/{+path}",
+      "requestSchema": null,
+      "responseSchema": null,
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+/tags/[^/]+$"
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers"
+      ],
+      "operationKind": "destructive"
+    },
+    {
+      "number": 63,
+      "resource": "accounts.containers.workspaces.tags",
+      "method": "get",
+      "cliCommand": "gtmctl accounts containers workspaces tags get",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.tags.get",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "GET",
+      "restPath": "tagmanager/v2/{+path}",
+      "requestSchema": null,
+      "responseSchema": "Tag",
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+/tags/[^/]+$"
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers",
+        "https://www.googleapis.com/auth/tagmanager.readonly"
+      ],
+      "operationKind": "read"
+    },
+    {
+      "number": 64,
+      "resource": "accounts.containers.workspaces.tags",
+      "method": "list",
+      "cliCommand": "gtmctl accounts containers workspaces tags list",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.tags.list",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "GET",
+      "restPath": "tagmanager/v2/{+parent}/tags",
+      "requestSchema": null,
+      "responseSchema": "ListTagsResponse",
+      "parameters": [
+        {
+          "name": "pageToken",
+          "required": false,
+          "location": "query",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": null
+        },
+        {
+          "name": "parent",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+$"
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers",
+        "https://www.googleapis.com/auth/tagmanager.readonly"
+      ],
+      "operationKind": "read"
+    },
+    {
+      "number": 65,
+      "resource": "accounts.containers.workspaces.tags",
+      "method": "revert",
+      "cliCommand": "gtmctl accounts containers workspaces tags revert",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.tags.revert",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "POST",
+      "restPath": "tagmanager/v2/{+path}:revert",
+      "requestSchema": null,
+      "responseSchema": "RevertTagResponse",
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+/tags/[^/]+$"
+        },
+        {
+          "name": "fingerprint",
+          "required": false,
+          "location": "query",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": null
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers"
+      ],
+      "operationKind": "mutation"
+    },
+    {
+      "number": 66,
+      "resource": "accounts.containers.workspaces.tags",
+      "method": "update",
+      "cliCommand": "gtmctl accounts containers workspaces tags update",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.tags.update",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "PUT",
+      "restPath": "tagmanager/v2/{+path}",
+      "requestSchema": "Tag",
+      "responseSchema": "Tag",
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+/tags/[^/]+$"
+        },
+        {
+          "name": "fingerprint",
+          "required": false,
+          "location": "query",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": null
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers"
+      ],
+      "operationKind": "mutation"
+    },
+    {
+      "number": 67,
+      "resource": "accounts.containers.workspaces.templates",
+      "method": "create",
+      "cliCommand": "gtmctl accounts containers workspaces templates create",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.templates.create",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "POST",
+      "restPath": "tagmanager/v2/{+parent}/templates",
+      "requestSchema": "CustomTemplate",
+      "responseSchema": "CustomTemplate",
+      "parameters": [
+        {
+          "name": "parent",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+$"
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers"
+      ],
+      "operationKind": "mutation"
+    },
+    {
+      "number": 68,
+      "resource": "accounts.containers.workspaces.templates",
+      "method": "delete",
+      "cliCommand": "gtmctl accounts containers workspaces templates delete",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.templates.delete",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "DELETE",
+      "restPath": "tagmanager/v2/{+path}",
+      "requestSchema": null,
+      "responseSchema": null,
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+/templates/[^/]+$"
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers"
+      ],
+      "operationKind": "destructive"
+    },
+    {
+      "number": 69,
+      "resource": "accounts.containers.workspaces.templates",
+      "method": "get",
+      "cliCommand": "gtmctl accounts containers workspaces templates get",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.templates.get",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "GET",
+      "restPath": "tagmanager/v2/{+path}",
+      "requestSchema": null,
+      "responseSchema": "CustomTemplate",
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+/templates/[^/]+$"
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers",
+        "https://www.googleapis.com/auth/tagmanager.readonly"
+      ],
+      "operationKind": "read"
+    },
+    {
+      "number": 70,
+      "resource": "accounts.containers.workspaces.templates",
+      "method": "import_from_gallery",
+      "cliCommand": "gtmctl accounts containers workspaces templates import-from-gallery",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.templates.import_from_gallery",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "POST",
+      "restPath": "tagmanager/v2/{+parent}/templates:import_from_gallery",
+      "requestSchema": null,
+      "responseSchema": "CustomTemplate",
+      "parameters": [
+        {
+          "name": "galleryOwner",
+          "required": false,
+          "location": "query",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": null
+        },
+        {
+          "name": "gallerySha",
+          "required": false,
+          "location": "query",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": null
+        },
+        {
+          "name": "parent",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+$"
+        },
+        {
+          "name": "galleryRepository",
+          "required": false,
+          "location": "query",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": null
+        },
+        {
+          "name": "acknowledgePermissions",
+          "required": false,
+          "location": "query",
+          "type": "boolean",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": null
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers"
+      ],
+      "operationKind": "mutation"
+    },
+    {
+      "number": 71,
+      "resource": "accounts.containers.workspaces.templates",
+      "method": "list",
+      "cliCommand": "gtmctl accounts containers workspaces templates list",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.templates.list",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "GET",
+      "restPath": "tagmanager/v2/{+parent}/templates",
+      "requestSchema": null,
+      "responseSchema": "ListTemplatesResponse",
+      "parameters": [
+        {
+          "name": "pageToken",
+          "required": false,
+          "location": "query",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": null
+        },
+        {
+          "name": "parent",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+$"
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers",
+        "https://www.googleapis.com/auth/tagmanager.readonly"
+      ],
+      "operationKind": "read"
+    },
+    {
+      "number": 72,
+      "resource": "accounts.containers.workspaces.templates",
+      "method": "revert",
+      "cliCommand": "gtmctl accounts containers workspaces templates revert",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.templates.revert",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "POST",
+      "restPath": "tagmanager/v2/{+path}:revert",
+      "requestSchema": null,
+      "responseSchema": "RevertTemplateResponse",
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+/templates/[^/]+$"
+        },
+        {
+          "name": "fingerprint",
+          "required": false,
+          "location": "query",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": null
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers"
+      ],
+      "operationKind": "mutation"
+    },
+    {
+      "number": 73,
+      "resource": "accounts.containers.workspaces.templates",
+      "method": "update",
+      "cliCommand": "gtmctl accounts containers workspaces templates update",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.templates.update",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "PUT",
+      "restPath": "tagmanager/v2/{+path}",
+      "requestSchema": "CustomTemplate",
+      "responseSchema": "CustomTemplate",
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+/templates/[^/]+$"
+        },
+        {
+          "name": "fingerprint",
+          "required": false,
+          "location": "query",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": null
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers"
+      ],
+      "operationKind": "mutation"
+    },
+    {
+      "number": 74,
+      "resource": "accounts.containers.workspaces.transformations",
+      "method": "create",
+      "cliCommand": "gtmctl accounts containers workspaces transformations create",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.transformations.create",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "POST",
+      "restPath": "tagmanager/v2/{+parent}/transformations",
+      "requestSchema": "Transformation",
+      "responseSchema": "Transformation",
+      "parameters": [
+        {
+          "name": "parent",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+$"
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers"
+      ],
+      "operationKind": "mutation"
+    },
+    {
+      "number": 75,
+      "resource": "accounts.containers.workspaces.transformations",
+      "method": "delete",
+      "cliCommand": "gtmctl accounts containers workspaces transformations delete",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.transformations.delete",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "DELETE",
+      "restPath": "tagmanager/v2/{+path}",
+      "requestSchema": null,
+      "responseSchema": null,
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+/transformations/[^/]+$"
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers"
+      ],
+      "operationKind": "destructive"
+    },
+    {
+      "number": 76,
+      "resource": "accounts.containers.workspaces.transformations",
+      "method": "get",
+      "cliCommand": "gtmctl accounts containers workspaces transformations get",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.transformations.get",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "GET",
+      "restPath": "tagmanager/v2/{+path}",
+      "requestSchema": null,
+      "responseSchema": "Transformation",
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+/transformations/[^/]+$"
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers",
+        "https://www.googleapis.com/auth/tagmanager.readonly"
+      ],
+      "operationKind": "read"
+    },
+    {
+      "number": 77,
+      "resource": "accounts.containers.workspaces.transformations",
+      "method": "list",
+      "cliCommand": "gtmctl accounts containers workspaces transformations list",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.transformations.list",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "GET",
+      "restPath": "tagmanager/v2/{+parent}/transformations",
+      "requestSchema": null,
+      "responseSchema": "ListTransformationsResponse",
+      "parameters": [
+        {
+          "name": "pageToken",
+          "required": false,
+          "location": "query",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": null
+        },
+        {
+          "name": "parent",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+$"
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers",
+        "https://www.googleapis.com/auth/tagmanager.readonly"
+      ],
+      "operationKind": "read"
+    },
+    {
+      "number": 78,
+      "resource": "accounts.containers.workspaces.transformations",
+      "method": "revert",
+      "cliCommand": "gtmctl accounts containers workspaces transformations revert",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.transformations.revert",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "POST",
+      "restPath": "tagmanager/v2/{+path}:revert",
+      "requestSchema": null,
+      "responseSchema": "RevertTransformationResponse",
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+/transformations/[^/]+$"
+        },
+        {
+          "name": "fingerprint",
+          "required": false,
+          "location": "query",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": null
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers"
+      ],
+      "operationKind": "mutation"
+    },
+    {
+      "number": 79,
+      "resource": "accounts.containers.workspaces.transformations",
+      "method": "update",
+      "cliCommand": "gtmctl accounts containers workspaces transformations update",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.transformations.update",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "PUT",
+      "restPath": "tagmanager/v2/{+path}",
+      "requestSchema": "Transformation",
+      "responseSchema": "Transformation",
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+/transformations/[^/]+$"
+        },
+        {
+          "name": "fingerprint",
+          "required": false,
+          "location": "query",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": null
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers"
+      ],
+      "operationKind": "mutation"
+    },
+    {
+      "number": 80,
+      "resource": "accounts.containers.workspaces.triggers",
+      "method": "create",
+      "cliCommand": "gtmctl accounts containers workspaces triggers create",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.triggers.create",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "POST",
+      "restPath": "tagmanager/v2/{+parent}/triggers",
+      "requestSchema": "Trigger",
+      "responseSchema": "Trigger",
+      "parameters": [
+        {
+          "name": "parent",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+$"
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers"
+      ],
+      "operationKind": "mutation"
+    },
+    {
+      "number": 81,
+      "resource": "accounts.containers.workspaces.triggers",
+      "method": "delete",
+      "cliCommand": "gtmctl accounts containers workspaces triggers delete",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.triggers.delete",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "DELETE",
+      "restPath": "tagmanager/v2/{+path}",
+      "requestSchema": null,
+      "responseSchema": null,
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+/triggers/[^/]+$"
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers"
+      ],
+      "operationKind": "destructive"
+    },
+    {
+      "number": 82,
+      "resource": "accounts.containers.workspaces.triggers",
+      "method": "get",
+      "cliCommand": "gtmctl accounts containers workspaces triggers get",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.triggers.get",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "GET",
+      "restPath": "tagmanager/v2/{+path}",
+      "requestSchema": null,
+      "responseSchema": "Trigger",
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+/triggers/[^/]+$"
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers",
+        "https://www.googleapis.com/auth/tagmanager.readonly"
+      ],
+      "operationKind": "read"
+    },
+    {
+      "number": 83,
+      "resource": "accounts.containers.workspaces.triggers",
+      "method": "list",
+      "cliCommand": "gtmctl accounts containers workspaces triggers list",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.triggers.list",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "GET",
+      "restPath": "tagmanager/v2/{+parent}/triggers",
+      "requestSchema": null,
+      "responseSchema": "ListTriggersResponse",
+      "parameters": [
+        {
+          "name": "parent",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+$"
+        },
+        {
+          "name": "pageToken",
+          "required": false,
+          "location": "query",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": null
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers",
+        "https://www.googleapis.com/auth/tagmanager.readonly"
+      ],
+      "operationKind": "read"
+    },
+    {
+      "number": 84,
+      "resource": "accounts.containers.workspaces.triggers",
+      "method": "revert",
+      "cliCommand": "gtmctl accounts containers workspaces triggers revert",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.triggers.revert",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "POST",
+      "restPath": "tagmanager/v2/{+path}:revert",
+      "requestSchema": null,
+      "responseSchema": "RevertTriggerResponse",
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+/triggers/[^/]+$"
+        },
+        {
+          "name": "fingerprint",
+          "required": false,
+          "location": "query",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": null
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers"
+      ],
+      "operationKind": "mutation"
+    },
+    {
+      "number": 85,
+      "resource": "accounts.containers.workspaces.triggers",
+      "method": "update",
+      "cliCommand": "gtmctl accounts containers workspaces triggers update",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.triggers.update",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "PUT",
+      "restPath": "tagmanager/v2/{+path}",
+      "requestSchema": "Trigger",
+      "responseSchema": "Trigger",
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+/triggers/[^/]+$"
+        },
+        {
+          "name": "fingerprint",
+          "required": false,
+          "location": "query",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": null
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers"
+      ],
+      "operationKind": "mutation"
+    },
+    {
+      "number": 86,
+      "resource": "accounts.containers.workspaces",
+      "method": "update",
+      "cliCommand": "gtmctl accounts containers workspaces update",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.update",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "PUT",
+      "restPath": "tagmanager/v2/{+path}",
+      "requestSchema": "Workspace",
+      "responseSchema": "Workspace",
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+$"
+        },
+        {
+          "name": "fingerprint",
+          "required": false,
+          "location": "query",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": null
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers"
+      ],
+      "operationKind": "mutation"
+    },
+    {
+      "number": 87,
+      "resource": "accounts.containers.workspaces.variables",
+      "method": "create",
+      "cliCommand": "gtmctl accounts containers workspaces variables create",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.variables.create",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "POST",
+      "restPath": "tagmanager/v2/{+parent}/variables",
+      "requestSchema": "Variable",
+      "responseSchema": "Variable",
+      "parameters": [
+        {
+          "name": "parent",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+$"
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers"
+      ],
+      "operationKind": "mutation"
+    },
+    {
+      "number": 88,
+      "resource": "accounts.containers.workspaces.variables",
+      "method": "delete",
+      "cliCommand": "gtmctl accounts containers workspaces variables delete",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.variables.delete",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "DELETE",
+      "restPath": "tagmanager/v2/{+path}",
+      "requestSchema": null,
+      "responseSchema": null,
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+/variables/[^/]+$"
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers"
+      ],
+      "operationKind": "destructive"
+    },
+    {
+      "number": 89,
+      "resource": "accounts.containers.workspaces.variables",
+      "method": "get",
+      "cliCommand": "gtmctl accounts containers workspaces variables get",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.variables.get",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "GET",
+      "restPath": "tagmanager/v2/{+path}",
+      "requestSchema": null,
+      "responseSchema": "Variable",
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+/variables/[^/]+$"
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers",
+        "https://www.googleapis.com/auth/tagmanager.readonly"
+      ],
+      "operationKind": "read"
+    },
+    {
+      "number": 90,
+      "resource": "accounts.containers.workspaces.variables",
+      "method": "list",
+      "cliCommand": "gtmctl accounts containers workspaces variables list",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.variables.list",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "GET",
+      "restPath": "tagmanager/v2/{+parent}/variables",
+      "requestSchema": null,
+      "responseSchema": "ListVariablesResponse",
+      "parameters": [
+        {
+          "name": "parent",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+$"
+        },
+        {
+          "name": "pageToken",
+          "required": false,
+          "location": "query",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": null
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers",
+        "https://www.googleapis.com/auth/tagmanager.readonly"
+      ],
+      "operationKind": "read"
+    },
+    {
+      "number": 91,
+      "resource": "accounts.containers.workspaces.variables",
+      "method": "revert",
+      "cliCommand": "gtmctl accounts containers workspaces variables revert",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.variables.revert",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "POST",
+      "restPath": "tagmanager/v2/{+path}:revert",
+      "requestSchema": null,
+      "responseSchema": "RevertVariableResponse",
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+/variables/[^/]+$"
+        },
+        {
+          "name": "fingerprint",
+          "required": false,
+          "location": "query",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": null
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers"
+      ],
+      "operationKind": "mutation"
+    },
+    {
+      "number": 92,
+      "resource": "accounts.containers.workspaces.variables",
+      "method": "update",
+      "cliCommand": "gtmctl accounts containers workspaces variables update",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.variables.update",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "PUT",
+      "restPath": "tagmanager/v2/{+path}",
+      "requestSchema": "Variable",
+      "responseSchema": "Variable",
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+/variables/[^/]+$"
+        },
+        {
+          "name": "fingerprint",
+          "required": false,
+          "location": "query",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": null
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers"
+      ],
+      "operationKind": "mutation"
+    },
+    {
+      "number": 93,
+      "resource": "accounts.containers.workspaces.zones",
+      "method": "create",
+      "cliCommand": "gtmctl accounts containers workspaces zones create",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.zones.create",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "POST",
+      "restPath": "tagmanager/v2/{+parent}/zones",
+      "requestSchema": "Zone",
+      "responseSchema": "Zone",
+      "parameters": [
+        {
+          "name": "parent",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+$"
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers"
+      ],
+      "operationKind": "mutation"
+    },
+    {
+      "number": 94,
+      "resource": "accounts.containers.workspaces.zones",
+      "method": "delete",
+      "cliCommand": "gtmctl accounts containers workspaces zones delete",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.zones.delete",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "DELETE",
+      "restPath": "tagmanager/v2/{+path}",
+      "requestSchema": null,
+      "responseSchema": null,
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+/zones/[^/]+$"
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers"
+      ],
+      "operationKind": "destructive"
+    },
+    {
+      "number": 95,
+      "resource": "accounts.containers.workspaces.zones",
+      "method": "get",
+      "cliCommand": "gtmctl accounts containers workspaces zones get",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.zones.get",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "GET",
+      "restPath": "tagmanager/v2/{+path}",
+      "requestSchema": null,
+      "responseSchema": "Zone",
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+/zones/[^/]+$"
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers",
+        "https://www.googleapis.com/auth/tagmanager.readonly"
+      ],
+      "operationKind": "read"
+    },
+    {
+      "number": 96,
+      "resource": "accounts.containers.workspaces.zones",
+      "method": "list",
+      "cliCommand": "gtmctl accounts containers workspaces zones list",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.zones.list",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "GET",
+      "restPath": "tagmanager/v2/{+parent}/zones",
+      "requestSchema": null,
+      "responseSchema": "ListZonesResponse",
+      "parameters": [
+        {
+          "name": "pageToken",
+          "required": false,
+          "location": "query",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": null
+        },
+        {
+          "name": "parent",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+$"
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers",
+        "https://www.googleapis.com/auth/tagmanager.readonly"
+      ],
+      "operationKind": "read"
+    },
+    {
+      "number": 97,
+      "resource": "accounts.containers.workspaces.zones",
+      "method": "revert",
+      "cliCommand": "gtmctl accounts containers workspaces zones revert",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.zones.revert",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "POST",
+      "restPath": "tagmanager/v2/{+path}:revert",
+      "requestSchema": null,
+      "responseSchema": "RevertZoneResponse",
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+/zones/[^/]+$"
+        },
+        {
+          "name": "fingerprint",
+          "required": false,
+          "location": "query",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": null
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers"
+      ],
+      "operationKind": "mutation"
+    },
+    {
+      "number": 98,
+      "resource": "accounts.containers.workspaces.zones",
+      "method": "update",
+      "cliCommand": "gtmctl accounts containers workspaces zones update",
+      "googleMethod": "tagmanager.accounts.containers.workspaces.zones.update",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "PUT",
+      "restPath": "tagmanager/v2/{+path}",
+      "requestSchema": "Zone",
+      "responseSchema": "Zone",
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/containers/[^/]+/workspaces/[^/]+/zones/[^/]+$"
+        },
+        {
+          "name": "fingerprint",
+          "required": false,
+          "location": "query",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": null
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers"
+      ],
+      "operationKind": "mutation"
+    },
+    {
+      "number": 99,
+      "resource": "accounts",
+      "method": "get",
+      "cliCommand": "gtmctl accounts get",
+      "googleMethod": "tagmanager.accounts.get",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "GET",
+      "restPath": "tagmanager/v2/{+path}",
+      "requestSchema": null,
+      "responseSchema": "Account",
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+$"
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers",
+        "https://www.googleapis.com/auth/tagmanager.manage.accounts",
+        "https://www.googleapis.com/auth/tagmanager.readonly"
+      ],
+      "operationKind": "read"
+    },
+    {
+      "number": 100,
+      "resource": "accounts",
+      "method": "list",
+      "cliCommand": "gtmctl accounts list",
+      "googleMethod": "tagmanager.accounts.list",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "GET",
+      "restPath": "tagmanager/v2/accounts",
+      "requestSchema": null,
+      "responseSchema": "ListAccountsResponse",
+      "parameters": [
+        {
+          "name": "includeGoogleTags",
+          "required": false,
+          "location": "query",
+          "type": "boolean",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": null
+        },
+        {
+          "name": "pageToken",
+          "required": false,
+          "location": "query",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": null
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.edit.containers",
+        "https://www.googleapis.com/auth/tagmanager.manage.accounts",
+        "https://www.googleapis.com/auth/tagmanager.readonly"
+      ],
+      "operationKind": "read"
+    },
+    {
+      "number": 101,
+      "resource": "accounts",
+      "method": "update",
+      "cliCommand": "gtmctl accounts update",
+      "googleMethod": "tagmanager.accounts.update",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "PUT",
+      "restPath": "tagmanager/v2/{+path}",
+      "requestSchema": "Account",
+      "responseSchema": "Account",
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+$"
+        },
+        {
+          "name": "fingerprint",
+          "required": false,
+          "location": "query",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": null
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.manage.accounts"
+      ],
+      "operationKind": "mutation"
+    },
+    {
+      "number": 102,
+      "resource": "accounts.user_permissions",
+      "method": "create",
+      "cliCommand": "gtmctl accounts user-permissions create",
+      "googleMethod": "tagmanager.accounts.user_permissions.create",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "POST",
+      "restPath": "tagmanager/v2/{+parent}/user_permissions",
+      "requestSchema": "UserPermission",
+      "responseSchema": "UserPermission",
+      "parameters": [
+        {
+          "name": "parent",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+$"
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.manage.users"
+      ],
+      "operationKind": "sensitive-permission"
+    },
+    {
+      "number": 103,
+      "resource": "accounts.user_permissions",
+      "method": "delete",
+      "cliCommand": "gtmctl accounts user-permissions delete",
+      "googleMethod": "tagmanager.accounts.user_permissions.delete",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "DELETE",
+      "restPath": "tagmanager/v2/{+path}",
+      "requestSchema": null,
+      "responseSchema": null,
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/user_permissions/[^/]+$"
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.manage.users"
+      ],
+      "operationKind": "sensitive-permission"
+    },
+    {
+      "number": 104,
+      "resource": "accounts.user_permissions",
+      "method": "get",
+      "cliCommand": "gtmctl accounts user-permissions get",
+      "googleMethod": "tagmanager.accounts.user_permissions.get",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "GET",
+      "restPath": "tagmanager/v2/{+path}",
+      "requestSchema": null,
+      "responseSchema": "UserPermission",
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/user_permissions/[^/]+$"
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.manage.users"
+      ],
+      "operationKind": "sensitive-permission-read"
+    },
+    {
+      "number": 105,
+      "resource": "accounts.user_permissions",
+      "method": "list",
+      "cliCommand": "gtmctl accounts user-permissions list",
+      "googleMethod": "tagmanager.accounts.user_permissions.list",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "GET",
+      "restPath": "tagmanager/v2/{+parent}/user_permissions",
+      "requestSchema": null,
+      "responseSchema": "ListUserPermissionsResponse",
+      "parameters": [
+        {
+          "name": "parent",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+$"
+        },
+        {
+          "name": "pageToken",
+          "required": false,
+          "location": "query",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": null
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.manage.users"
+      ],
+      "operationKind": "sensitive-permission-read"
+    },
+    {
+      "number": 106,
+      "resource": "accounts.user_permissions",
+      "method": "update",
+      "cliCommand": "gtmctl accounts user-permissions update",
+      "googleMethod": "tagmanager.accounts.user_permissions.update",
+      "publicContractStatus": "stable-target",
+      "deprecated": false,
+      "httpMethod": "PUT",
+      "restPath": "tagmanager/v2/{+path}",
+      "requestSchema": "UserPermission",
+      "responseSchema": "UserPermission",
+      "parameters": [
+        {
+          "name": "path",
+          "required": true,
+          "location": "path",
+          "type": "string",
+          "format": null,
+          "repeated": false,
+          "enum": [],
+          "pattern": "^accounts/[^/]+/user_permissions/[^/]+$"
+        }
+      ],
+      "scopes": [
+        "https://www.googleapis.com/auth/tagmanager.manage.users"
+      ],
+      "operationKind": "sensitive-permission"
+    }
+  ]
+}

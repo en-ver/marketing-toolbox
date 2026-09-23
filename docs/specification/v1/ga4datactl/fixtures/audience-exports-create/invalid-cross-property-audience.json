@@ -1,0 +1,4 @@
+{
+  "audience": "properties/5678/audiences/42",
+  "dimensions": [{"dimensionName": "audienceId"}]
+}

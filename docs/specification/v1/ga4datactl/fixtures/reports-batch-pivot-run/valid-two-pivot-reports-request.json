@@ -1,0 +1,16 @@
+{
+  "requests": [
+    {
+      "dateRanges": [{"startDate": "2026-07-01", "endDate": "2026-07-07"}],
+      "dimensions": [{"name": "browser"}],
+      "metrics": [{"name": "sessions"}],
+      "pivots": [{"fieldNames": ["browser"], "limit": "10"}]
+    },
+    {
+      "dateRanges": [{"startDate": "2026-07-01", "endDate": "2026-07-07"}],
+      "dimensions": [{"name": "country"}],
+      "metrics": [{"name": "activeUsers"}],
+      "pivots": [{"fieldNames": ["country"], "limit": "20"}]
+    }
+  ]
+}

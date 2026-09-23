@@ -1,0 +1,37 @@
+{
+  "schemaVersion": "marketing-tools/v1",
+  "command": "ga4datactl reports run",
+  "data": {
+    "kind": "analyticsData#runReport",
+    "dimensionHeaders": [
+      {
+        "name": "eventName"
+      }
+    ],
+    "metricHeaders": [
+      {
+        "name": "eventCount",
+        "type": "TYPE_INTEGER"
+      }
+    ],
+    "rows": [
+      {
+        "dimensionValues": [
+          {
+            "value": "page_view"
+          }
+        ],
+        "metricValues": [
+          {
+            "value": "42"
+          }
+        ]
+      }
+    ],
+    "rowCount": 1,
+    "metadata": {
+      "currencyCode": "USD",
+      "timeZone": "America/Los_Angeles"
+    }
+  }
+}

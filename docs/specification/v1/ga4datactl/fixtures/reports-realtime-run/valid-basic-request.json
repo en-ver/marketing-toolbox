@@ -1,0 +1,6 @@
+{
+  "dimensions": [{"name": "country"}],
+  "metrics": [{"name": "activeUsers"}],
+  "minuteRanges": [{"startMinutesAgo": 29, "endMinutesAgo": 0}],
+  "limit": "100"
+}

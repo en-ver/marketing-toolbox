@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:marketing-tools:ga4datactl:schema:create-audience-export-body.schema.json",
+  "title": "GA4 Data API v1beta CreateAudienceExportRequest body",
+  "description": "The writable AudienceExport fields accepted by properties.audienceExports.create.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "audience",
+    "dimensions"
+  ],
+  "properties": {
+    "audience": {
+      "description": "The source audience resource name: properties/<property>/audiences/<audience>.",
+      "type": "string"
+    },
+    "dimensions": {
+      "description": "The requested audience-export user attributes.",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "dimensionName": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}
