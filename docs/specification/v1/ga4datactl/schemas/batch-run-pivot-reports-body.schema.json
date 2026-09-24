@@ -750,7 +750,7 @@
       "type": "object"
     }
   },
-  "$id": "urn:marketing-tools:ga4datactl:schema:batch-run-pivot-reports-body.schema.json",
+  "$id": "urn:marketing-toolbox:ga4datactl:schema:batch-run-pivot-reports-body.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "description": "Shared structural definitions transcribed from the official Google Discovery document (20260722).",
   "title": "GA4 Data API v1beta BatchRunPivotReportsRequest",

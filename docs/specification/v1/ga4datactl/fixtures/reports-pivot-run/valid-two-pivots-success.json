@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "marketing-tools/v1",
+  "schemaVersion": "marketing-toolbox/v1",
   "command": "ga4datactl reports pivot-run",
   "data": {
     "kind": "analyticsData#runPivotReport",

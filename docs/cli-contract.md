@@ -15,9 +15,9 @@ The commands are intended for non-interactive agent automation. Each CLI wraps o
 
 ## Input and output
 
-- Successful commands write one JSON document to stdout with `schemaVersion` set to `marketing-tools/v1`, plus `command` and `data`.
+- Successful commands write one JSON document to stdout with `schemaVersion` set to `marketing-toolbox/v1`, plus `command` and `data`.
 - Diagnostics, warnings, retry notices, and debug output go only to stderr.
-- Errors, including CLI parsing errors generated before a command handler runs, write one JSON diagnostic document to stderr. The diagnostic has `schemaVersion` set to `marketing-tools/v1`, plus `command`, `exitCode`, `category`, and a safe human-readable `message`; it includes `googleStatus` only when an API HTTP status is available. Upstream diagnostic text and payloads are not public CLI output.
+- Errors, including CLI parsing errors generated before a command handler runs, write one JSON diagnostic document to stderr. The diagnostic has `schemaVersion` set to `marketing-toolbox/v1`, plus `command`, `exitCode`, `category`, and a safe human-readable `message`; it includes `googleStatus` only when an API HTTP status is available. Upstream diagnostic text and payloads are not public CLI output.
 - `--raw` may return one documented scalar for composition; it must not be the default.
 - Commands that stream or enumerate a large collection may offer `--format jsonl`; every line must be a complete JSON object.
 - Complex request bodies are accepted through a JSON file argument or stdin rather than an expanding set of opaque flags.

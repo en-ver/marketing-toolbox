@@ -33,7 +33,7 @@ The command writes exactly one standard envelope. Its `data` is the official SDK
 
 ```json
 {
-  "schemaVersion": "marketing-tools/v1",
+  "schemaVersion": "marketing-toolbox/v1",
   "command": "ga4datactl audience-exports query",
   "data": {
     "audienceRows": [{"dimensionValues": [{"value": "user-1"}]}],

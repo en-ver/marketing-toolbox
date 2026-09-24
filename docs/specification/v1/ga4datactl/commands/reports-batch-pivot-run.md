@@ -31,7 +31,7 @@ nested reports:
 
 ```json
 {
-  "schemaVersion": "marketing-tools/v1",
+  "schemaVersion": "marketing-toolbox/v1",
   "command": "ga4datactl reports batch-pivot-run",
   "data": { "pivotReports": [] }
 }
@@ -44,4 +44,4 @@ and 429/500/503 failures exit 6; only transient 500/503 failures are retried.
 ## Sources
 
 - [Google `properties.batchRunPivotReports` v1beta reference](https://developers.google.com/analytics/devguides/reporting/data/v1/rest/v1beta/properties/batchRunPivotReports)
-- [Google Analytics Data API Python SDK](https://cloud.google.com/python/docs/reference/analyticsdata/latest)
+- [Google Analytics Data API Python SDK](https://googleapis.dev/python/analyticsdata/latest/)

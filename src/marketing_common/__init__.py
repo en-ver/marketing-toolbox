@@ -1,1 +1,1 @@
-"""Shared implementation primitives for marketing-tools CLIs."""
+"""Shared implementation primitives for marketing-toolbox CLIs."""

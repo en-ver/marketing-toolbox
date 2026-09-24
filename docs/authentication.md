@@ -1,6 +1,34 @@
 # Service-account authentication
 
-All three CLIs authenticate as a Google service account. Supply the credential only at process runtime using one of these mechanisms, in precedence order:
+All three CLIs authenticate as a Google service account. This behavior is the
+same for a checkout, a `uv tool install .` installation, and a `uvx`
+installation after the first release has been configured and published to all
+four PyPI projects. `uvx` passes the invoking process's environment to the CLI,
+so set the credential before running the command:
+
+```bash
+export GOOGLE_APPLICATION_CREDENTIALS=/secure/path/service-account.json
+
+# Checkout/marketing-toolbox installation:
+uv run ga4datactl --help
+
+# After the first release has been configured and published:
+uvx ga4datactl --help
+```
+
+For an in-memory credential instead:
+
+```bash
+# Set GOOGLE_SERVICE_ACCOUNT_JSON to the complete service-account JSON document.
+
+# Checkout/marketing-toolbox installation:
+uv run gtmctl accounts list
+
+# After the first release has been configured and published:
+uvx gtmctl accounts list
+```
+
+Supply the credential only at process runtime using one of these mechanisms, in precedence order:
 
 ```text
 GOOGLE_SERVICE_ACCOUNT_JSON

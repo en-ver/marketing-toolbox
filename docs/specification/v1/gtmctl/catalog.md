@@ -52,7 +52,7 @@ be exposed by `gtmctl` v1.
 
 ### Output, errors, and concurrency
 
-- Successful commands write one `marketing-tools/v1` JSON envelope to stdout.
+- Successful commands write one `marketing-toolbox/v1` JSON envelope to stdout.
   `data` is the direct official JSON response. An empty successful response is
   represented as `{}`. No derived state or synthetic API data is emitted.
 - Failures write one redacted normalized diagnostic to stderr and use the

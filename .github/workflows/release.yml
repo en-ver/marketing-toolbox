@@ -1,0 +1,185 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      publish_target:
+        description: "Bootstrap target (the only supported manual target)"
+        required: true
+        type: choice
+        options:
+          - marketing-toolbox
+        default: marketing-toolbox
+      confirmation:
+        description: "Type BOOTSTRAP-MARKETING-TOOLBOX to confirm the core-only publish"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out release source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && 'refs/heads/main' || github.ref }}
+
+      - name: Verify release mode
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          WORKFLOW_REF: ${{ github.ref }}
+          PUBLISH_TARGET: ${{ inputs.publish_target }}
+          CONFIRMATION: ${{ inputs.confirmation }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            [[ "$WORKFLOW_REF" == "refs/heads/main" ]] || {
+              echo "manual bootstrap releases are allowed only from main" >&2
+              exit 1
+            }
+            [[ "$PUBLISH_TARGET" == "marketing-toolbox" ]] || {
+              echo "manual releases may publish only marketing-toolbox" >&2
+              exit 1
+            }
+            [[ "$CONFIRMATION" == "BOOTSTRAP-MARKETING-TOOLBOX" ]] || {
+              echo "manual core-only publish confirmation did not match" >&2
+              exit 1
+            }
+          else
+            [[ "$EVENT_NAME" == "push" ]] || {
+              echo "unsupported release event: $EVENT_NAME" >&2
+              exit 1
+            }
+          fi
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          version: "0.12.17"
+          enable-cache: false
+
+      - name: Install locked development and build environment
+        run: uv sync --locked --all-groups --all-packages
+
+      - name: Verify tag and package versions
+        if: github.event_name == 'push'
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          uv run --locked --no-sync python - <<'PY'
+          import os
+          import tomllib
+          from pathlib import Path
+
+          tag = os.environ["RELEASE_TAG"]
+          if not tag.startswith("v") or tag == "v":
+              raise SystemExit(f"release tag must be v<version>: {tag}")
+          tag_version = tag[1:]
+
+          manifests = [
+              Path("pyproject.toml"),
+              Path("packaging/ga4adminctl/pyproject.toml"),
+              Path("packaging/ga4datactl/pyproject.toml"),
+              Path("packaging/gtmctl/pyproject.toml"),
+          ]
+          versions = []
+          for manifest in manifests:
+              with manifest.open("rb") as file:
+                  project = tomllib.load(file)["project"]
+              versions.append((project["name"], project["version"]))
+
+          if any(version != tag_version for _, version in versions):
+              raise SystemExit(
+                  f"tag {tag_version} does not match package versions: {versions}"
+              )
+          if any(tag != f"v{version}" for _, version in versions):
+              raise SystemExit(f"tag must be v<version>: {tag}, packages: {versions}")
+          if len({version for _, version in versions}) != 1:
+              raise SystemExit(f"package versions are not synchronized: {versions}")
+          print(f"validated release {tag}: {versions}")
+          PY
+
+      - name: Verify lockfile
+        run: uv lock --check
+      - name: Run tests and metadata checks
+        run: uv run --locked --no-sync pytest
+      - name: Lint
+        run: uv run --locked --no-sync ruff check .
+      - name: Check formatting
+        run: uv run --locked --no-sync ruff format --check .
+      - name: Type check
+        run: uv run --locked --no-sync mypy
+
+      - name: Build all distributions
+        run: uv build --all-packages --offline --no-build-isolation --no-python-downloads --clear --out-dir dist
+      - name: Inspect distributions
+        run: uvx twine check dist/*
+      - name: Upload release distributions
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: release-distributions
+          path: |
+            dist/*.whl
+            dist/*.tar.gz
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+    permissions:
+      id-token: write
+    steps:
+      - name: Download release distributions
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: release-distributions
+          path: dist
+          merge-multiple: true
+      - name: Stage distributions for publication
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          rm -rf publish-dist
+          mkdir publish-dist
+          shopt -s nullglob
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            core_artifacts=(dist/marketing_toolbox-*.whl dist/marketing_toolbox-*.tar.gz)
+            [[ ${#core_artifacts[@]} -eq 2 ]] || {
+              echo "expected exactly one marketing-toolbox wheel and sdist" >&2
+              exit 1
+            }
+            cp "${core_artifacts[@]}" publish-dist/
+          else
+            all_artifacts=(dist/*.whl dist/*.tar.gz)
+            [[ ${#all_artifacts[@]} -eq 8 ]] || {
+              echo "expected wheel and sdist for all four distributions" >&2
+              exit 1
+            }
+            cp "${all_artifacts[@]}" publish-dist/
+          fi
+          published_artifacts=(publish-dist/*)
+          [[ ${#published_artifacts[@]} -eq 2 && "$EVENT_NAME" == "workflow_dispatch" || \
+             ${#published_artifacts[@]} -eq 8 && "$EVENT_NAME" == "push" ]] || {
+            echo "publication staging did not match the release mode" >&2
+            exit 1
+          }
+      - name: Publish distributions to PyPI
+        uses: pypa/gh-action-pypi-publish@ec4db0b4ddc65acdf4bff5fa45ac92d78b56bdf0 # v1.9.0
+        with:
+          packages-dir: publish-dist/
+          # The bootstrap has already uploaded marketing-toolbox 0.1.0.
+          skip-existing: true

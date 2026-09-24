@@ -27,7 +27,7 @@ jobs:
           version: "0.12.17"
           enable-cache: false
       - name: Install locked development and build environment
-        run: uv sync --locked --all-groups
+        run: uv sync --locked --all-groups --all-packages
       - name: Verify lockfile
         run: uv lock --check
       - name: Run tests
@@ -39,4 +39,4 @@ jobs:
       - name: Type check
         run: uv run --locked --no-sync mypy
       - name: Build distributions offline
-        run: uv build --offline --no-build-isolation --no-python-downloads --out-dir dist
+        run: uv build --all-packages --offline --no-build-isolation --no-python-downloads --out-dir dist
