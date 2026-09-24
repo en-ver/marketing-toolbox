@@ -42,27 +42,37 @@ The build produces two artifacts per distribution (a wheel and a source
 archive). Do not rebuild between validation and publication: the release job
 uploads the artifacts from this single build.
 
-## Bootstrap sequence
+## Sequential bootstrap process
 
-The first release is intentionally split because only the
-`marketing-toolbox` pending publisher is available initially. Perform this
-sequence exactly:
+PyPI pending publishers permit initial publication one project at a time.
+Merge the workflow change to `main`, then repeat the following for each project
+in this order: `marketing-toolbox`, `ga4datactl`, `ga4adminctl`, and `gtmctl`.
 
-1. Merge the workflow change to `main`.
-2. In **Actions → Release → Run workflow**, select the `main` branch and use
-   these exact manual inputs:
-   - `publish_target`: `marketing-toolbox`
-   - `confirmation`: `BOOTSTRAP-MARKETING-TOOLBOX`
+1. Configure the pending publisher for that exact PyPI project using the
+   GitHub publisher values in [Trusted Publishing and GitHub setup](#trusted-publishing-and-github-setup).
+2. In **Actions → Release → Run workflow**, select the `main` branch and enter
+   the exact target and confirmation pair:
+
+   | `publish_target` | `confirmation` |
+   | --- | --- |
+   | `marketing-toolbox` | `BOOTSTRAP-MARKETING-TOOLBOX` |
+   | `ga4datactl` | `BOOTSTRAP-GA4DATACTL` |
+   | `ga4adminctl` | `BOOTSTRAP-GA4ADMINCTL` |
+   | `gtmctl` | `BOOTSTRAP-GTMCTL` |
+
 3. Approve the protected `pypi` environment if required, then verify that the
-   `marketing-toolbox` project and its `0.1.0` wheel and sdist exist on PyPI.
-4. Configure the three alias trusted publishers (`ga4datactl`, `ga4adminctl`,
-   and `gtmctl`) using the values below.
-5. Create and push `v0.1.0` for the normal all-package release.
+   selected project has its wheel and sdist on PyPI before configuring and
+   publishing the next project.
 
-The manual dispatch is deliberately constrained: it must be run from the
-`main` branch, its only selectable target is `marketing-toolbox`, and the
-confirmation text must match exactly. It stages and publishes only the core
-wheel and sdist. There is no manual all-package or untagged production mode.
+After all four projects are bootstrapped, create and push `v0.1.0` for the
+normal all-package release.
+
+The manual dispatch is deliberately constrained: it must run from `main`,
+accepts exactly one of the four listed targets, and requires that target's
+exact confirmation token. It stages and publishes only that target's one wheel
+and one sdist, using the normalized artifact stem (`marketing_toolbox` for
+`marketing-toolbox`). There is no manual all-package or untagged production
+mode.
 
 ## Tag-triggered release
 
@@ -79,18 +89,16 @@ The release workflow is `.github/workflows/release.yml`. Pushing a tag matching
 The publish job downloads that single build artifact, stages the selected
 artifacts, and invokes `pypa/gh-action-pypi-publish` once. A tag release stages
 all eight artifacts (wheel and sdist for all four distributions); a manual
-bootstrap stages only the two `marketing-toolbox` artifacts. The publish action
-uses `skip-existing: true` so the tag run safely skips the two core files
-already uploaded during bootstrap while publishing all three aliases. Both
-modes run in the GitHub `pypi` environment and use OIDC rather than a PyPI
-token stored in the repository.
+bootstrap stages only the selected project's two artifacts. The publish action
+uses `skip-existing: true` so the tag run safely skips all files already
+uploaded during bootstrap. Both modes run in the GitHub `pypi` environment and
+use OIDC rather than a PyPI token stored in the repository.
 
 ## Trusted Publishing and GitHub setup
 
-Configure a trusted publisher for **each** of these PyPI projects. For the
-initial bootstrap, `marketing-toolbox` is configured first as its pending
-publisher; configure the three alias publishers only after verifying that the
-core project was published:
+Configure a trusted publisher for **each** of these PyPI projects. Configure
+each one as its pending publisher immediately before its corresponding manual
+bootstrap run:
 
 - `marketing-toolbox`
 - `ga4datactl`

@@ -12,9 +12,12 @@ on:
         type: choice
         options:
           - marketing-toolbox
+          - ga4datactl
+          - ga4adminctl
+          - gtmctl
         default: marketing-toolbox
       confirmation:
-        description: "Type BOOTSTRAP-MARKETING-TOOLBOX to confirm the core-only publish"
+        description: "Type the exact target-specific bootstrap confirmation token"
         required: true
         type: string
 
@@ -43,14 +46,17 @@ jobs:
               echo "manual bootstrap releases are allowed only from main" >&2
               exit 1
             }
-            [[ "$PUBLISH_TARGET" == "marketing-toolbox" ]] || {
-              echo "manual releases may publish only marketing-toolbox" >&2
-              exit 1
-            }
-            [[ "$CONFIRMATION" == "BOOTSTRAP-MARKETING-TOOLBOX" ]] || {
-              echo "manual core-only publish confirmation did not match" >&2
-              exit 1
-            }
+            case "$PUBLISH_TARGET:$CONFIRMATION" in
+              "marketing-toolbox:BOOTSTRAP-MARKETING-TOOLBOX" | \
+              "ga4datactl:BOOTSTRAP-GA4DATACTL" | \
+              "ga4adminctl:BOOTSTRAP-GA4ADMINCTL" | \
+              "gtmctl:BOOTSTRAP-GTMCTL")
+                ;;
+              *)
+                echo "manual publish target and confirmation did not match" >&2
+                exit 1
+                ;;
+            esac
           else
             [[ "$EVENT_NAME" == "push" ]] || {
               echo "unsupported release event: $EVENT_NAME" >&2
@@ -151,29 +157,47 @@ jobs:
       - name: Stage distributions for publication
         env:
           EVENT_NAME: ${{ github.event_name }}
+          PUBLISH_TARGET: ${{ inputs.publish_target }}
         run: |
           set -euo pipefail
           rm -rf publish-dist
           mkdir publish-dist
           shopt -s nullglob
           if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
-            core_artifacts=(dist/marketing_toolbox-*.whl dist/marketing_toolbox-*.tar.gz)
-            [[ ${#core_artifacts[@]} -eq 2 ]] || {
-              echo "expected exactly one marketing-toolbox wheel and sdist" >&2
+            case "$PUBLISH_TARGET" in
+              marketing-toolbox) artifact_stem=marketing_toolbox ;;
+              ga4datactl | ga4adminctl | gtmctl) artifact_stem="$PUBLISH_TARGET" ;;
+              *)
+                echo "unsupported manual publish target: $PUBLISH_TARGET" >&2
+                exit 1
+                ;;
+            esac
+            target_wheels=(dist/"$artifact_stem"-*.whl)
+            target_sdists=(dist/"$artifact_stem"-*.tar.gz)
+            [[ ${#target_wheels[@]} -eq 1 ]] || {
+              echo "expected exactly one $PUBLISH_TARGET wheel" >&2
               exit 1
             }
-            cp "${core_artifacts[@]}" publish-dist/
-          else
+            [[ ${#target_sdists[@]} -eq 1 ]] || {
+              echo "expected exactly one $PUBLISH_TARGET sdist" >&2
+              exit 1
+            }
+            cp "${target_wheels[@]}" "${target_sdists[@]}" publish-dist/
+            expected_artifacts=2
+          elif [[ "$EVENT_NAME" == "push" ]]; then
             all_artifacts=(dist/*.whl dist/*.tar.gz)
             [[ ${#all_artifacts[@]} -eq 8 ]] || {
               echo "expected wheel and sdist for all four distributions" >&2
               exit 1
             }
             cp "${all_artifacts[@]}" publish-dist/
+            expected_artifacts=8
+          else
+            echo "unsupported release event: $EVENT_NAME" >&2
+            exit 1
           fi
           published_artifacts=(publish-dist/*)
-          [[ ${#published_artifacts[@]} -eq 2 && "$EVENT_NAME" == "workflow_dispatch" || \
-             ${#published_artifacts[@]} -eq 8 && "$EVENT_NAME" == "push" ]] || {
+          [[ ${#published_artifacts[@]} -eq "$expected_artifacts" ]] || {
             echo "publication staging did not match the release mode" >&2
             exit 1
           }
@@ -181,5 +205,5 @@ jobs:
         uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
         with:
           packages-dir: publish-dist/
-          # The bootstrap has already uploaded marketing-toolbox 0.1.0.
+          # Earlier bootstrap runs may have already uploaded distributions.
           skip-existing: true
