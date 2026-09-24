@@ -42,26 +42,55 @@ The build produces two artifacts per distribution (a wheel and a source
 archive). Do not rebuild between validation and publication: the release job
 uploads the artifacts from this single build.
 
+## Bootstrap sequence
+
+The first release is intentionally split because only the
+`marketing-toolbox` pending publisher is available initially. Perform this
+sequence exactly:
+
+1. Merge the workflow change to `main`.
+2. In **Actions → Release → Run workflow**, select the `main` branch and use
+   these exact manual inputs:
+   - `publish_target`: `marketing-toolbox`
+   - `confirmation`: `BOOTSTRAP-MARKETING-TOOLBOX`
+3. Approve the protected `pypi` environment if required, then verify that the
+   `marketing-toolbox` project and its `0.1.0` wheel and sdist exist on PyPI.
+4. Configure the three alias trusted publishers (`ga4datactl`, `ga4adminctl`,
+   and `gtmctl`) using the values below.
+5. Create and push `v0.1.0` for the normal all-package release.
+
+The manual dispatch is deliberately constrained: it must be run from the
+`main` branch, its only selectable target is `marketing-toolbox`, and the
+confirmation text must match exactly. It stages and publishes only the core
+wheel and sdist. There is no manual all-package or untagged production mode.
+
 ## Tag-triggered release
 
 The release workflow is `.github/workflows/release.yml`. Pushing a tag matching
-`v*.*.*` starts it. Its build job:
+`v*.*.*` starts the normal release. Its build job:
 
 1. checks out the tag;
-2. verifies that the tag version matches all four manifests and that the four
-   versions are synchronized;
+2. verifies that the tag is exactly `v<version>` for all four manifests and
+   that the four versions are synchronized;
 3. runs the locked tests, lint, format, type, and lockfile checks;
 4. builds all distributions once and runs `uvx twine check dist/*`; and
 5. uploads only `dist/*.whl` and `dist/*.tar.gz` as one artifact.
 
-The publish job downloads that artifact and invokes
-`pypa/gh-action-pypi-publish` once for `dist/`. It runs in the GitHub
-`pypi` environment and uses OIDC rather than a PyPI token stored in the
-repository.
+The publish job downloads that single build artifact, stages the selected
+artifacts, and invokes `pypa/gh-action-pypi-publish` once. A tag release stages
+all eight artifacts (wheel and sdist for all four distributions); a manual
+bootstrap stages only the two `marketing-toolbox` artifacts. The publish action
+uses `skip-existing: true` so the tag run safely skips the two core files
+already uploaded during bootstrap while publishing all three aliases. Both
+modes run in the GitHub `pypi` environment and use OIDC rather than a PyPI
+token stored in the repository.
 
 ## Trusted Publishing and GitHub setup
 
-Configure a trusted publisher for **each** of these PyPI projects:
+Configure a trusted publisher for **each** of these PyPI projects. For the
+initial bootstrap, `marketing-toolbox` is configured first as its pending
+publisher; configure the three alias publishers only after verifying that the
+core project was published:
 
 - `marketing-toolbox`
 - `ga4datactl`

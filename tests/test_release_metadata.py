@@ -2,10 +2,17 @@ from __future__ import annotations
 
 import importlib
 import importlib.metadata
+import os
+import re
+import subprocess
 import tomllib
 from pathlib import Path
+from typing import Any, cast
+
+import yaml
 
 ROOT = Path(__file__).parents[1]
+RELEASE_WORKFLOW = ROOT / ".github/workflows/release.yml"
 PROJECTS = {
     "marketing-toolbox": {
         "manifest": ROOT / "pyproject.toml",
@@ -80,3 +87,175 @@ def test_cli_versions_match_the_installed_core_distribution() -> None:
     for module_name in ("ga4datactl", "ga4adminctl", "gtmctl"):
         module = importlib.import_module(module_name)
         assert module.__version__ == core_version
+
+
+def _release_workflow() -> dict[str, Any]:
+    return cast(
+        dict[str, Any],
+        yaml.load(RELEASE_WORKFLOW.read_text(), Loader=yaml.BaseLoader),
+    )
+
+
+def _workflow_step(
+    workflow: dict[str, Any], job_name: str, step_name: str
+) -> dict[str, Any]:
+    steps = workflow["jobs"][job_name]["steps"]
+    return next(step for step in steps if step.get("name") == step_name)
+
+
+def _run_workflow_script(
+    script: str, *, cwd: Path, environment: dict[str, str]
+) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["bash", "-euo", "pipefail", "-c", script],
+        cwd=cwd,
+        env=os.environ | environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+def test_release_workflow_has_an_exact_manual_bootstrap_contract() -> None:
+    workflow = _release_workflow()
+    dispatch = workflow["on"]["workflow_dispatch"]
+    inputs = dispatch["inputs"]
+
+    assert set(inputs) == {"publish_target", "confirmation"}
+    assert inputs["publish_target"]["required"] == "true"
+    assert inputs["publish_target"]["type"] == "choice"
+    assert inputs["publish_target"]["options"] == ["marketing-toolbox"]
+    assert inputs["publish_target"]["default"] == "marketing-toolbox"
+    assert inputs["confirmation"]["required"] == "true"
+    assert inputs["confirmation"]["type"] == "string"
+    assert "options" not in inputs["confirmation"]
+
+    checkout = _workflow_step(workflow, "build", "Check out release source")
+    assert checkout["with"]["ref"] == (
+        "${{ github.event_name == 'workflow_dispatch' && 'refs/heads/main' || github.ref }}"
+    )
+
+    verify = _workflow_step(workflow, "build", "Verify release mode")
+    verify_script = cast(str, verify["run"])
+    assert (
+        _run_workflow_script(
+            verify_script,
+            cwd=ROOT,
+            environment={
+                "EVENT_NAME": "workflow_dispatch",
+                "WORKFLOW_REF": "refs/heads/main",
+                "PUBLISH_TARGET": "marketing-toolbox",
+                "CONFIRMATION": "BOOTSTRAP-MARKETING-TOOLBOX",
+            },
+        ).returncode
+        == 0
+    )
+
+    for environment in (
+        {
+            "EVENT_NAME": "workflow_dispatch",
+            "WORKFLOW_REF": "refs/heads/release",
+            "PUBLISH_TARGET": "marketing-toolbox",
+            "CONFIRMATION": "BOOTSTRAP-MARKETING-TOOLBOX",
+        },
+        {
+            "EVENT_NAME": "workflow_dispatch",
+            "WORKFLOW_REF": "refs/heads/main",
+            "PUBLISH_TARGET": "ga4datactl",
+            "CONFIRMATION": "BOOTSTRAP-MARKETING-TOOLBOX",
+        },
+        {
+            "EVENT_NAME": "workflow_dispatch",
+            "WORKFLOW_REF": "refs/heads/main",
+            "PUBLISH_TARGET": "marketing-toolbox",
+            "CONFIRMATION": "BOOTSTRAP-MARKETING-TOOLBOX ",
+        },
+    ):
+        assert (
+            _run_workflow_script(
+                verify_script, cwd=ROOT, environment=environment
+            ).returncode
+            != 0
+        )
+
+
+def test_release_workflow_stages_the_right_artifacts_per_mode(tmp_path: Path) -> None:
+    workflow = _release_workflow()
+    stage = _workflow_step(workflow, "publish", "Stage distributions for publication")
+    stage_script = cast(str, stage["run"])
+    dist = tmp_path / "dist"
+    dist.mkdir()
+
+    artifacts = {
+        "marketing_toolbox-0.1.0-py3-none-any.whl",
+        "marketing_toolbox-0.1.0.tar.gz",
+        "ga4datactl-0.1.0-py3-none-any.whl",
+        "ga4datactl-0.1.0.tar.gz",
+        "ga4adminctl-0.1.0-py3-none-any.whl",
+        "ga4adminctl-0.1.0.tar.gz",
+        "gtmctl-0.1.0-py3-none-any.whl",
+        "gtmctl-0.1.0.tar.gz",
+    }
+    for artifact in artifacts:
+        (dist / artifact).touch()
+
+    manual = _run_workflow_script(
+        stage_script,
+        cwd=tmp_path,
+        environment={"EVENT_NAME": "workflow_dispatch"},
+    )
+    assert manual.returncode == 0, manual.stderr
+    assert {path.name for path in (tmp_path / "publish-dist").iterdir()} == {
+        "marketing_toolbox-0.1.0-py3-none-any.whl",
+        "marketing_toolbox-0.1.0.tar.gz",
+    }
+
+    tagged = _run_workflow_script(
+        stage_script,
+        cwd=tmp_path,
+        environment={"EVENT_NAME": "push"},
+    )
+    assert tagged.returncode == 0, tagged.stderr
+    assert {path.name for path in (tmp_path / "publish-dist").iterdir()} == artifacts
+
+
+def test_release_workflow_validates_tag_versions_and_publishes_once() -> None:
+    workflow = _release_workflow()
+    assert workflow["permissions"] == {"contents": "read"}
+    assert workflow["jobs"]["build"].get("permissions", {}).get("id-token") != "write"
+    assert [
+        job_name
+        for job_name, job in workflow["jobs"].items()
+        if job.get("permissions", {}).get("id-token") == "write"
+    ] == ["publish"]
+
+    verify_tag = _workflow_step(workflow, "build", "Verify tag and package versions")
+    assert verify_tag["if"] == "github.event_name == 'push'"
+    verify_script = cast(str, verify_tag["run"])
+
+    valid = _run_workflow_script(
+        verify_script, cwd=ROOT, environment={"RELEASE_TAG": "v0.1.0"}
+    )
+    assert valid.returncode == 0, valid.stderr
+    for tag in ("0.1.0", "v", "v0.1.1"):
+        invalid = _run_workflow_script(
+            verify_script, cwd=ROOT, environment={"RELEASE_TAG": tag}
+        )
+        assert invalid.returncode != 0
+
+    publish = workflow["jobs"]["publish"]
+    assert publish["environment"] == {"name": "pypi"}
+    assert publish["permissions"] == {"id-token": "write"}
+    publisher_steps = [
+        step
+        for step in publish["steps"]
+        if str(step.get("uses", "")).startswith("pypa/gh-action-pypi-publish@")
+    ]
+    assert len(publisher_steps) == 1
+    publisher = publisher_steps[0]
+    publisher_sha = cast(str, publisher["uses"]).rsplit("@", 1)[1]
+    assert re.fullmatch(r"[0-9a-f]{40}", publisher_sha)
+    assert publisher["with"] == {
+        "packages-dir": "publish-dist/",
+        "skip-existing": "true",
+    }
