@@ -1,5 +1,0 @@
-{
-  "dimensions": [{"name": "browser"}],
-  "metrics": [{"name": "sessions"}],
-  "pivots": [{"fieldNames": ["browser"]}]
-}

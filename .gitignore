@@ -13,7 +13,8 @@ __pycache__/
 *.json
 !pyproject.toml
 !uv.lock
-# Versioned GA4 request/response fixtures are part of the CLI contract.
-!docs/specification/v1/ga4datactl/fixtures/**/*.json
+# Versioned test fixtures and inventories.
+!tests/fixtures/ga4datactl/**/*.json
+!tests/data/gtmctl/upstream-inventory.json
 
 /.worktrees/

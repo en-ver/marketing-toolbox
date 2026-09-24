@@ -1,4 +1,0 @@
-{
-  "dimensions": [{"name": "browser"}],
-  "pivots": [{"fieldNames": ["browser"], "limit": "10"}]
-}

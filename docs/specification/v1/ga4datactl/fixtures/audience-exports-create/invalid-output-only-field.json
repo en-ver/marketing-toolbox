@@ -1,5 +1,0 @@
-{
-  "audience": "properties/1234/audiences/42",
-  "dimensions": [{"dimensionName": "audienceId"}],
-  "state": "ACTIVE"
-}

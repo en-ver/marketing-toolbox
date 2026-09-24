@@ -1,9 +1,0 @@
-{
-  "requests": [
-    {
-      "property": "properties/1234",
-      "metrics": [{"name": "sessions"}],
-      "pivots": [{"fieldNames": ["dateRange"], "limit": "10"}]
-    }
-  ]
-}

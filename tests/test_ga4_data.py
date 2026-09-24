@@ -68,9 +68,10 @@ def test_service_facade_calls_owning_operation(
     assert response == {"rowCount": 1}
 
 
-FIXTURES = Path("docs/specification/v1/ga4datactl/fixtures/reports-run")
-AUDIENCE_EXPORT_CREATE_FIXTURES = Path(
-    "docs/specification/v1/ga4datactl/fixtures/audience-exports-create"
+TESTS_DIR = Path(__file__).parent
+FIXTURES = TESTS_DIR / "fixtures/ga4datactl/reports-run"
+AUDIENCE_EXPORT_CREATE_FIXTURES = (
+    TESTS_DIR / "fixtures/ga4datactl/audience-exports-create"
 )
 
 

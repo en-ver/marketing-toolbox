@@ -1,9 +1,9 @@
 # gtmctl
 
-The `gtmctl` PyPI distribution will be a thin launcher for the GTM CLI provided by
-`marketing-toolbox`. After the first release has been configured and published to
-PyPI, run:
+`gtmctl` installs the GTM command backed by
+[`marketing-toolbox`](https://github.com/en-ver/marketing-toolbox#readme).
 
 ```bash
 uvx gtmctl --help
+uv tool install gtmctl
 ```

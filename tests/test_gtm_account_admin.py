@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 from typing import Any
 
 import pytest
@@ -11,28 +10,6 @@ from typer.testing import CliRunner
 
 from gtmctl.cli import app
 from gtmctl.operations import mutations, reads
-
-SPEC_DIR = Path(__file__).parents[1] / "docs/specification/v1/gtmctl"
-
-
-def test_account_admin_catalog_and_contracts_document_every_guard() -> None:
-    catalog = (SPEC_DIR / "catalog.md").read_text()
-    contracts = (SPEC_DIR / "command-contracts.md").read_text()
-
-    for command in (
-        "gtmctl accounts update",
-        "gtmctl accounts user-permissions create",
-        "gtmctl accounts user-permissions get",
-        "gtmctl accounts user-permissions list",
-        "gtmctl accounts user-permissions update",
-        "gtmctl accounts user-permissions delete",
-    ):
-        assert f"`{command}`" in catalog
-    assert "--acknowledge-account-update" in catalog
-    assert "--acknowledge-user-permission-delete" in catalog
-    assert "--acknowledge-account-update" in contracts
-    assert "--acknowledge-permission-change" in contracts
-    assert "--acknowledge-sensitive-data" in contracts
 
 
 class FakeRequest:
@@ -201,56 +178,68 @@ def _body_file(tmp_path: Any) -> str:
 
 
 @pytest.mark.parametrize(
-    "args",
+    ("args", "acknowledgement"),
     [
-        [
-            "accounts",
-            "update",
-            "--path",
-            "accounts/1",
-            "--body",
-            "ignored",
-            "--fingerprint",
-            "fp",
-            "--apply",
-        ],
-        [
-            "accounts",
-            "user-permissions",
-            "create",
-            "--parent",
-            "accounts/1",
-            "--body",
-            "ignored",
-            "--apply",
-        ],
-        [
-            "accounts",
-            "user-permissions",
-            "update",
-            "--path",
-            "accounts/1/user_permissions/2",
-            "--body",
-            "ignored",
-            "--apply",
-        ],
-        [
-            "accounts",
-            "user-permissions",
-            "delete",
-            "--path",
-            "accounts/1/user_permissions/2",
-            "--apply",
-        ],
+        (
+            [
+                "accounts",
+                "update",
+                "--path",
+                "accounts/1",
+                "--body",
+                "ignored",
+                "--fingerprint",
+                "fp",
+                "--apply",
+            ],
+            "--acknowledge-account-update",
+        ),
+        (
+            [
+                "accounts",
+                "user-permissions",
+                "create",
+                "--parent",
+                "accounts/1",
+                "--body",
+                "ignored",
+                "--apply",
+            ],
+            "--acknowledge-permission-change",
+        ),
+        (
+            [
+                "accounts",
+                "user-permissions",
+                "update",
+                "--path",
+                "accounts/1/user_permissions/2",
+                "--body",
+                "ignored",
+                "--apply",
+            ],
+            "--acknowledge-permission-change",
+        ),
+        (
+            [
+                "accounts",
+                "user-permissions",
+                "delete",
+                "--path",
+                "accounts/1/user_permissions/2",
+                "--apply",
+            ],
+            "--acknowledge-permission-change",
+        ),
     ],
 )
 def test_account_admin_mutations_require_operation_acknowledgements(
-    args: list[str],
+    args: list[str], acknowledgement: str
 ) -> None:
     result = CliRunner().invoke(app, args)
 
     assert result.exit_code == 2
-    assert "acknowledge" in result.output
+    assert acknowledgement in result.output
 
 
 def test_user_permission_delete_requires_explicit_delete_acknowledgement() -> None:
