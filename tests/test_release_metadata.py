@@ -255,6 +255,7 @@ def test_release_workflow_validates_tag_versions_and_publishes_once() -> None:
     publisher = publisher_steps[0]
     publisher_sha = cast(str, publisher["uses"]).rsplit("@", 1)[1]
     assert re.fullmatch(r"[0-9a-f]{40}", publisher_sha)
+    assert publisher_sha == "dc37677b2e1c63e2034f94d8a5b11f265b73ba33"
     assert publisher["with"] == {
         "packages-dir": "publish-dist/",
         "skip-existing": "true",
