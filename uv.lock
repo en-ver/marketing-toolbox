@@ -8,6 +8,14 @@ resolution-markers = [
     "python_full_version < '3.13'",
 ]
 
+[manifest]
+members = [
+    "ga4adminctl",
+    "ga4datactl",
+    "gtmctl",
+    "marketing-toolbox",
+]
+
 [[package]]
 name = "annotated-doc"
 version = "0.0.4"
@@ -314,6 +322,28 @@ wheels = [
 ]
 
 [[package]]
+name = "ga4adminctl"
+version = "0.1.0"
+source = { editable = "packaging/ga4adminctl" }
+dependencies = [
+    { name = "marketing-toolbox" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "marketing-toolbox", editable = "." }]
+
+[[package]]
+name = "ga4datactl"
+version = "0.1.0"
+source = { editable = "packaging/ga4datactl" }
+dependencies = [
+    { name = "marketing-toolbox" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "marketing-toolbox", editable = "." }]
+
+[[package]]
 name = "google-analytics-admin"
 version = "0.30.1"
 source = { registry = "https://pypi.org/simple" }
@@ -487,6 +517,17 @@ wheels = [
 ]
 
 [[package]]
+name = "gtmctl"
+version = "0.1.0"
+source = { editable = "packaging/gtmctl" }
+dependencies = [
+    { name = "marketing-toolbox" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "marketing-toolbox", editable = "." }]
+
+[[package]]
 name = "hatchling"
 version = "1.31.0"
 source = { registry = "https://pypi.org/simple" }
@@ -646,7 +687,7 @@ wheels = [
 ]
 
 [[package]]
-name = "marketing-tools"
+name = "marketing-toolbox"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [

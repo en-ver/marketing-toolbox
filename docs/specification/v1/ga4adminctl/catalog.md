@@ -6,7 +6,7 @@ This is the complete contract-first public catalog for the Google Analytics Admi
 
 - **Coverage:** 50 non-deprecated v1beta REST operation targets; 49 generated Python callables because the account and property access-report routes deliberately share `AnalyticsAdminServiceClient.run_access_report`.
 - **SDK:** `google.analytics.admin_v1beta.services.analytics_admin_service.AnalyticsAdminServiceClient`; callable names below were verified against the pinned SDK. No hand-written HTTP client is permitted.
-- **Response:** stdout is one `marketing-tools/v1` JSON success envelope (`schemaVersion`, `command`, and `data`). For live reads and applies, `data` is the official response converted with protobuf JSON mapping (camelCase field names; no semantic remapping and no pagination aggregation); `google.protobuf.Empty` becomes `{}`. Diagnostics are redacted and go to stderr only.
+- **Response:** stdout is one `marketing-toolbox/v1` JSON success envelope (`schemaVersion`, `command`, and `data`). For live reads and applies, `data` is the official response converted with protobuf JSON mapping (camelCase field names; no semantic remapping and no pagination aggregation); `google.protobuf.Empty` becomes `{}`. Diagnostics are redacted and go to stderr only.
 - **Lifecycle:** all rows are upstream `v1beta`, non-deprecated in the inventory snapshot, and project `stable-target`. Recheck inventory deprecation metadata whenever the SDK changes.
 - **Local descriptor tool:** `ga4adminctl sdk schema` is a local-only SDK descriptor reader, not an Admin API operation; see [the SDK-backed introspection specification](../sdk-backed-introspection.md).
 

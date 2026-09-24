@@ -79,11 +79,11 @@ def test_json_envelope_primitives_preserve_stdout_stderr_and_exit_code(
     captured = capsys.readouterr()
     assert exit_info.value.exit_code == 6
     assert captured.out == (
-        '{"schemaVersion": "marketing-tools/v1", "command": '
+        '{"schemaVersion": "marketing-toolbox/v1", "command": '
         '"ga4datactl reports run", "data": {"rows": []}}\n'
     )
     assert captured.err == (
-        '{"schemaVersion": "marketing-tools/v1", "command": '
+        '{"schemaVersion": "marketing-toolbox/v1", "command": '
         '"ga4adminctl properties list", "exitCode": 6, '
         '"category": "retryable", "message": "Try again.", '
         '"googleStatus": 429}\n'
@@ -98,7 +98,7 @@ def test_unimplemented_diagnostic_uses_the_shared_error_envelope(
 
     assert raised.value.exit_code == 2
     assert json.loads(capsys.readouterr().err) == {
-        "schemaVersion": "marketing-tools/v1",
+        "schemaVersion": "marketing-toolbox/v1",
         "command": "gtmctl sdk schema",
         "exitCode": 2,
         "category": "invalid_request",
@@ -121,7 +121,7 @@ def test_ga4_admin_credential_configuration_error_is_an_authentication_diagnosti
 
     assert result.exit_code == 4
     assert json.loads(result.stderr) == {
-        "schemaVersion": "marketing-tools/v1",
+        "schemaVersion": "marketing-toolbox/v1",
         "command": "ga4adminctl properties get",
         "exitCode": 4,
         "category": "authentication",
@@ -184,12 +184,12 @@ def test_audience_export_query_writes_unmodified_one_page_envelope(
         5,
     )
     assert json.loads(result.stdout) == {
-        "schemaVersion": "marketing-tools/v1",
+        "schemaVersion": "marketing-toolbox/v1",
         "command": "ga4datactl audience-exports query",
         "data": {"audienceRows": [{"dimensionValues": [{"value": "user-1"}]}]},
     }
     assert result.stdout == (
-        '{"schemaVersion": "marketing-tools/v1", "command": '
+        '{"schemaVersion": "marketing-toolbox/v1", "command": '
         '"ga4datactl audience-exports query", "data": {"audienceRows": '
         '[{"dimensionValues": [{"value": "user-1"}]}]}}\n'
     )
@@ -229,7 +229,7 @@ def test_ga4_clis_keep_request_error_exit_and_diagnostic_bytes(
         2,
         "",
         (
-            '{"schemaVersion": "marketing-tools/v1", "command": '
+            '{"schemaVersion": "marketing-toolbox/v1", "command": '
             '"ga4adminctl properties get", "exitCode": 2, '
             '"category": "invalid_request", "message": "Bad admin request."}\n'
         ),
@@ -238,7 +238,7 @@ def test_ga4_clis_keep_request_error_exit_and_diagnostic_bytes(
         2,
         "",
         (
-            '{"schemaVersion": "marketing-tools/v1", "command": '
+            '{"schemaVersion": "marketing-toolbox/v1", "command": '
             '"ga4datactl audience-exports query", "exitCode": 2, '
             '"category": "invalid_request", "message": "Bad data request."}\n'
         ),
@@ -415,7 +415,7 @@ def test_typos_and_missing_required_options_write_json_diagnostics(
     assert exit_info.value.code == 2
     assert captured.out == ""
     diagnostic = json.loads(captured.err)
-    assert diagnostic["schemaVersion"] == "marketing-tools/v1"
+    assert diagnostic["schemaVersion"] == "marketing-toolbox/v1"
     assert diagnostic["command"] == "ga4datactl"
     assert diagnostic["exitCode"] == 2
     assert diagnostic["category"] == "invalid_arguments"
@@ -518,7 +518,7 @@ def test_ga4_entrypoint_version_remains_an_eager_json_success(
 
     captured = capsys.readouterr()
     assert json.loads(captured.out) == {
-        "schemaVersion": "marketing-tools/v1",
+        "schemaVersion": "marketing-toolbox/v1",
         "command": command,
         "data": {"version": "0.1.0"},
     }
@@ -559,7 +559,7 @@ def test_ga4_entrypoint_parse_errors_remain_json_diagnostics(
     assert exit_info.value.code == 2
     assert captured.out == ""
     assert json.loads(captured.err) == {
-        "schemaVersion": "marketing-tools/v1",
+        "schemaVersion": "marketing-toolbox/v1",
         "command": command,
         "exitCode": 2,
         "category": "invalid_arguments",
@@ -618,7 +618,7 @@ def test_entrypoint_normalizes_eager_and_parse_paths(
     captured = capsys.readouterr()
     if expected_stdout is not None:
         envelope = json.loads(captured.out)
-        assert envelope["schemaVersion"] == "marketing-tools/v1"
+        assert envelope["schemaVersion"] == "marketing-toolbox/v1"
         assert envelope["command"] == "ga4datactl"
         assert envelope["data"] == expected_stdout
         assert captured.err == ""
@@ -800,12 +800,12 @@ def test_ga4_admin_properties_get_writes_standard_raw_response_envelope(
     assert result.stderr == ""
     assert called == {"property": "properties/1234"}
     assert json.loads(result.stdout) == {
-        "schemaVersion": "marketing-tools/v1",
+        "schemaVersion": "marketing-toolbox/v1",
         "command": "ga4adminctl properties get",
         "data": {"name": "properties/1234", "displayName": "Example property"},
     }
     assert result.stdout == (
-        '{"schemaVersion": "marketing-tools/v1", "command": '
+        '{"schemaVersion": "marketing-toolbox/v1", "command": '
         '"ga4adminctl properties get", "data": {"name": "properties/1234", '
         '"displayName": "Example property"}}\n'
     )
@@ -885,7 +885,7 @@ def test_ga4_entrypoint_normalizes_non_finite_success_data_as_unexpected_failure
     assert exit_info.value.code == 1
     assert captured.out == ""
     assert json.loads(captured.err) == {
-        "schemaVersion": "marketing-tools/v1",
+        "schemaVersion": "marketing-toolbox/v1",
         "command": "ga4datactl",
         "exitCode": 1,
         "category": "unexpected_failure",
@@ -903,7 +903,7 @@ def test_gtm_entrypoint_version_is_eager_and_uses_shared_json_success_envelope(
 
     captured = capsys.readouterr()
     assert json.loads(captured.out) == {
-        "schemaVersion": "marketing-tools/v1",
+        "schemaVersion": "marketing-toolbox/v1",
         "command": "gtmctl",
         "data": {"version": "0.1.0"},
     }
@@ -931,7 +931,7 @@ def test_gtm_entrypoint_parse_errors_are_json_diagnostics(
     assert exit_info.value.code == 2
     assert captured.out == ""
     diagnostic = json.loads(captured.err)
-    assert diagnostic["schemaVersion"] == "marketing-tools/v1"
+    assert diagnostic["schemaVersion"] == "marketing-toolbox/v1"
     assert diagnostic["command"] == "gtmctl"
     assert diagnostic["exitCode"] == 2
     assert diagnostic["category"] == "invalid_arguments"
@@ -1006,7 +1006,7 @@ def test_api_error_paths_keep_shared_safe_diagnostics(
     ):
         diagnostic = json.loads(result.stderr)
         assert result.exit_code == diagnostic["exitCode"]
-        assert diagnostic["schemaVersion"] == "marketing-tools/v1"
+        assert diagnostic["schemaVersion"] == "marketing-toolbox/v1"
         assert diagnostic["category"] == category
         assert diagnostic["googleStatus"] == status
         assert sentinel not in result.stderr

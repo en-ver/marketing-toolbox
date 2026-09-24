@@ -33,7 +33,7 @@ neither `--apply` nor `--dry-run`.
 
 ```json
 {
-  "schemaVersion": "marketing-tools/v1",
+  "schemaVersion": "marketing-toolbox/v1",
   "command": "ga4datactl reports batch-run",
   "data": { "...": "unaltered Google BatchRunReportsResponse JSON" }
 }
@@ -45,5 +45,5 @@ diagnostic.
 ## Sources
 
 - [Google `properties.batchRunReports` v1beta reference](https://developers.google.com/analytics/devguides/reporting/data/v1/rest/v1beta/properties/batchRunReports)
-- [Google Analytics Data API Python SDK](https://cloud.google.com/python/docs/reference/analyticsdata/latest)
-- [Google quota guidance](https://developers.google.com/analytics/devguides/reporting/data/v1/quota)
+- [Google Analytics Data API Python SDK](https://googleapis.dev/python/analyticsdata/latest/)
+- [Google quota guidance](https://developers.google.com/analytics/devguides/reporting/data/v1/quotas)

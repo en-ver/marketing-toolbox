@@ -1,12 +1,12 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:marketing-tools:ga4datactl:schema:create-audience-export-success.schema.json",
+  "$id": "urn:marketing-toolbox:ga4datactl:schema:create-audience-export-success.schema.json",
   "title": "ga4datactl audience-exports create successful stdout",
   "type": "object",
   "additionalProperties": false,
   "required": ["schemaVersion", "command", "data"],
   "properties": {
-    "schemaVersion": {"const": "marketing-tools/v1"},
+    "schemaVersion": {"const": "marketing-toolbox/v1"},
     "command": {"const": "ga4datactl audience-exports create"},
     "data": {
       "oneOf": [
@@ -22,7 +22,7 @@
               "required": ["parent", "audienceExport"],
               "properties": {
                 "parent": {"type": "string"},
-                "audienceExport": {"$ref": "urn:marketing-tools:ga4datactl:schema:create-audience-export-body.schema.json"}
+                "audienceExport": {"$ref": "urn:marketing-toolbox:ga4datactl:schema:create-audience-export-body.schema.json"}
               }
             }
           }

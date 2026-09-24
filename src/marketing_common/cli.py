@@ -14,7 +14,7 @@ from .typer_compat import NoArgsIsHelpError, UsageError
 def success_envelope(*, command: str, data: Any) -> dict[str, Any]:
     """Build the stable JSON success envelope shared by all three CLIs."""
     return {
-        "schemaVersion": "marketing-tools/v1",
+        "schemaVersion": "marketing-toolbox/v1",
         "command": command,
         "data": data,
     }
@@ -30,7 +30,7 @@ def diagnostic_envelope(
 ) -> dict[str, Any]:
     """Build the stable JSON diagnostic envelope shared by all three CLIs."""
     payload: dict[str, Any] = {
-        "schemaVersion": "marketing-tools/v1",
+        "schemaVersion": "marketing-toolbox/v1",
         "command": command,
         "exitCode": exit_code,
         "category": category,

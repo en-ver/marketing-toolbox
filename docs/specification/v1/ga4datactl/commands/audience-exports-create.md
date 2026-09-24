@@ -52,7 +52,7 @@ Dry run:
 
 ```json
 {
-  "schemaVersion": "marketing-tools/v1",
+  "schemaVersion": "marketing-toolbox/v1",
   "command": "ga4datactl audience-exports create",
   "data": {
     "dryRun": true,
@@ -68,7 +68,7 @@ Apply:
 
 ```json
 {
-  "schemaVersion": "marketing-tools/v1",
+  "schemaVersion": "marketing-toolbox/v1",
   "command": "ga4datactl audience-exports create",
   "data": {"operationName": "operations/audience-export-creation-123"}
 }

@@ -1,0 +1,22 @@
+[build-system]
+requires = ["hatchling==1.31.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ga4datactl"
+version = "0.1.0"
+description = "Thin launcher for the marketing-toolbox GA4 Data CLI."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
+dependencies = ["marketing-toolbox==0.1.0"]
+
+[project.scripts]
+ga4datactl = "ga4datactl.cli:main"
+
+[tool.uv.sources]
+marketing-toolbox = { workspace = true }
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ga4datactl_alias"]

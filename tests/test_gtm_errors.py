@@ -67,7 +67,7 @@ def test_gtm_diagnostic_envelope_is_shared_and_redacts_google_payload(
     assert raised.value.exit_code == 2
     diagnostic = json.loads(capsys.readouterr().err)
     assert diagnostic == {
-        "schemaVersion": "marketing-tools/v1",
+        "schemaVersion": "marketing-toolbox/v1",
         "command": "gtmctl accounts containers workspaces triggers create",
         "exitCode": 2,
         "category": "invalid_request",

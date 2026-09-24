@@ -30,7 +30,7 @@ Successful output preserves the Google `RunPivotReportResponse` in `data`:
 
 ```json
 {
-  "schemaVersion": "marketing-tools/v1",
+  "schemaVersion": "marketing-toolbox/v1",
   "command": "ga4datactl reports pivot-run",
   "data": { "...": "unaltered Google RunPivotReportResponse JSON" }
 }
@@ -44,4 +44,4 @@ diagnostic to stderr.
 
 - [Google `properties.runPivotReport` v1beta reference](https://developers.google.com/analytics/devguides/reporting/data/v1/rest/v1beta/properties/runPivotReport)
 - [Google `Pivot` reference](https://developers.google.com/analytics/devguides/reporting/data/v1/rest/v1beta/Pivot)
-- [Google Analytics Data API Python SDK](https://cloud.google.com/python/docs/reference/analyticsdata/latest)
+- [Google Analytics Data API Python SDK](https://googleapis.dev/python/analyticsdata/latest/)

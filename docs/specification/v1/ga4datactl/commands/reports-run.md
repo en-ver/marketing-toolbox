@@ -30,7 +30,7 @@ response in the repository-wide success envelope:
 
 ```json
 {
-  "schemaVersion": "marketing-tools/v1",
+  "schemaVersion": "marketing-toolbox/v1",
   "command": "ga4datactl reports run",
   "data": { "...": "unaltered Google RunReportResponse JSON" }
 }
@@ -42,6 +42,6 @@ diagnostic. The command accepts neither `--apply` nor `--dry-run`.
 ## Sources
 
 - [Google `properties.runReport` v1beta reference](https://developers.google.com/analytics/devguides/reporting/data/v1/rest/v1beta/properties/runReport)
-- [Google Analytics Data API Python SDK](https://cloud.google.com/python/docs/reference/analyticsdata/latest)
+- [Google Analytics Data API Python SDK](https://googleapis.dev/python/analyticsdata/latest/)
 - [Google report basics](https://developers.google.com/analytics/devguides/reporting/data/v1/basics)
-- [Google quota guidance](https://developers.google.com/analytics/devguides/reporting/data/v1/quota)
+- [Google quota guidance](https://developers.google.com/analytics/devguides/reporting/data/v1/quotas)

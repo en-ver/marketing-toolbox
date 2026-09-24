@@ -2,12 +2,17 @@
 requires = ["hatchling==1.31.0"]
 build-backend = "hatchling.build"
 
+[tool.uv.workspace]
+members = ["packaging/*"]
+
 [project]
-name = "marketing-tools"
+name = "marketing-toolbox"
 version = "0.1.0"
 description = "Command-line tools for Google Analytics 4 and Google Tag Manager."
 readme = "README.md"
 requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
 dependencies = [
     "google-analytics-admin==0.30.1",
     "google-analytics-data==0.23.0",
@@ -23,7 +28,7 @@ ga4adminctl = "ga4adminctl.cli:main"
 gtmctl = "gtmctl.cli:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/ga4datactl", "src/ga4adminctl", "src/gtmctl", "src/marketing_common", "src/marketing_tools"]
+packages = ["src/ga4datactl", "src/ga4adminctl", "src/gtmctl", "src/marketing_common", "src/marketing_toolbox"]
 
 [tool.mypy]
 python_version = "3.11"
