@@ -13,6 +13,25 @@ import yaml
 
 ROOT = Path(__file__).parents[1]
 RELEASE_WORKFLOW = ROOT / ".github/workflows/release.yml"
+MANUAL_BOOTSTRAP_TARGETS = {
+    "marketing-toolbox": {
+        "confirmation": "BOOTSTRAP-MARKETING-TOOLBOX",
+        "artifact_stem": "marketing_toolbox",
+    },
+    "ga4datactl": {
+        "confirmation": "BOOTSTRAP-GA4DATACTL",
+        "artifact_stem": "ga4datactl",
+    },
+    "ga4adminctl": {
+        "confirmation": "BOOTSTRAP-GA4ADMINCTL",
+        "artifact_stem": "ga4adminctl",
+    },
+    "gtmctl": {
+        "confirmation": "BOOTSTRAP-GTMCTL",
+        "artifact_stem": "gtmctl",
+    },
+}
+
 PROJECTS = {
     "marketing-toolbox": {
         "manifest": ROOT / "pyproject.toml",
@@ -124,7 +143,7 @@ def test_release_workflow_has_an_exact_manual_bootstrap_contract() -> None:
     assert set(inputs) == {"publish_target", "confirmation"}
     assert inputs["publish_target"]["required"] == "true"
     assert inputs["publish_target"]["type"] == "choice"
-    assert inputs["publish_target"]["options"] == ["marketing-toolbox"]
+    assert inputs["publish_target"]["options"] == list(MANUAL_BOOTSTRAP_TARGETS)
     assert inputs["publish_target"]["default"] == "marketing-toolbox"
     assert inputs["confirmation"]["required"] == "true"
     assert inputs["confirmation"]["type"] == "string"
@@ -137,55 +156,63 @@ def test_release_workflow_has_an_exact_manual_bootstrap_contract() -> None:
 
     verify = _workflow_step(workflow, "build", "Verify release mode")
     verify_script = cast(str, verify["run"])
-    assert (
-        _run_workflow_script(
+    for target, bootstrap in MANUAL_BOOTSTRAP_TARGETS.items():
+        valid = _run_workflow_script(
             verify_script,
             cwd=ROOT,
             environment={
                 "EVENT_NAME": "workflow_dispatch",
                 "WORKFLOW_REF": "refs/heads/main",
-                "PUBLISH_TARGET": "marketing-toolbox",
-                "CONFIRMATION": "BOOTSTRAP-MARKETING-TOOLBOX",
+                "PUBLISH_TARGET": target,
+                "CONFIRMATION": str(bootstrap["confirmation"]),
             },
-        ).returncode
-        == 0
-    )
-
-    for environment in (
-        {
-            "EVENT_NAME": "workflow_dispatch",
-            "WORKFLOW_REF": "refs/heads/release",
-            "PUBLISH_TARGET": "marketing-toolbox",
-            "CONFIRMATION": "BOOTSTRAP-MARKETING-TOOLBOX",
-        },
-        {
-            "EVENT_NAME": "workflow_dispatch",
-            "WORKFLOW_REF": "refs/heads/main",
-            "PUBLISH_TARGET": "ga4datactl",
-            "CONFIRMATION": "BOOTSTRAP-MARKETING-TOOLBOX",
-        },
-        {
-            "EVENT_NAME": "workflow_dispatch",
-            "WORKFLOW_REF": "refs/heads/main",
-            "PUBLISH_TARGET": "marketing-toolbox",
-            "CONFIRMATION": "BOOTSTRAP-MARKETING-TOOLBOX ",
-        },
-    ):
-        assert (
-            _run_workflow_script(
-                verify_script, cwd=ROOT, environment=environment
-            ).returncode
-            != 0
         )
+        assert valid.returncode == 0, valid.stderr
+
+        wrong_branch = _run_workflow_script(
+            verify_script,
+            cwd=ROOT,
+            environment={
+                "EVENT_NAME": "workflow_dispatch",
+                "WORKFLOW_REF": "refs/heads/release",
+                "PUBLISH_TARGET": target,
+                "CONFIRMATION": str(bootstrap["confirmation"]),
+            },
+        )
+        assert wrong_branch.returncode != 0
+
+        for other in MANUAL_BOOTSTRAP_TARGETS.values():
+            if other != bootstrap:
+                mismatched = _run_workflow_script(
+                    verify_script,
+                    cwd=ROOT,
+                    environment={
+                        "EVENT_NAME": "workflow_dispatch",
+                        "WORKFLOW_REF": "refs/heads/main",
+                        "PUBLISH_TARGET": target,
+                        "CONFIRMATION": str(other["confirmation"]),
+                    },
+                )
+                assert mismatched.returncode != 0
+
+    invalid_target = _run_workflow_script(
+        verify_script,
+        cwd=ROOT,
+        environment={
+            "EVENT_NAME": "workflow_dispatch",
+            "WORKFLOW_REF": "refs/heads/main",
+            "PUBLISH_TARGET": "marketing-toolbox,ga4datactl",
+            "CONFIRMATION": "BOOTSTRAP-MARKETING-TOOLBOX",
+        },
+    )
+    assert invalid_target.returncode != 0
 
 
 def test_release_workflow_stages_the_right_artifacts_per_mode(tmp_path: Path) -> None:
     workflow = _release_workflow()
     stage = _workflow_step(workflow, "publish", "Stage distributions for publication")
+    assert stage["env"]["PUBLISH_TARGET"] == "${{ inputs.publish_target }}"
     stage_script = cast(str, stage["run"])
-    dist = tmp_path / "dist"
-    dist.mkdir()
-
     artifacts = {
         "marketing_toolbox-0.1.0-py3-none-any.whl",
         "marketing_toolbox-0.1.0.tar.gz",
@@ -196,27 +223,90 @@ def test_release_workflow_stages_the_right_artifacts_per_mode(tmp_path: Path) ->
         "gtmctl-0.1.0-py3-none-any.whl",
         "gtmctl-0.1.0.tar.gz",
     }
+
+    for target, bootstrap in MANUAL_BOOTSTRAP_TARGETS.items():
+        stem = str(bootstrap["artifact_stem"])
+        wheel = f"{stem}-0.1.0-py3-none-any.whl"
+        sdist = f"{stem}-0.1.0.tar.gz"
+        manual_artifact_cases = {
+            "valid-pair": ({wheel, sdist}, True),
+            "missing-wheel": ({sdist}, False),
+            "missing-sdist": ({wheel}, False),
+            "two-wheels-no-sdist": (
+                {wheel, f"{stem}-0.1.1-py3-none-any.whl"},
+                False,
+            ),
+            "two-sdists-no-wheel": ({sdist, f"{stem}-0.1.1.tar.gz"}, False),
+            "duplicate-wheel": (
+                {wheel, f"{stem}-0.1.1-py3-none-any.whl", sdist},
+                False,
+            ),
+            "duplicate-sdist": ({wheel, sdist, f"{stem}-0.1.1.tar.gz"}, False),
+        }
+        for case_name, (
+            case_artifacts,
+            should_succeed,
+        ) in manual_artifact_cases.items():
+            case_dir = tmp_path / target / case_name
+            dist = case_dir / "dist"
+            dist.mkdir(parents=True)
+            for artifact in case_artifacts:
+                (dist / artifact).touch()
+
+            manual = _run_workflow_script(
+                stage_script,
+                cwd=case_dir,
+                environment={
+                    "EVENT_NAME": "workflow_dispatch",
+                    "PUBLISH_TARGET": target,
+                },
+            )
+            if should_succeed:
+                assert manual.returncode == 0, manual.stderr
+                assert {
+                    path.name for path in (case_dir / "publish-dist").iterdir()
+                } == {wheel, sdist}
+            else:
+                assert manual.returncode != 0
+                assert not list((case_dir / "publish-dist").iterdir())
+
+    tagged_dir = tmp_path / "tagged"
+    tagged_dist = tagged_dir / "dist"
+    tagged_dist.mkdir(parents=True)
     for artifact in artifacts:
-        (dist / artifact).touch()
-
-    manual = _run_workflow_script(
-        stage_script,
-        cwd=tmp_path,
-        environment={"EVENT_NAME": "workflow_dispatch"},
-    )
-    assert manual.returncode == 0, manual.stderr
-    assert {path.name for path in (tmp_path / "publish-dist").iterdir()} == {
-        "marketing_toolbox-0.1.0-py3-none-any.whl",
-        "marketing_toolbox-0.1.0.tar.gz",
-    }
-
+        (tagged_dist / artifact).touch()
     tagged = _run_workflow_script(
         stage_script,
-        cwd=tmp_path,
-        environment={"EVENT_NAME": "push"},
+        cwd=tagged_dir,
+        environment={"EVENT_NAME": "push", "PUBLISH_TARGET": "marketing-toolbox"},
     )
     assert tagged.returncode == 0, tagged.stderr
-    assert {path.name for path in (tmp_path / "publish-dist").iterdir()} == artifacts
+    assert {path.name for path in (tagged_dir / "publish-dist").iterdir()} == artifacts
+
+    invalid_dir = tmp_path / "invalid"
+    invalid_dist = invalid_dir / "dist"
+    invalid_dist.mkdir(parents=True)
+    for artifact in artifacts:
+        (invalid_dist / artifact).touch()
+    invalid = _run_workflow_script(
+        stage_script,
+        cwd=invalid_dir,
+        environment={
+            "EVENT_NAME": "workflow_dispatch",
+            "PUBLISH_TARGET": "marketing-toolbox,ga4datactl",
+        },
+    )
+    assert invalid.returncode != 0
+
+    untagged_all = _run_workflow_script(
+        stage_script,
+        cwd=invalid_dir,
+        environment={
+            "EVENT_NAME": "repository_dispatch",
+            "PUBLISH_TARGET": "marketing-toolbox",
+        },
+    )
+    assert untagged_all.returncode != 0
 
 
 def test_release_workflow_validates_tag_versions_and_publishes_once() -> None:
