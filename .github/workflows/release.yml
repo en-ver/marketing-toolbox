@@ -178,7 +178,7 @@ jobs:
             exit 1
           }
       - name: Publish distributions to PyPI
-        uses: pypa/gh-action-pypi-publish@ec4db0b4ddc65acdf4bff5fa45ac92d78b56bdf0 # v1.9.0
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
         with:
           packages-dir: publish-dist/
           # The bootstrap has already uploaded marketing-toolbox 0.1.0.
