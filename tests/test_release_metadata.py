@@ -83,7 +83,9 @@ def test_aliases_pin_the_exact_core_version_and_expose_expected_scripts() -> Non
         "google-analytics-data==0.23.0",
         "google-api-python-client==2.198.0",
         "google-auth==2.56.2",
+        "google-auth-oauthlib==1.2.4",
         "jsonschema==4.25.1",
+        "keyring==25.6.0",
         "typer==0.27.0",
     }
 

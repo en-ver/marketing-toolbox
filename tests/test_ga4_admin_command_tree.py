@@ -28,9 +28,16 @@ def test_ga4_admin_api_command_tree_is_complete_and_excludes_unsupported_paths()
 ):
     """Detect removed API leaves without maintaining a prose command catalog."""
     leaves = _leaf_commands(get_command(app))
-    api_paths = set(leaves) - {"ga4adminctl sdk schema"}
+    native_auth_paths = {
+        "ga4adminctl auth login",
+        "ga4adminctl auth status",
+        "ga4adminctl auth forget",
+        "ga4adminctl auth revoke",
+    }
+    api_paths = set(leaves) - {"ga4adminctl sdk schema"} - native_auth_paths
 
     assert len(api_paths) == 50
+    assert native_auth_paths <= set(leaves)
     assert "ga4adminctl sdk schema" in leaves
     assert not api_paths.intersection(
         {

@@ -7,6 +7,7 @@ from typing import Annotated
 import typer
 
 from gtmctl import __version__
+from gtmctl.commands import auth
 from gtmctl.commands.accounts import accounts_app
 from gtmctl.commands.sdk import register_sdk_commands
 from marketing_common.cli import make_version_callback, run_typer_application
@@ -24,6 +25,7 @@ app = typer.Typer(
 )
 app.add_typer(accounts_app, name="accounts")
 register_sdk_commands(app)
+app.add_typer(auth.app, name="auth")
 
 
 @app.callback()

@@ -8,7 +8,7 @@ from typing import Annotated
 import typer
 
 from ga4adminctl import __version__
-from ga4adminctl.commands import sdk
+from ga4adminctl.commands import auth, sdk
 from ga4adminctl.commands.accounts import account_summaries_app, accounts_app
 from ga4adminctl.commands.properties import properties_app
 from ga4adminctl.operations.access import (
@@ -85,6 +85,7 @@ app.add_typer(account_summaries_app, name="account-summaries")
 app.add_typer(accounts_app, name="accounts")
 app.add_typer(properties_app, name="properties")
 app.add_typer(sdk.app, name="sdk")
+app.add_typer(auth.app, name="auth")
 _version_callback = make_version_callback("ga4adminctl", __version__)
 
 

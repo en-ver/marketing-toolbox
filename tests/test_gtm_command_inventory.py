@@ -93,7 +93,13 @@ def test_gtm_registered_leaf_commands_match_stable_inventory_targets() -> None:
         if method["publicContractStatus"] == "excluded"
     }
 
-    assert registered == stable | {"gtmctl sdk schema"}
+    assert registered == stable | {
+        "gtmctl sdk schema",
+        "gtmctl auth login",
+        "gtmctl auth status",
+        "gtmctl auth forget",
+        "gtmctl auth revoke",
+    }
     assert not registered & excluded
 
 

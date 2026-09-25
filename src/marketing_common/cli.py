@@ -114,7 +114,11 @@ def make_schema_callback(
 def run_typer_application(app: typer.Typer, *, command: str) -> None:
     """Run a Typer app with its help and JSON diagnostic contracts intact."""
     try:
-        app(standalone_mode=False, prog_name=command)
+        exit_code = app(standalone_mode=False, prog_name=command)
+        # With standalone mode disabled, Click converts typer.Exit into its code
+        # instead of raising it. Propagate nonzero command exits to the console.
+        if isinstance(exit_code, int) and exit_code != 0:
+            raise SystemExit(exit_code)
     except NoArgsIsHelpError as exc:
         # Typer uses this distinct UsageError subclass for no_args_is_help=True.
         # Preserve its native help rendering instead of converting it to our

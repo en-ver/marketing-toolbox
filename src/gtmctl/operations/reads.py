@@ -6,16 +6,19 @@ import ssl
 from collections.abc import Callable
 from typing import Any, Protocol
 
-from google.oauth2.service_account import Credentials
+from google.auth.credentials import Credentials
 from googleapiclient.discovery import Resource, build
 from googleapiclient.errors import HttpError
 from httplib2.error import ServerNotFoundError  # type: ignore[import-untyped]
 
 from gtmctl.foundation.errors import normalize_google_error, normalize_transport_error
-from marketing_common.auth import (
-    CredentialConfigurationError,
-    service_account_credentials,
-)
+from marketing_common.auth import CredentialConfigurationError, resolve_credentials
+
+
+def service_account_credentials(scopes: list[str]) -> Credentials:
+    """Compatibility injection seam backed by generic credential resolution."""
+    return resolve_credentials(scopes, tool="gtmctl")
+
 
 TAG_MANAGER_READONLY_SCOPE = "https://www.googleapis.com/auth/tagmanager.readonly"
 TAG_MANAGER_MANAGE_USERS_SCOPE = (

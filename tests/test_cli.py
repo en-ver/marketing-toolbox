@@ -34,6 +34,7 @@ from marketing_common.cli import (
     exit_with_diagnostic,
     write_success,
 )
+from marketing_common.oauth import OAuthAuthenticationError
 
 runner = CliRunner()
 
@@ -399,6 +400,111 @@ def test_report_commands_do_not_expose_bundled_request_schemas(command: str) -> 
     assert schema_result.exit_code == 2
     assert schema_result.stdout == ""
     assert "No such option: --schema" in schema_result.stderr
+
+
+@pytest.mark.parametrize(
+    ("entrypoint", "program"),
+    [
+        (ga4_data_main, "ga4datactl"),
+        (ga4_admin_main, "ga4adminctl"),
+        (gtm_main, "gtmctl"),
+    ],
+)
+def test_oauth_entrypoints_propagate_request_exit_codes(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    entrypoint: Callable[[], None],
+    program: str,
+) -> None:
+    monkeypatch.setattr(
+        sys, "argv", [program, "auth", "status", "--access", "unsupported"]
+    )
+
+    with pytest.raises(SystemExit) as exit_info:
+        entrypoint()
+
+    assert exit_info.value.code == 2
+    diagnostic = json.loads(capsys.readouterr().err)
+    assert diagnostic["category"] == "invalid_request"
+
+
+@pytest.mark.parametrize(
+    ("entrypoint", "program"),
+    [
+        (ga4_data_main, "ga4datactl"),
+        (ga4_admin_main, "ga4adminctl"),
+        (gtm_main, "gtmctl"),
+    ],
+)
+def test_oauth_entrypoints_propagate_authentication_exit_codes(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    entrypoint: Callable[[], None],
+    program: str,
+) -> None:
+    def offline_storage(*_args: object) -> bool:
+        raise OAuthAuthenticationError("Secure local credential storage is offline.")
+
+    monkeypatch.setattr(
+        "marketing_common.oauth_cli.native_marker_exists", offline_storage
+    )
+    monkeypatch.setattr(sys, "argv", [program, "auth", "status", "--access", "read"])
+
+    with pytest.raises(SystemExit) as exit_info:
+        entrypoint()
+
+    assert exit_info.value.code == 4
+    diagnostic = json.loads(capsys.readouterr().err)
+    assert diagnostic["category"] == "authentication"
+
+
+@pytest.mark.parametrize(
+    ("entrypoint", "program"),
+    [
+        (ga4_data_main, "ga4datactl"),
+        (ga4_admin_main, "ga4adminctl"),
+        (gtm_main, "gtmctl"),
+    ],
+)
+def test_oauth_entrypoints_return_successfully_for_local_status(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    entrypoint: Callable[[], None],
+    program: str,
+) -> None:
+    monkeypatch.setattr(
+        "marketing_common.oauth_cli.native_marker_exists", lambda *_args: False
+    )
+    monkeypatch.setattr(sys, "argv", [program, "auth", "status", "--access", "read"])
+
+    entrypoint()
+
+    captured = capsys.readouterr()
+    assert json.loads(captured.out)["data"] == {"stored": False, "access": "read"}
+    assert captured.err == ""
+
+
+@pytest.mark.parametrize(
+    ("entrypoint", "program"),
+    [
+        (ga4_data_main, "ga4datactl"),
+        (ga4_admin_main, "ga4adminctl"),
+        (gtm_main, "gtmctl"),
+    ],
+)
+def test_oauth_entrypoints_return_successfully_for_help(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    entrypoint: Callable[[], None],
+    program: str,
+) -> None:
+    monkeypatch.setattr(sys, "argv", [program, "auth", "--help"])
+
+    entrypoint()
+
+    captured = capsys.readouterr()
+    assert captured.out.startswith(f"Usage: {program} auth")
+    assert captured.err == ""
 
 
 def test_typos_and_missing_required_options_write_json_diagnostics(

@@ -7,7 +7,7 @@ from typing import Annotated
 import typer
 
 from ga4datactl import __version__
-from ga4datactl.commands import audience_exports, metadata, reports, sdk
+from ga4datactl.commands import audience_exports, auth, metadata, reports, sdk
 from ga4datactl.service import (
     batch_run_pivot_reports,
     batch_run_reports,
@@ -52,6 +52,7 @@ app.add_typer(reports.app, name="reports")
 app.add_typer(metadata.app, name="metadata")
 app.add_typer(audience_exports.app, name="audience-exports")
 app.add_typer(sdk.app, name="sdk")
+app.add_typer(auth.app, name="auth")
 
 _version_callback = make_version_callback("ga4datactl", __version__)
 

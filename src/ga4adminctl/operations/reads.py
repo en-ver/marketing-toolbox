@@ -10,7 +10,7 @@ from google.analytics.admin_v1beta import (
 )
 from google.analytics.admin_v1beta.types import Property
 from google.api_core import exceptions
-from google.oauth2.service_account import Credentials
+from google.auth.credentials import Credentials
 
 from ga4adminctl.foundation.errors import (
     normalize_google_error as _normalize_google_error,
@@ -18,10 +18,13 @@ from ga4adminctl.foundation.errors import (
 from ga4adminctl.foundation.serialization import (
     message_response as _message_response,
 )
-from marketing_common.auth import (
-    CredentialConfigurationError,
-    service_account_credentials,
-)
+from marketing_common.auth import CredentialConfigurationError, resolve_credentials
+
+
+def service_account_credentials(scopes: list[str]) -> Credentials:
+    """Compatibility injection seam backed by generic credential resolution."""
+    return resolve_credentials(scopes, tool="ga4adminctl")
+
 
 ANALYTICS_EDIT_SCOPE = "https://www.googleapis.com/auth/analytics.edit"
 ANALYTICS_READONLY_SCOPE = "https://www.googleapis.com/auth/analytics.readonly"

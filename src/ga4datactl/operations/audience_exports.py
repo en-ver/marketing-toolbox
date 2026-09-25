@@ -16,7 +16,7 @@ from google.analytics.data_v1beta.types import (
 )
 from google.api_core import exceptions
 from google.api_core.retry import Retry
-from google.oauth2.service_account import Credentials
+from google.auth.credentials import Credentials
 
 from ga4datactl.foundation.errors import (
     is_retryable_google_error,
@@ -29,10 +29,17 @@ from ga4datactl.foundation.validation import (
     validate_list_audience_exports_request,
     validate_query_audience_export_request,
 )
-from marketing_common.auth import service_account_credentials
+from marketing_common.auth import resolve_credentials
+
+
+def service_account_credentials(scopes: list[str]) -> Credentials:
+    """Compatibility injection seam backed by generic credential resolution."""
+    return resolve_credentials(scopes, tool="ga4datactl")
+
 
 ANALYTICS_READONLY_SCOPE = "https://www.googleapis.com/auth/analytics.readonly"
-ANALYTICS_SCOPE = "https://www.googleapis.com/auth/analytics"
+# Retained direct-import compatibility; audience exports require readonly access.
+ANALYTICS_SCOPE = ANALYTICS_READONLY_SCOPE
 CREATE_AUDIENCE_EXPORT_TIMEOUT_SECONDS = 20.0
 RUN_REPORT_RETRY = Retry(
     predicate=is_retryable_google_error,
