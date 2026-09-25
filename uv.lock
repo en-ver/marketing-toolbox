@@ -332,7 +332,7 @@ wheels = [
 
 [[package]]
 name = "ga4adminctl"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "packaging/ga4adminctl" }
 dependencies = [
     { name = "marketing-toolbox" },
@@ -343,7 +343,7 @@ requires-dist = [{ name = "marketing-toolbox", editable = "." }]
 
 [[package]]
 name = "ga4datactl"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "packaging/ga4datactl" }
 dependencies = [
     { name = "marketing-toolbox" },
@@ -540,7 +540,7 @@ wheels = [
 
 [[package]]
 name = "gtmctl"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "packaging/gtmctl" }
 dependencies = [
     { name = "marketing-toolbox" },
@@ -785,7 +785,7 @@ wheels = [
 
 [[package]]
 name = "marketing-toolbox"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "." }
 dependencies = [
     { name = "google-analytics-admin" },

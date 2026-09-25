@@ -7,7 +7,7 @@ members = ["packaging/*"]
 
 [project]
 name = "marketing-toolbox"
-version = "0.1.0"
+version = "0.2.0"
 description = "Command-line tools for Google Analytics 4 and Google Tag Manager."
 readme = "README.md"
 requires-python = ">=3.11"
