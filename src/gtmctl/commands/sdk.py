@@ -87,7 +87,10 @@ def _target_for_path(
 def register_sdk_commands(root: typer.Typer) -> typer.Typer:
     """Attach ``gtmctl sdk schema`` after the complete registered tree exists."""
     app = typer.Typer(
-        help="Inspect locally installed official GTM Discovery request descriptors.",
+        help=(
+            "Inspect bundled official GTM Discovery request descriptors for registered "
+            "body leaves with a matching descriptor; reads and bodyless deletes use leaf help."
+        ),
         no_args_is_help=True,
     )
 
@@ -101,7 +104,7 @@ def register_sdk_commands(root: typer.Typer) -> typer.Typer:
             ),
         ],
     ) -> None:
-        """Return a bundled official Discovery descriptor without credentials or network."""
+        """Return a local request descriptor, not a response schema or full CLI contract."""
         path = tuple(part for part in command.split(" ") if part)
         body_options = _registered_body_options(root)
         if path not in body_options:

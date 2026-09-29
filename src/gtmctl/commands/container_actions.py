@@ -6,7 +6,7 @@ from typing import Annotated, Any
 
 import typer
 
-from gtmctl.commands._common import run_command
+from gtmctl.commands._common import DRY_RUN_HELP, run_command
 from gtmctl.commands.tag_mutations import _dry_run, _validate_execution_mode
 from gtmctl.foundation.validation import RequestValidationError, validate_container_path
 from gtmctl.operations import mutations
@@ -58,9 +58,7 @@ def register_container_action_commands(containers_app: typer.Typer) -> None:
                 help="Acknowledge that combining containers can change container settings.",
             ),
         ] = False,
-        dry_run: Annotated[
-            bool, typer.Option("--dry-run", help="Validate and print a mutation plan.")
-        ] = False,
+        dry_run: Annotated[bool, typer.Option("--dry-run", help=DRY_RUN_HELP)] = False,
         apply: Annotated[
             bool, typer.Option("--apply", help="Execute the Google API mutation.")
         ] = False,
@@ -126,9 +124,7 @@ def register_container_action_commands(containers_app: typer.Typer) -> None:
                 help="Acknowledge that moving a Google tag can change container settings.",
             ),
         ] = False,
-        dry_run: Annotated[
-            bool, typer.Option("--dry-run", help="Validate and print a mutation plan.")
-        ] = False,
+        dry_run: Annotated[bool, typer.Option("--dry-run", help=DRY_RUN_HELP)] = False,
         apply: Annotated[
             bool, typer.Option("--apply", help="Execute the Google API mutation.")
         ] = False,

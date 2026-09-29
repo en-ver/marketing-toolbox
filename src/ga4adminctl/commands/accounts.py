@@ -282,7 +282,7 @@ def accounts_change_history_search(
         ),
     ] = False,
 ) -> None:
-    """Search sensitive, read-only account change-history events."""
+    """Search sensitive, read-only account change-history events; requires edit access."""
     run_command(
         command="ga4adminctl accounts change-history search",
         operation=lambda: search_change_history_command(

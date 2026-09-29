@@ -6,7 +6,7 @@ from typing import Annotated, Any
 
 import typer
 
-from gtmctl.commands._common import run_command
+from gtmctl.commands._common import DRY_RUN_HELP, run_command
 from gtmctl.commands.tag_mutations import (
     _dry_run,
     _validate_execution_mode,
@@ -30,9 +30,7 @@ def register_workspace_action_commands(workspaces_app: typer.Typer) -> None:
         path: Annotated[
             str, typer.Option("--path", help="GTM workspace resource path.")
         ],
-        dry_run: Annotated[
-            bool, typer.Option("--dry-run", help="Validate and print a mutation plan.")
-        ] = False,
+        dry_run: Annotated[bool, typer.Option("--dry-run", help=DRY_RUN_HELP)] = False,
         apply: Annotated[
             bool, typer.Option("--apply", help="Execute the Google API mutation.")
         ] = False,
@@ -62,15 +60,13 @@ def register_workspace_action_commands(workspaces_app: typer.Typer) -> None:
                 help="Acknowledge creation of a temporary workspace preview.",
             ),
         ] = False,
-        dry_run: Annotated[
-            bool, typer.Option("--dry-run", help="Validate and print a preview plan.")
-        ] = False,
+        dry_run: Annotated[bool, typer.Option("--dry-run", help=DRY_RUN_HELP)] = False,
         apply: Annotated[
             bool,
             typer.Option("--apply", help="Create the temporary workspace preview."),
         ] = False,
     ) -> None:
-        """Create a temporary preview for one workspace."""
+        """Create a temporary preview for one workspace; requires versions access."""
 
         def operation() -> dict[str, Any]:
             validate_workspace_path(path)
@@ -103,9 +99,7 @@ def register_workspace_action_commands(workspaces_app: typer.Typer) -> None:
                 "--fingerprint", help="Current official resource fingerprint."
             ),
         ] = None,
-        dry_run: Annotated[
-            bool, typer.Option("--dry-run", help="Validate and print a mutation plan.")
-        ] = False,
+        dry_run: Annotated[bool, typer.Option("--dry-run", help=DRY_RUN_HELP)] = False,
         apply: Annotated[
             bool, typer.Option("--apply", help="Execute the Google API mutation.")
         ] = False,
@@ -146,10 +140,7 @@ def register_workspace_action_commands(workspaces_app: typer.Typer) -> None:
                 help="Acknowledge applying all proposed workspace changes.",
             ),
         ] = False,
-        dry_run: Annotated[
-            bool,
-            typer.Option("--dry-run", help="Validate and print a bulk-update plan."),
-        ] = False,
+        dry_run: Annotated[bool, typer.Option("--dry-run", help=DRY_RUN_HELP)] = False,
         apply: Annotated[
             bool, typer.Option("--apply", help="Execute the workspace bulk update.")
         ] = False,
@@ -191,17 +182,12 @@ def register_workspace_action_commands(workspaces_app: typer.Typer) -> None:
                 help="Acknowledge irreversible creation of a container version from this workspace.",
             ),
         ] = False,
-        dry_run: Annotated[
-            bool,
-            typer.Option(
-                "--dry-run", help="Validate and print a version-creation plan."
-            ),
-        ] = False,
+        dry_run: Annotated[bool, typer.Option("--dry-run", help=DRY_RUN_HELP)] = False,
         apply: Annotated[
             bool, typer.Option("--apply", help="Create the container version.")
         ] = False,
     ) -> None:
-        """Create a container version from one workspace."""
+        """Create a container version from one workspace; requires versions access."""
 
         def operation() -> dict[str, Any]:
             validate_workspace_path(path)

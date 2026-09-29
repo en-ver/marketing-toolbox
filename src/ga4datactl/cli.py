@@ -21,7 +21,7 @@ from ga4datactl.service import (
     run_realtime_report,
     run_report,
 )
-from marketing_common.cli import make_version_callback, run_typer_application
+from marketing_common.cli import make_version_callback, root_help, run_typer_application
 
 # Static operation re-exports preserve established direct imports from this root.
 __all__ = [
@@ -43,7 +43,11 @@ __all__ = [
 
 app = typer.Typer(
     name="ga4datactl",
-    help="Query Google Analytics 4 reporting data through the official Data API client.",
+    help=root_help(
+        summary="Query Google Analytics 4 reporting data through the official Data API client.",
+        guide_url="https://marketing-toolbox.org/tools/ga4-data/",
+        api_url="https://developers.google.com/analytics/devguides/reporting/data/v1",
+    ),
     no_args_is_help=True,
     rich_markup_mode=None,
     pretty_exceptions_enable=False,

@@ -92,7 +92,11 @@ def schema(
         ),
     ],
 ) -> None:
-    """Return an installed official SDK descriptor without credentials or network."""
+    """Return a local request descriptor for six report leaves or audience-exports create.
+
+    This is not a response schema and does not express all CLI requiredness or
+    property-specific Google API semantics.
+    """
     target = resolve_schema_target(command=command, targets=_SCHEMA_TARGETS)
     if target is None:
         exit_with_diagnostic(

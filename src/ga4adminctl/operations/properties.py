@@ -37,6 +37,12 @@ from ga4adminctl.foundation.validation import (
 from ga4adminctl.operations import mutations, reads
 
 PropertiesClientFactory = reads.PropertiesClientFactory
+PROPERTY_PATCH_WRITABLE_FIELDS = (
+    "displayName",
+    "industryCategory",
+    "timeZone",
+    "currencyCode",
+)
 
 
 def get_property(
@@ -217,13 +223,12 @@ def update_property(
     reject_route_fields(body, "name")
     property_message = parse_sdk_message(body, Property)
     property_message.name = name
-    mutable_fields = {"displayName", "industryCategory", "timeZone", "currencyCode"}
     mask_fields = update_mask.split(",") if update_mask else []
     if (
         not mask_fields
         or any(not field or field.strip() != field for field in mask_fields)
         or len(set(mask_fields)) != len(mask_fields)
-        or not set(mask_fields).issubset(mutable_fields)
+        or not set(mask_fields).issubset(PROPERTY_PATCH_WRITABLE_FIELDS)
     ):
         raise RequestValidationError(
             "--update-mask must be a nonempty, comma-separated set of mutable body fields."

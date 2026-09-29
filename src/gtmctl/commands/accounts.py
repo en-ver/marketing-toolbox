@@ -6,7 +6,7 @@ from typing import Annotated
 
 import typer
 
-from gtmctl.commands._common import run_command
+from gtmctl.commands._common import DRY_RUN_HELP, run_command
 from gtmctl.commands.container_actions import register_container_action_commands
 from gtmctl.commands.core_mutations import (
     register_container_core_mutation_commands,
@@ -119,9 +119,7 @@ def accounts_update(
             help="Acknowledge this high-impact GTM account update.",
         ),
     ] = False,
-    dry_run: Annotated[
-        bool, typer.Option("--dry-run", help="Validate and print a mutation plan.")
-    ] = False,
+    dry_run: Annotated[bool, typer.Option("--dry-run", help=DRY_RUN_HELP)] = False,
     apply: Annotated[
         bool, typer.Option("--apply", help="Execute the Google API mutation.")
     ] = False,
@@ -169,7 +167,7 @@ def user_permissions_get(
         ),
     ] = False,
 ) -> None:
-    """Get one sensitive GTM account user-permission resource."""
+    """Get one sensitive GTM account user-permission resource; requires users access."""
 
     def operation() -> dict[str, object]:
         validate_user_permission_path(path)
@@ -196,7 +194,7 @@ def user_permissions_list(
         ),
     ] = False,
 ) -> None:
-    """List one official page of sensitive account user permissions."""
+    """List sensitive account user permissions; reads require users access."""
 
     def operation() -> dict[str, object]:
         validate_account_parent(parent)
@@ -223,9 +221,7 @@ def user_permissions_create(
             help="Acknowledge this account user-permission change.",
         ),
     ] = False,
-    dry_run: Annotated[
-        bool, typer.Option("--dry-run", help="Validate and print a mutation plan.")
-    ] = False,
+    dry_run: Annotated[bool, typer.Option("--dry-run", help=DRY_RUN_HELP)] = False,
     apply: Annotated[
         bool, typer.Option("--apply", help="Execute the Google API mutation.")
     ] = False,
@@ -261,9 +257,7 @@ def user_permissions_update(
             help="Acknowledge this account user-permission change.",
         ),
     ] = False,
-    dry_run: Annotated[
-        bool, typer.Option("--dry-run", help="Validate and print a mutation plan.")
-    ] = False,
+    dry_run: Annotated[bool, typer.Option("--dry-run", help=DRY_RUN_HELP)] = False,
     apply: Annotated[
         bool, typer.Option("--apply", help="Execute the Google API mutation.")
     ] = False,
@@ -303,9 +297,7 @@ def user_permissions_delete(
             help="Acknowledge removal of this account user permission.",
         ),
     ] = False,
-    dry_run: Annotated[
-        bool, typer.Option("--dry-run", help="Validate and print a mutation plan.")
-    ] = False,
+    dry_run: Annotated[bool, typer.Option("--dry-run", help=DRY_RUN_HELP)] = False,
     apply: Annotated[
         bool, typer.Option("--apply", help="Execute the Google API mutation.")
     ] = False,

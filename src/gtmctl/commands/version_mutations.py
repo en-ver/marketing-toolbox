@@ -6,7 +6,7 @@ from typing import Annotated, Any
 
 import typer
 
-from gtmctl.commands._common import run_command
+from gtmctl.commands._common import DRY_RUN_HELP, run_command
 from gtmctl.commands.tag_mutations import (
     _dry_run,
     _validate_execution_mode,
@@ -75,9 +75,7 @@ def register_version_mutation_commands(versions_app: typer.Typer) -> None:
                 "--fingerprint", help="Current official resource fingerprint."
             ),
         ] = None,
-        dry_run: Annotated[
-            bool, typer.Option("--dry-run", help="Validate and print a mutation plan.")
-        ] = False,
+        dry_run: Annotated[bool, typer.Option("--dry-run", help=DRY_RUN_HELP)] = False,
         apply: Annotated[
             bool, typer.Option("--apply", help="Execute the Google API mutation.")
         ] = False,
@@ -114,14 +112,12 @@ def register_version_mutation_commands(versions_app: typer.Typer) -> None:
                 help="Acknowledge permanent deletion of this container version.",
             ),
         ] = False,
-        dry_run: Annotated[
-            bool, typer.Option("--dry-run", help="Validate and print a mutation plan.")
-        ] = False,
+        dry_run: Annotated[bool, typer.Option("--dry-run", help=DRY_RUN_HELP)] = False,
         apply: Annotated[
             bool, typer.Option("--apply", help="Execute the Google API mutation.")
         ] = False,
     ) -> None:
-        """Delete one container version."""
+        """Delete one container version; requires versions access, not delete access."""
 
         def operation() -> dict[str, Any]:
             validate_version_path(path)
@@ -156,14 +152,12 @@ def register_version_mutation_commands(versions_app: typer.Typer) -> None:
                 help="Acknowledge that this publishes the container version.",
             ),
         ] = False,
-        dry_run: Annotated[
-            bool, typer.Option("--dry-run", help="Validate and print a publish plan.")
-        ] = False,
+        dry_run: Annotated[bool, typer.Option("--dry-run", help=DRY_RUN_HELP)] = False,
         apply: Annotated[
             bool, typer.Option("--apply", help="Publish the container version.")
         ] = False,
     ) -> None:
-        """Publish one container version."""
+        """Publish one container version; requires publish access."""
 
         def operation() -> dict[str, Any]:
             validate_version_path(path)
@@ -190,14 +184,12 @@ def register_version_mutation_commands(versions_app: typer.Typer) -> None:
         path: Annotated[
             str, typer.Option("--path", help="GTM container version resource path.")
         ],
-        dry_run: Annotated[
-            bool, typer.Option("--dry-run", help="Validate and print a mutation plan.")
-        ] = False,
+        dry_run: Annotated[bool, typer.Option("--dry-run", help=DRY_RUN_HELP)] = False,
         apply: Annotated[
             bool, typer.Option("--apply", help="Execute the Google API mutation.")
         ] = False,
     ) -> None:
-        """Set one container version as latest."""
+        """Set one container version as latest; requires containers access."""
 
         def operation() -> dict[str, Any]:
             validate_version_path(path)
@@ -216,9 +208,7 @@ def register_version_mutation_commands(versions_app: typer.Typer) -> None:
         path: Annotated[
             str, typer.Option("--path", help="GTM container version resource path.")
         ],
-        dry_run: Annotated[
-            bool, typer.Option("--dry-run", help="Validate and print a mutation plan.")
-        ] = False,
+        dry_run: Annotated[bool, typer.Option("--dry-run", help=DRY_RUN_HELP)] = False,
         apply: Annotated[
             bool, typer.Option("--apply", help="Execute the Google API mutation.")
         ] = False,

@@ -208,6 +208,63 @@ def test_built_in_variable_types_remain_repeated_from_cli_to_adapter(
     assert calls == [(target, ["pageUrl", "clickId"])]
 
 
+def test_gtm_dry_run_help_is_local_plan_not_google_schema_validation() -> None:
+    result = CliRunner().invoke(
+        app,
+        ["accounts", "containers", "workspaces", "variables", "create", "--help"],
+    )
+
+    assert result.exit_code == 0
+    normalized = " ".join(result.stdout.split())
+    assert "Check local command inputs and print a no-network plan." in normalized
+    assert "does not validate the body against the Discovery schema" in normalized
+    assert "Validate and print" not in normalized
+
+
+def test_constant_variable_body_dry_run_and_apply_preserve_exact_request(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    body = {
+        "name": "Example constant",
+        "type": "c",
+        "parameter": [{"type": "template", "key": "value", "value": "example"}],
+    }
+    body_path = _body_file(tmp_path, json.dumps(body))
+    arguments = [
+        "accounts",
+        "containers",
+        "workspaces",
+        "variables",
+        "create",
+        "--parent",
+        WORKSPACE,
+        "--body",
+        body_path,
+    ]
+
+    dry_run = CliRunner().invoke(app, [*arguments, "--dry-run"])
+
+    assert dry_run.exit_code == 0
+    assert _data(dry_run) == {
+        "applied": False,
+        "mode": "dry-run",
+        "operation": "variables.create",
+        "target": WORKSPACE,
+        "bodySha256": body_sha256(body),
+    }
+
+    calls: list[tuple[str, dict[str, Any]]] = []
+    monkeypatch.setattr(
+        mutations,
+        "create_variable",
+        lambda parent, request_body: (calls.append((parent, request_body)), {})[1],
+    )
+    applied = CliRunner().invoke(app, [*arguments, "--apply"])
+
+    assert applied.exit_code == 0
+    assert calls == [(WORKSPACE, body)]
+
+
 def test_optional_fingerprint_is_omitted_or_forwarded_and_publish_stays_guarded(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

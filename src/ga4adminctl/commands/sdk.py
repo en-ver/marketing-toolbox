@@ -39,6 +39,7 @@ from google.analytics.admin_v1beta.types import (
     UpdatePropertyRequest,
 )
 
+from ga4adminctl.operations.properties import PROPERTY_PATCH_WRITABLE_FIELDS
 from marketing_common.cli import exit_with_diagnostic, write_success
 from marketing_common.introspection import (
     ProtobufSchemaTarget,
@@ -252,7 +253,11 @@ def schema(
         ),
     ],
 ) -> None:
-    """Return an installed official SDK descriptor without credentials or network."""
+    """Return a local request descriptor for an explicitly curated body target.
+
+    Reads and bodyless deletes are ineligible: use their leaf help. This is not
+    a response schema and does not express all CLI requiredness or API semantics.
+    """
     target = resolve_schema_target(command=command, targets=_SCHEMA_TARGETS)
     if target is None:
         exit_with_diagnostic(
@@ -261,11 +266,14 @@ def schema(
             message="--command must name an eligible registered ga4adminctl leaf.",
             command="ga4adminctl sdk schema",
         )
-    write_success(
-        command="ga4adminctl sdk schema",
-        data=protobuf_schema_response(
-            target=target,
-            package="google-analytics-admin",
-            api_version="v1beta",
-        ),
+    data = protobuf_schema_response(
+        target=target,
+        package="google-analytics-admin",
+        api_version="v1beta",
     )
+    if target.cli_path == ("properties", "patch"):
+        data["request"]["cliConstraints"] = {
+            "allowedUpdateMaskFields": list(PROPERTY_PATCH_WRITABLE_FIELDS),
+            "bodyFieldsMustExactlyMatchUpdateMask": True,
+        }
+    write_success(command="ga4adminctl sdk schema", data=data)

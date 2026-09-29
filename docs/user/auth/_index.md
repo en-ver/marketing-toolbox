@@ -16,9 +16,11 @@ The explicit file and ambient ADC can represent any Google-supported credential 
 
 ## Credential precedence
 
-Choose native OAuth for an interactive desktop user, or use operator-managed service accounts and ADC for automation. OAuth consent and credential selection do not grant access to Analytics properties or Tag Manager resources: grant the authenticated principal the necessary Google Analytics, Tag Manager, and IAM permissions separately.
+Choose native OAuth for an interactive desktop user, or use operator-managed service accounts and ADC for automation. Native OAuth records are separate records for each **tool + access-tier** pair: a `gtmctl` `containers` record is not a `gtmctl` `versions` record, nor a record for either GA4 tool.
 
-Native records are separate for each tool and access tier. The exact scope mapping is:
+OAuth consent and credential selection only determine which identity and OAuth scope the CLI presents. They do not grant access to Analytics properties or Tag Manager resources. Grant that authenticated principal the required Google Analytics, Tag Manager, and IAM resource permissions separately.
+
+The legal native OAuth tiers and their scopes are:
 
 | Tool | Access tier | Scope |
 | --- | --- | --- |
@@ -32,6 +34,8 @@ Native records are separate for each tool and access tier. The exact scope mappi
 | `gtmctl` | `versions` | `https://www.googleapis.com/auth/tagmanager.edit.containerversions` |
 | `gtmctl` | `publish` | `https://www.googleapis.com/auth/tagmanager.publish` |
 | `gtmctl` | `delete` | `https://www.googleapis.com/auth/tagmanager.delete.containers` |
+
+Use `<tool> auth --help` to see the installed tool's legal `--access` values. Choose a tier from the operation mapping in the relevant [tool guide](../tools/_index.md), not from a simple read/write/delete assumption.
 
 ## Native OAuth storage
 

@@ -6,7 +6,7 @@ from typing import Annotated, Any
 
 import typer
 
-from gtmctl.commands._common import run_command
+from gtmctl.commands._common import DRY_RUN_HELP, run_command
 from gtmctl.commands.tag_mutations import (
     _dry_run,
     _validate_execution_mode,
@@ -34,9 +34,7 @@ def register_container_core_mutation_commands(containers_app: typer.Typer) -> No
         body: Annotated[
             str, typer.Option("--body", help="UTF-8 JSON object file, or - for stdin.")
         ],
-        dry_run: Annotated[
-            bool, typer.Option("--dry-run", help="Validate and print a mutation plan.")
-        ] = False,
+        dry_run: Annotated[bool, typer.Option("--dry-run", help=DRY_RUN_HELP)] = False,
         apply: Annotated[
             bool, typer.Option("--apply", help="Execute the Google API mutation.")
         ] = False,
@@ -69,9 +67,7 @@ def register_container_core_mutation_commands(containers_app: typer.Typer) -> No
                 "--fingerprint", help="Current official resource fingerprint."
             ),
         ] = None,
-        dry_run: Annotated[
-            bool, typer.Option("--dry-run", help="Validate and print a mutation plan.")
-        ] = False,
+        dry_run: Annotated[bool, typer.Option("--dry-run", help=DRY_RUN_HELP)] = False,
         apply: Annotated[
             bool, typer.Option("--apply", help="Execute the Google API mutation.")
         ] = False,
@@ -106,14 +102,12 @@ def register_container_core_mutation_commands(containers_app: typer.Typer) -> No
                 help="Acknowledge permanent deletion of this container.",
             ),
         ] = False,
-        dry_run: Annotated[
-            bool, typer.Option("--dry-run", help="Validate and print a deletion plan.")
-        ] = False,
+        dry_run: Annotated[bool, typer.Option("--dry-run", help=DRY_RUN_HELP)] = False,
         apply: Annotated[
             bool, typer.Option("--apply", help="Execute the Google API deletion.")
         ] = False,
     ) -> None:
-        """Delete one container after explicit acknowledgement."""
+        """Delete one container after explicit acknowledgement; requires delete access."""
 
         def operation() -> dict[str, Any]:
             validate_container_path(path)
@@ -140,9 +134,7 @@ def register_workspace_core_mutation_commands(workspaces_app: typer.Typer) -> No
         body: Annotated[
             str, typer.Option("--body", help="UTF-8 JSON object file, or - for stdin.")
         ],
-        dry_run: Annotated[
-            bool, typer.Option("--dry-run", help="Validate and print a mutation plan.")
-        ] = False,
+        dry_run: Annotated[bool, typer.Option("--dry-run", help=DRY_RUN_HELP)] = False,
         apply: Annotated[
             bool, typer.Option("--apply", help="Execute the Google API mutation.")
         ] = False,
@@ -177,9 +169,7 @@ def register_workspace_core_mutation_commands(workspaces_app: typer.Typer) -> No
                 "--fingerprint", help="Current official resource fingerprint."
             ),
         ] = None,
-        dry_run: Annotated[
-            bool, typer.Option("--dry-run", help="Validate and print a mutation plan.")
-        ] = False,
+        dry_run: Annotated[bool, typer.Option("--dry-run", help=DRY_RUN_HELP)] = False,
         apply: Annotated[
             bool, typer.Option("--apply", help="Execute the Google API mutation.")
         ] = False,
@@ -216,14 +206,12 @@ def register_workspace_core_mutation_commands(workspaces_app: typer.Typer) -> No
                 help="Acknowledge permanent deletion of this workspace.",
             ),
         ] = False,
-        dry_run: Annotated[
-            bool, typer.Option("--dry-run", help="Validate and print a deletion plan.")
-        ] = False,
+        dry_run: Annotated[bool, typer.Option("--dry-run", help=DRY_RUN_HELP)] = False,
         apply: Annotated[
             bool, typer.Option("--apply", help="Execute the Google API deletion.")
         ] = False,
     ) -> None:
-        """Delete one workspace after explicit acknowledgement."""
+        """Delete one workspace after explicit acknowledgement; requires delete access."""
 
         def operation() -> dict[str, Any]:
             validate_workspace_path(path)

@@ -7,7 +7,7 @@ from typing import Annotated, Any
 
 import typer
 
-from gtmctl.commands._common import run_command
+from gtmctl.commands._common import DRY_RUN_HELP, run_command
 from gtmctl.commands.built_in_variable_mutations import (
     register_built_in_variable_mutation_commands,
 )
@@ -250,9 +250,7 @@ def register_workspace_discovery_commands(workspace_app: typer.Typer) -> None:
             list[str] | None,
             typer.Option("--tag-id", help="Official tag ID to move (repeatable)."),
         ] = None,
-        dry_run: Annotated[
-            bool, typer.Option("--dry-run", help="Validate and print a mutation plan.")
-        ] = False,
+        dry_run: Annotated[bool, typer.Option("--dry-run", help=DRY_RUN_HELP)] = False,
         apply: Annotated[
             bool, typer.Option("--apply", help="Execute the Google API mutation.")
         ] = False,

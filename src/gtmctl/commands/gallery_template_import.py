@@ -6,7 +6,7 @@ from typing import Annotated, Any
 
 import typer
 
-from gtmctl.commands._common import run_command
+from gtmctl.commands._common import DRY_RUN_HELP, run_command
 from gtmctl.commands.tag_mutations import _dry_run, _validate_execution_mode
 from gtmctl.foundation.body import read_json_object
 from gtmctl.foundation.validation import (
@@ -60,9 +60,7 @@ def register_gallery_template_import_command(templates_app: typer.Typer) -> None
                 help="Acknowledge granting the imported Gallery template's declared permissions.",
             ),
         ] = False,
-        dry_run: Annotated[
-            bool, typer.Option("--dry-run", help="Validate and print an import plan.")
-        ] = False,
+        dry_run: Annotated[bool, typer.Option("--dry-run", help=DRY_RUN_HELP)] = False,
         apply: Annotated[
             bool, typer.Option("--apply", help="Import the Gallery template.")
         ] = False,

@@ -10,14 +10,18 @@ from gtmctl import __version__
 from gtmctl.commands import auth
 from gtmctl.commands.accounts import accounts_app
 from gtmctl.commands.sdk import register_sdk_commands
-from marketing_common.cli import make_version_callback, run_typer_application
+from marketing_common.cli import make_version_callback, root_help, run_typer_application
 
 _version_callback = make_version_callback("gtmctl", __version__)
 
 
 app = typer.Typer(
     name="gtmctl",
-    help="Manage Google Tag Manager through the official Google API v2 client.",
+    help=root_help(
+        summary="Manage Google Tag Manager through the official Google API v2 client.",
+        guide_url="https://marketing-toolbox.org/tools/tag-manager/",
+        api_url="https://developers.google.com/tag-platform/tag-manager/api/v2",
+    ),
     no_args_is_help=True,
     invoke_without_command=True,
     rich_markup_mode=None,

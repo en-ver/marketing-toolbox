@@ -11,7 +11,9 @@ from typer.testing import CliRunner
 
 from ga4adminctl import service
 from ga4adminctl.cli import app
+from ga4adminctl.foundation.validation import RequestValidationError
 from ga4adminctl.operations import mutations, reads
+from ga4adminctl.operations.properties import PROPERTY_PATCH_WRITABLE_FIELDS
 
 
 def _record_scopes(requested_scopes: list[str], scopes: list[str]) -> object:
@@ -598,6 +600,34 @@ def test_update_property_dry_run_needs_no_credentials(
             "updateMask": "displayName",
         },
     }
+
+
+def test_property_patch_runtime_uses_the_shared_writable_field_allowlist(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        mutations,
+        "service_account_credentials",
+        lambda _: pytest.fail("dry runs must not load credentials"),
+    )
+
+    values = {
+        "displayName": "Example",
+        "industryCategory": "TECHNOLOGY",
+        "timeZone": "America/Los_Angeles",
+        "currencyCode": "USD",
+    }
+    assert tuple(values) == PROPERTY_PATCH_WRITABLE_FIELDS
+    for field, value in values.items():
+        assert (
+            service.update_property("properties/1234", {field: value}, field)["dryRun"]
+            is True
+        )
+
+    with pytest.raises(RequestValidationError, match="mutable body fields"):
+        service.update_property("properties/1234", {"parent": "accounts/1"}, "parent")
+    with pytest.raises(RequestValidationError, match="route field name"):
+        service.update_property("properties/1234", {"name": "forbidden"}, "name")
 
 
 def test_update_property_uses_one_edit_scoped_non_retried_call(

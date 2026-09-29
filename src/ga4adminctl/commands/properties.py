@@ -12,6 +12,7 @@ from ga4adminctl.foundation.validation import (
     read_json_body,
 )
 from ga4adminctl.operations.properties import (
+    PROPERTY_PATCH_WRITABLE_FIELDS,
     acknowledge_user_data_collection,
     create_property,
     delete_property,
@@ -121,7 +122,11 @@ def properties_patch(
     update_mask: Annotated[
         str,
         typer.Option(
-            "--update-mask", help="Comma-separated mutable body fields to update."
+            "--update-mask",
+            help=(
+                "Comma-separated mutable body fields to update; allowed fields: "
+                f"{', '.join(PROPERTY_PATCH_WRITABLE_FIELDS)}."
+            ),
         ),
     ],
     dry_run: Annotated[

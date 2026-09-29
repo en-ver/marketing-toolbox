@@ -11,6 +11,12 @@ from marketing_common.auth import CredentialConfigurationError
 from marketing_common.cli import exit_with_diagnostic, write_success
 from marketing_common.command import execute_with_diagnostics
 
+DRY_RUN_HELP = (
+    "Check local command inputs and print a no-network plan. GTM dry-run does not "
+    "validate the body against the Discovery schema, Google API semantics, or any "
+    "response schema."
+)
+
 
 def run_command(*, command: str, operation: Callable[[], dict[str, Any]]) -> None:
     """Run one operation and write the repository-standard JSON envelope."""

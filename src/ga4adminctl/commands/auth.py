@@ -2,4 +2,10 @@
 
 from marketing_common.oauth_cli import make_auth_app
 
-app = make_auth_app("ga4adminctl")
+app = make_auth_app(
+    "ga4adminctl",
+    access_guidance=(
+        "GA4 Admin reads use read; mutations use edit. The read-only accounts "
+        "change-history search is the exception and requires edit."
+    ),
+)

@@ -70,13 +70,17 @@ from ga4adminctl.operations.secrets import (
     list_measurement_protocol_secrets,
     update_measurement_protocol_secret,
 )
-from marketing_common.cli import make_version_callback, run_typer_application
+from marketing_common.cli import make_version_callback, root_help, run_typer_application
 
 # Static operation re-exports preserve established direct imports from this root.
 
 app = typer.Typer(
     name="ga4adminctl",
-    help="Manage GA4 configuration through the official Analytics Admin API client.",
+    help=root_help(
+        summary="Manage GA4 configuration through the official Analytics Admin API client.",
+        guide_url="https://marketing-toolbox.org/tools/ga4-admin/",
+        api_url="https://developers.google.com/analytics/devguides/config/admin/v1",
+    ),
     no_args_is_help=True,
     rich_markup_mode=None,
     pretty_exceptions_enable=False,

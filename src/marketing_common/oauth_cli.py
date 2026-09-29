@@ -1,7 +1,5 @@
 """Reusable Typer authentication command family."""
 
-from __future__ import annotations
-
 from pathlib import Path
 from typing import Annotated, NoReturn
 
@@ -9,6 +7,7 @@ import typer
 
 from .cli import exit_with_diagnostic, write_success
 from .oauth import (
+    SCOPE_CATALOG,
     OAuthAuthenticationError,
     OAuthRequestError,
     ToolName,
@@ -22,10 +21,23 @@ from .oauth import (
 )
 
 
-def make_auth_app(tool: ToolName) -> typer.Typer:
+def make_auth_app(tool: ToolName, *, access_guidance: str) -> typer.Typer:
     """Create the explicitly registered native OAuth command group for a tool."""
+    legal_access_values = ", ".join(SCOPE_CATALOG[tool])
+    access_help = (
+        f"Tool-specific OAuth access tier. Legal values: {legal_access_values}."
+    )
     app = typer.Typer(
-        help="Manage this tool's local native OAuth credentials.", no_args_is_help=True
+        help=(
+            "Manage this tool's local native OAuth credentials. Native records are "
+            "separate per tool and tier. Credential precedence is "
+            "GOOGLE_SERVICE_ACCOUNT_JSON, explicit GOOGLE_APPLICATION_CREDENTIALS, "
+            "matching native record, then ambient ADC; configured sources and marked "
+            "native records fail closed rather than changing identity. OAuth scopes do "
+            "not grant Google resource permissions.\n\n"
+            f"{access_guidance}"
+        ),
+        no_args_is_help=True,
     )
 
     def command(name: str) -> str:
@@ -61,9 +73,7 @@ def make_auth_app(tool: ToolName) -> typer.Typer:
                 "--client-secrets", exists=True, dir_okay=False, readable=True
             ),
         ],
-        access: Annotated[
-            str, typer.Option("--access", help="Tool-specific OAuth access tier.")
-        ],
+        access: Annotated[str, typer.Option("--access", help=access_help)],
         open_browser: Annotated[
             bool, typer.Option("--open-browser/--no-open-browser")
         ] = True,
@@ -84,9 +94,7 @@ def make_auth_app(tool: ToolName) -> typer.Typer:
 
     @app.command("status")
     def status(
-        access: Annotated[
-            str, typer.Option("--access", help="Tool-specific OAuth access tier.")
-        ],
+        access: Annotated[str, typer.Option("--access", help=access_help)],
     ) -> None:
         """Report local native credential state without contacting Google."""
         scope = validate_access("status", access)
@@ -102,9 +110,7 @@ def make_auth_app(tool: ToolName) -> typer.Typer:
 
     @app.command("forget")
     def forget(
-        access: Annotated[
-            str, typer.Option("--access", help="Tool-specific OAuth access tier.")
-        ],
+        access: Annotated[str, typer.Option("--access", help=access_help)],
     ) -> None:
         """Delete local credentials only without attempting remote revocation."""
         validate_access("forget", access)
@@ -123,9 +129,7 @@ def make_auth_app(tool: ToolName) -> typer.Typer:
 
     @app.command("revoke")
     def revoke(
-        access: Annotated[
-            str, typer.Option("--access", help="Tool-specific OAuth access tier.")
-        ],
+        access: Annotated[str, typer.Option("--access", help=access_help)],
         apply: Annotated[
             bool, typer.Option("--apply", help="Apply remote grant revocation.")
         ] = False,

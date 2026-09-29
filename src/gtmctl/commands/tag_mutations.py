@@ -5,7 +5,7 @@ from typing import Annotated, Any, cast
 
 import typer
 
-from gtmctl.commands._common import run_command
+from gtmctl.commands._common import DRY_RUN_HELP, run_command
 from gtmctl.foundation.body import body_sha256, read_json_object
 from gtmctl.foundation.validation import (
     RequestValidationError,
@@ -75,9 +75,7 @@ def register_workspace_entity_mutation_commands(
         body: Annotated[
             str, typer.Option("--body", help="UTF-8 JSON object file, or - for stdin.")
         ],
-        dry_run: Annotated[
-            bool, typer.Option("--dry-run", help="Validate and print a mutation plan.")
-        ] = False,
+        dry_run: Annotated[bool, typer.Option("--dry-run", help=DRY_RUN_HELP)] = False,
         apply: Annotated[
             bool, typer.Option("--apply", help="Execute the Google API mutation.")
         ] = False,
@@ -109,9 +107,7 @@ def register_workspace_entity_mutation_commands(
                 "--fingerprint", help="Current official resource fingerprint."
             ),
         ] = None,
-        dry_run: Annotated[
-            bool, typer.Option("--dry-run", help="Validate and print a mutation plan.")
-        ] = False,
+        dry_run: Annotated[bool, typer.Option("--dry-run", help=DRY_RUN_HELP)] = False,
         apply: Annotated[
             bool, typer.Option("--apply", help="Execute the Google API mutation.")
         ] = False,
@@ -149,8 +145,7 @@ def register_workspace_entity_mutation_commands(
                 ),
             ] = None,
             dry_run: Annotated[
-                bool,
-                typer.Option("--dry-run", help="Validate and print a mutation plan."),
+                bool, typer.Option("--dry-run", help=DRY_RUN_HELP)
             ] = False,
             apply: Annotated[
                 bool, typer.Option("--apply", help="Execute the Google API mutation.")
@@ -183,14 +178,12 @@ def register_workspace_entity_mutation_commands(
                 help=f"Acknowledge permanent deletion of this {cli_name.rstrip('s')} from the workspace.",
             ),
         ] = False,
-        dry_run: Annotated[
-            bool, typer.Option("--dry-run", help="Validate and print a mutation plan.")
-        ] = False,
+        dry_run: Annotated[bool, typer.Option("--dry-run", help=DRY_RUN_HELP)] = False,
         apply: Annotated[
             bool, typer.Option("--apply", help="Execute the Google API mutation.")
         ] = False,
     ) -> None:
-        """Delete one resource from a workspace."""
+        """Delete one workspace resource; requires containers access, not delete access."""
         command = f"gtmctl accounts containers workspaces {entity} delete"
 
         def operation() -> dict[str, Any]:

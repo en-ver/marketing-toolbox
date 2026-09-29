@@ -15,8 +15,39 @@ from ga4datactl.operations.reports import (
     run_realtime_report,
     run_report,
 )
+from ga4datactl.schemas import (
+    BATCH_RUN_PIVOT_REPORTS_BODY_SCHEMA,
+    BATCH_RUN_REPORTS_BODY_SCHEMA,
+    CHECK_COMPATIBILITY_BODY_SCHEMA,
+    RUN_PIVOT_REPORT_BODY_SCHEMA,
+    RUN_REALTIME_REPORT_BODY_SCHEMA,
+    RUN_REPORT_BODY_SCHEMA,
+)
+from marketing_common.cli import make_schema_callback
 
 app = typer.Typer(help="Run GA4 reporting operations.", no_args_is_help=True)
+_SCHEMA_HELP = (
+    "Print the structural JSON Schema used by the CLI body validator. Additional CLI "
+    "cross-field checks, live property metadata, and Google API semantic validation still apply."
+)
+_run_schema_callback = make_schema_callback(
+    "ga4datactl reports run", RUN_REPORT_BODY_SCHEMA
+)
+_batch_run_schema_callback = make_schema_callback(
+    "ga4datactl reports batch-run", BATCH_RUN_REPORTS_BODY_SCHEMA
+)
+_pivot_run_schema_callback = make_schema_callback(
+    "ga4datactl reports pivot-run", RUN_PIVOT_REPORT_BODY_SCHEMA
+)
+_realtime_run_schema_callback = make_schema_callback(
+    "ga4datactl reports realtime-run", RUN_REALTIME_REPORT_BODY_SCHEMA
+)
+_batch_pivot_run_schema_callback = make_schema_callback(
+    "ga4datactl reports batch-pivot-run", BATCH_RUN_PIVOT_REPORTS_BODY_SCHEMA
+)
+_compatibility_check_schema_callback = make_schema_callback(
+    "ga4datactl reports compatibility-check", CHECK_COMPATIBILITY_BODY_SCHEMA
+)
 
 
 @app.command("run")
@@ -32,6 +63,12 @@ def reports_run(
             help="Opaque official GA4 Data API request JSON file, or - for standard input.",
         ),
     ],
+    schema: Annotated[
+        bool | None,
+        typer.Option(
+            "--schema", callback=_run_schema_callback, help=_SCHEMA_HELP, is_eager=True
+        ),
+    ] = None,
 ) -> None:
     """Run one standard GA4 core report.
 
@@ -60,6 +97,15 @@ def batch_report(
             help="Opaque official GA4 Data API request JSON file, or - for standard input.",
         ),
     ],
+    schema: Annotated[
+        bool | None,
+        typer.Option(
+            "--schema",
+            callback=_batch_run_schema_callback,
+            help=_SCHEMA_HELP,
+            is_eager=True,
+        ),
+    ] = None,
 ) -> None:
     """Run up to five standard GA4 reports in one API request.
 
@@ -88,6 +134,15 @@ def pivot_report(
             help="Opaque official GA4 Data API request JSON file, or - for standard input.",
         ),
     ],
+    schema: Annotated[
+        bool | None,
+        typer.Option(
+            "--schema",
+            callback=_pivot_run_schema_callback,
+            help=_SCHEMA_HELP,
+            is_eager=True,
+        ),
+    ] = None,
 ) -> None:
     """Run one GA4 pivot report.
 
@@ -116,6 +171,15 @@ def realtime_report(
             help="Opaque official GA4 Data API request JSON file, or - for standard input.",
         ),
     ],
+    schema: Annotated[
+        bool | None,
+        typer.Option(
+            "--schema",
+            callback=_realtime_run_schema_callback,
+            help=_SCHEMA_HELP,
+            is_eager=True,
+        ),
+    ] = None,
 ) -> None:
     """Run one GA4 realtime report for the last 30 (or GA360 60) minutes.
 
@@ -144,6 +208,15 @@ def batch_pivot_report(
             help="Opaque official GA4 Data API request JSON file, or - for standard input.",
         ),
     ],
+    schema: Annotated[
+        bool | None,
+        typer.Option(
+            "--schema",
+            callback=_batch_pivot_run_schema_callback,
+            help=_SCHEMA_HELP,
+            is_eager=True,
+        ),
+    ] = None,
 ) -> None:
     """Run up to five GA4 pivot reports in one API request.
 
@@ -172,6 +245,15 @@ def reports_compatibility_check(
             help="Opaque official GA4 Data API request JSON file, or - for standard input.",
         ),
     ],
+    schema: Annotated[
+        bool | None,
+        typer.Option(
+            "--schema",
+            callback=_compatibility_check_schema_callback,
+            help=_SCHEMA_HELP,
+            is_eager=True,
+        ),
+    ] = None,
 ) -> None:
     """Check whether candidate core-report dimensions and metrics are compatible.
 

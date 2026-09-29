@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import stat
 import sys
 from datetime import UTC, datetime, timedelta
@@ -12,11 +13,14 @@ from types import SimpleNamespace
 from typing import Any
 
 import pytest
+import typer
 from google.oauth2.credentials import Credentials as UserCredentials
 from typer.testing import CliRunner
 
+from ga4adminctl.cli import app as admin_app
 from ga4datactl.cli import app as data_app
 from ga4datactl.operations import audience_exports
+from gtmctl.cli import app as gtm_app
 from marketing_common import auth, oauth
 
 
@@ -69,6 +73,60 @@ def test_scope_catalog_and_audience_export_use_readonly_access() -> None:
     assert audience_exports.ANALYTICS_SCOPE == audience_exports.ANALYTICS_READONLY_SCOPE
     assert oauth.SCOPE_CATALOG["ga4adminctl"]["edit"].endswith("analytics.edit")
     assert oauth.SCOPE_CATALOG["gtmctl"]["publish"].endswith("tagmanager.publish")
+
+
+@pytest.mark.parametrize(
+    ("app", "tool", "guidance"),
+    [
+        (data_app, "ga4datactl", "GA4 Data reporting operations use the read tier."),
+        (
+            admin_app,
+            "ga4adminctl",
+            "change-history search is the exception and requires edit",
+        ),
+        (gtm_app, "gtmctl", "user-permission get/list/create/update/delete use users"),
+    ],
+)
+def test_auth_help_derives_legal_access_values_and_explains_selection_contract(
+    app: typer.Typer, tool: oauth.ToolName, guidance: str
+) -> None:
+    runner = CliRunner()
+    auth_help = runner.invoke(app, ["auth", "--help"])
+
+    assert auth_help.exit_code == 0
+    normalized = " ".join(re.sub(r"-\s+", "-", auth_help.stdout).split())
+    for text in (
+        "Native records are separate per tool and tier.",
+        "GOOGLE_SERVICE_ACCOUNT_JSON, explicit GOOGLE_APPLICATION_CREDENTIALS, matching native record, then ambient ADC",
+        "fail closed rather than changing identity.",
+        "OAuth scopes do not grant Google resource permissions.",
+        guidance,
+    ):
+        assert " ".join(text.split()) in normalized
+
+    for leaf in ("login", "status", "forget", "revoke"):
+        result = runner.invoke(app, ["auth", leaf, "--help"])
+        assert result.exit_code == 0
+        leaf_help = " ".join(re.sub(r"-\s+", "-", result.stdout).split())
+        assert f"Legal values: {', '.join(oauth.SCOPE_CATALOG[tool])}." in leaf_help
+        for other_tool, tiers in oauth.SCOPE_CATALOG.items():
+            if other_tool != tool:
+                assert f"Legal values: {', '.join(tiers)}." not in leaf_help
+
+
+def test_gtm_auth_help_names_remaining_exception_tiers() -> None:
+    result = CliRunner().invoke(gtm_app, ["auth", "--help"])
+
+    assert result.exit_code == 0
+    normalized = " ".join(re.sub(r"-\s+", "-", result.stdout).split())
+    for guidance in (
+        "entity/environment deletion use containers",
+        "only container/workspace deletion use delete",
+        "Version update/delete/undelete and workspace quick-preview/create-version use versions",
+        "version set-latest uses containers",
+        "version publish and environment reauthorize use publish",
+    ):
+        assert " ".join(guidance.split()) in normalized
 
 
 def test_generic_resolver_precedence_and_explicit_fail_closed(

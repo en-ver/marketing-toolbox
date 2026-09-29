@@ -1,4 +1,5 @@
 import json
+import re
 import sys
 from collections.abc import Callable
 from pathlib import Path
@@ -13,6 +14,7 @@ from ga4adminctl.cli import app as ga4_admin_app
 from ga4adminctl.cli import main as ga4_admin_main
 from ga4adminctl.commands import properties as admin_properties
 from ga4adminctl.commands.sdk import _SCHEMA_TARGETS as admin_schema_targets
+from ga4adminctl.operations.properties import PROPERTY_PATCH_WRITABLE_FIELDS
 from ga4adminctl.service import (
     CredentialConfigurationError as AdminCredentialConfigurationError,
 )
@@ -21,6 +23,14 @@ from ga4datactl.cli import app as ga4_data_app
 from ga4datactl.cli import main as ga4_data_main
 from ga4datactl.commands import audience_exports, metadata, reports
 from ga4datactl.commands.sdk import _SCHEMA_TARGETS as data_schema_targets
+from ga4datactl.schemas import (
+    BATCH_RUN_PIVOT_REPORTS_BODY_SCHEMA,
+    BATCH_RUN_REPORTS_BODY_SCHEMA,
+    CHECK_COMPATIBILITY_BODY_SCHEMA,
+    RUN_PIVOT_REPORT_BODY_SCHEMA,
+    RUN_REALTIME_REPORT_BODY_SCHEMA,
+    RUN_REPORT_BODY_SCHEMA,
+)
 from ga4datactl.service import RequestValidationError as DataRequestValidationError
 from gtmctl.cli import app as gtm_app
 from gtmctl.cli import main as gtm_main
@@ -37,6 +47,51 @@ from marketing_common.cli import (
 from marketing_common.oauth import OAuthAuthenticationError
 
 runner = CliRunner()
+
+
+@pytest.mark.parametrize(
+    ("app", "guide_url", "api_url"),
+    [
+        (
+            ga4_data_app,
+            "https://marketing-toolbox.org/tools/ga4-data/",
+            "https://developers.google.com/analytics/devguides/reporting/data/v1",
+        ),
+        (
+            ga4_admin_app,
+            "https://marketing-toolbox.org/tools/ga4-admin/",
+            "https://developers.google.com/analytics/devguides/config/admin/v1",
+        ),
+        (
+            gtm_app,
+            "https://marketing-toolbox.org/tools/tag-manager/",
+            "https://developers.google.com/tag-platform/tag-manager/api/v2",
+        ),
+    ],
+)
+def test_root_help_explains_discovery_json_diagnostics_and_exit_contract(
+    app: typer.Typer, guide_url: str, api_url: str
+) -> None:
+    result = runner.invoke(app, ["--help"])
+
+    assert result.exit_code == 0
+    normalized = " ".join(re.sub(r"-\s+", "-", result.stdout).split())
+    for text in (
+        "auth --help",
+        "sdk schema --help",
+        "schemaVersion, command, data",
+        "googleStatus",
+        "Explicit --help is plain stdout/0",
+        "no-argument help is plain stderr/2",
+        "0 success; 1 unexpected or unexpected_failure",
+        "6 retryable",
+        "https://marketing-toolbox.org/",
+        "https://marketing-toolbox.org/auth/",
+        guide_url,
+        api_url,
+    ):
+        assert text in normalized
+    assert result.stderr == ""
 
 
 @pytest.mark.parametrize(
@@ -318,6 +373,27 @@ def test_every_sdk_schema_target_resolves_with_complete_provenance_and_reference
         assert _discovery_references(body).issubset(body["definitions"])
 
 
+def test_property_patch_help_runtime_policy_and_sdk_constraints_share_allowlist() -> (
+    None
+):
+    help_result = runner.invoke(ga4_admin_app, ["properties", "patch", "--help"])
+    schema_result = runner.invoke(
+        ga4_admin_app, ["sdk", "schema", "--command", "properties patch"]
+    )
+
+    assert help_result.exit_code == schema_result.exit_code == 0
+    assert all(field in help_result.stdout for field in PROPERTY_PATCH_WRITABLE_FIELDS)
+    payload = json.loads(schema_result.stdout)["data"]
+    assert payload["request"]["cliConstraints"] == {
+        "allowedUpdateMaskFields": list(PROPERTY_PATCH_WRITABLE_FIELDS),
+        "bodyFieldsMustExactlyMatchUpdateMask": True,
+    }
+    assert payload["request"]["body"]["type"].endswith(".Property")
+    assert "name" not in {
+        field["name"] for field in payload["request"]["body"]["fields"]
+    }
+
+
 def test_sdk_schema_commands_derive_official_local_descriptors_without_auth_or_network(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -380,26 +456,53 @@ def test_sdk_schema_rejects_non_body_or_group_paths(
 
 
 @pytest.mark.parametrize(
-    "command",
+    ("command", "expected_schema"),
     [
-        "run",
-        "batch-run",
-        "pivot-run",
-        "realtime-run",
-        "batch-pivot-run",
-        "compatibility-check",
+        ("run", RUN_REPORT_BODY_SCHEMA),
+        ("batch-run", BATCH_RUN_REPORTS_BODY_SCHEMA),
+        ("pivot-run", RUN_PIVOT_REPORT_BODY_SCHEMA),
+        ("realtime-run", RUN_REALTIME_REPORT_BODY_SCHEMA),
+        ("batch-pivot-run", BATCH_RUN_PIVOT_REPORTS_BODY_SCHEMA),
+        ("compatibility-check", CHECK_COMPATIBILITY_BODY_SCHEMA),
     ],
 )
-def test_report_commands_do_not_expose_bundled_request_schemas(command: str) -> None:
+def test_report_schema_is_standalone_structural_cli_validation(
+    monkeypatch: pytest.MonkeyPatch, command: str, expected_schema: dict[str, object]
+) -> None:
+    def forbidden(*_: object, **__: object) -> None:
+        raise AssertionError("--schema must not construct a client or authenticate")
+
+    monkeypatch.setattr(reports, "run_report_command", forbidden)
+    monkeypatch.setattr("google.auth.default", forbidden)
+
     help_result = runner.invoke(ga4_data_app, ["reports", command, "--help"])
     schema_result = runner.invoke(ga4_data_app, ["reports", command, "--schema"])
 
     assert help_result.exit_code == 0
-    assert "--schema" not in help_result.stdout
-    assert "Opaque official GA4 Data API request JSON" in help_result.stdout
-    assert schema_result.exit_code == 2
-    assert schema_result.stdout == ""
-    assert "No such option: --schema" in schema_result.stderr
+    assert "--schema" in help_result.stdout
+    assert "Additional CLI cross-field checks" in help_result.stdout
+    assert schema_result.exit_code == 0
+    assert schema_result.stderr == ""
+    assert json.loads(schema_result.stdout) == {
+        "schemaVersion": "marketing-toolbox/v1",
+        "command": f"ga4datactl reports {command}",
+        "data": {"bodySchema": expected_schema},
+    }
+
+
+def test_report_body_schema_and_sdk_descriptor_remain_distinct_contracts() -> None:
+    body_schema = json.loads(
+        runner.invoke(ga4_data_app, ["reports", "run", "--schema"]).stdout
+    )["data"]
+    sdk_descriptor = json.loads(
+        runner.invoke(
+            ga4_data_app, ["sdk", "schema", "--command", "reports run"]
+        ).stdout
+    )["data"]
+
+    assert set(body_schema) == {"bodySchema"}
+    assert sdk_descriptor["source"]["kind"] == "installed-sdk-descriptor"
+    assert "response" not in sdk_descriptor
 
 
 @pytest.mark.parametrize(
@@ -626,7 +729,7 @@ def test_ga4_entrypoint_version_remains_an_eager_json_success(
     assert json.loads(captured.out) == {
         "schemaVersion": "marketing-toolbox/v1",
         "command": command,
-        "data": {"version": "0.2.0"},
+        "data": {"version": "0.3.0"},
     }
     assert captured.err == ""
 
@@ -679,7 +782,7 @@ def test_ga4_entrypoint_parse_errors_remain_json_diagnostics(
         (
             ["ga4datactl", "--version"],
             0,
-            {"version": "0.2.0"},
+            {"version": "0.3.0"},
             None,
         ),
         (
@@ -1011,7 +1114,7 @@ def test_gtm_entrypoint_version_is_eager_and_uses_shared_json_success_envelope(
     assert json.loads(captured.out) == {
         "schemaVersion": "marketing-toolbox/v1",
         "command": "gtmctl",
-        "data": {"version": "0.2.0"},
+        "data": {"version": "0.3.0"},
     }
     assert captured.err == ""
 

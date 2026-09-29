@@ -6,7 +6,7 @@ from typing import Annotated, Any
 
 import typer
 
-from gtmctl.commands._common import run_command
+from gtmctl.commands._common import DRY_RUN_HELP, run_command
 from gtmctl.commands.tag_mutations import _dry_run, _validate_execution_mode
 from gtmctl.foundation.validation import (
     RequestValidationError,
@@ -41,9 +41,7 @@ def register_built_in_variable_mutation_commands(entity_app: typer.Typer) -> Non
                 "--type", help="Official built-in variable type to enable (repeatable)."
             ),
         ] = None,
-        dry_run: Annotated[
-            bool, typer.Option("--dry-run", help="Validate and print a mutation plan.")
-        ] = False,
+        dry_run: Annotated[bool, typer.Option("--dry-run", help=DRY_RUN_HELP)] = False,
         apply: Annotated[
             bool, typer.Option("--apply", help="Execute the Google API mutation.")
         ] = False,
@@ -87,9 +85,7 @@ def register_built_in_variable_mutation_commands(entity_app: typer.Typer) -> Non
                 help="Acknowledge removal of this built-in variable from the workspace.",
             ),
         ] = False,
-        dry_run: Annotated[
-            bool, typer.Option("--dry-run", help="Validate and print a mutation plan.")
-        ] = False,
+        dry_run: Annotated[bool, typer.Option("--dry-run", help=DRY_RUN_HELP)] = False,
         apply: Annotated[
             bool, typer.Option("--apply", help="Execute the Google API mutation.")
         ] = False,
@@ -124,9 +120,7 @@ def register_built_in_variable_mutation_commands(entity_app: typer.Typer) -> Non
             str | None,
             typer.Option("--type", help="Official built-in variable type to revert."),
         ] = None,
-        dry_run: Annotated[
-            bool, typer.Option("--dry-run", help="Validate and print a mutation plan.")
-        ] = False,
+        dry_run: Annotated[bool, typer.Option("--dry-run", help=DRY_RUN_HELP)] = False,
         apply: Annotated[
             bool, typer.Option("--apply", help="Execute the Google API mutation.")
         ] = False,

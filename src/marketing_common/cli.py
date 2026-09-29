@@ -11,6 +11,26 @@ import typer
 from .typer_compat import NoArgsIsHelpError, UsageError
 
 
+def root_help(*, summary: str, guide_url: str, api_url: str) -> str:
+    """Build the shared, concise root-help discovery contract."""
+    return (
+        f"{summary}\n\n"
+        "Discover recursively with --help: <tool> [group ...] --help; also use "
+        "auth --help and sdk schema --help. Successful commands write one JSON "
+        "envelope to stdout (schemaVersion, command, data). Diagnostics write JSON "
+        "to stderr (schemaVersion, command, exitCode, category, message, optional "
+        "googleStatus). Explicit --help is plain stdout/0; no-argument help is plain "
+        "stderr/2; OAuth may also write URL/progress text to stderr.\n\n"
+        "Exit categories: 0 success; 1 unexpected or unexpected_failure; 2 "
+        "invalid_arguments or invalid_request; 3 not_found; 4 authentication; 5 "
+        "conflict or failed_precondition; 6 retryable. sdk schema is local, "
+        "credential/network-free request discovery, not response validation.\n\n"
+        "Project: https://marketing-toolbox.org/\n"
+        "Authentication: https://marketing-toolbox.org/auth/\n"
+        f"Guide: {guide_url}\nOfficial API: {api_url}"
+    )
+
+
 def success_envelope(*, command: str, data: Any) -> dict[str, Any]:
     """Build the stable JSON success envelope shared by all three CLIs."""
     return {

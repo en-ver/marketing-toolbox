@@ -6,7 +6,7 @@ from typing import Annotated, Any
 
 import typer
 
-from gtmctl.commands._common import run_command
+from gtmctl.commands._common import DRY_RUN_HELP, run_command
 from gtmctl.commands.tag_mutations import (
     _dry_run,
     _validate_execution_mode,
@@ -68,9 +68,7 @@ def register_environment_mutation_commands(environments_app: typer.Typer) -> Non
         body: Annotated[
             str, typer.Option("--body", help="UTF-8 JSON object file, or - for stdin.")
         ],
-        dry_run: Annotated[
-            bool, typer.Option("--dry-run", help="Validate and print a mutation plan.")
-        ] = False,
+        dry_run: Annotated[bool, typer.Option("--dry-run", help=DRY_RUN_HELP)] = False,
         apply: Annotated[
             bool, typer.Option("--apply", help="Execute the Google API mutation.")
         ] = False,
@@ -106,9 +104,7 @@ def register_environment_mutation_commands(environments_app: typer.Typer) -> Non
                 "--fingerprint", help="Current official resource fingerprint."
             ),
         ] = None,
-        dry_run: Annotated[
-            bool, typer.Option("--dry-run", help="Validate and print a mutation plan.")
-        ] = False,
+        dry_run: Annotated[bool, typer.Option("--dry-run", help=DRY_RUN_HELP)] = False,
         apply: Annotated[
             bool, typer.Option("--apply", help="Execute the Google API mutation.")
         ] = False,
@@ -146,14 +142,12 @@ def register_environment_mutation_commands(environments_app: typer.Typer) -> Non
                 help="Acknowledge permanent deletion of this environment from the container.",
             ),
         ] = False,
-        dry_run: Annotated[
-            bool, typer.Option("--dry-run", help="Validate and print a mutation plan.")
-        ] = False,
+        dry_run: Annotated[bool, typer.Option("--dry-run", help=DRY_RUN_HELP)] = False,
         apply: Annotated[
             bool, typer.Option("--apply", help="Execute the Google API mutation.")
         ] = False,
     ) -> None:
-        """Delete one environment from a container."""
+        """Delete one environment from a container; requires containers access, not delete access."""
 
         def operation() -> dict[str, Any]:
             validate_environment_path(path)
@@ -186,14 +180,12 @@ def register_environment_mutation_commands(environments_app: typer.Typer) -> Non
                 help="Acknowledge reauthorization of this environment.",
             ),
         ] = False,
-        dry_run: Annotated[
-            bool, typer.Option("--dry-run", help="Validate and print a mutation plan.")
-        ] = False,
+        dry_run: Annotated[bool, typer.Option("--dry-run", help=DRY_RUN_HELP)] = False,
         apply: Annotated[
             bool, typer.Option("--apply", help="Execute the Google API mutation.")
         ] = False,
     ) -> None:
-        """Reauthorize one GTM environment with the official publish scope."""
+        """Reauthorize one GTM environment; requires publish access."""
 
         def operation() -> dict[str, Any]:
             validate_environment_path(path)
