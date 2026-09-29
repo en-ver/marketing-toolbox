@@ -1,0 +1,12 @@
+baseURL = "https://marketing-toolbox.org/"
+title = "Marketing Toolbox"
+contentDir = "docs/user"
+
+[module]
+  [[module.imports]]
+    path = "github.com/alex-shpak/hugo-book"
+
+[params]
+  BookSection = "*"
+  BookPortableLinks = "error"
+  BookComments = false

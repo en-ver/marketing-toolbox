@@ -18,3 +18,8 @@ __pycache__/
 !tests/data/gtmctl/upstream-inventory.json
 
 /.worktrees/
+
+# Hugo build output
+/public/
+/resources/
+/.hugo_build.lock

@@ -1,0 +1,56 @@
+---
+title: Authentication
+weight: 20
+---
+
+# Authentication
+
+Commands select credentials in this order:
+
+1. `GOOGLE_SERVICE_ACCOUNT_JSON`, containing a service-account JSON document.
+2. An explicitly set `GOOGLE_APPLICATION_CREDENTIALS` file.
+3. A matching local native OAuth record for the current tool and access tier.
+4. Ambient [Application Default Credentials (ADC)](https://cloud.google.com/docs/authentication/application-default-credentials).
+
+The explicit file and ambient ADC can represent any Google-supported credential type, including service accounts, user credentials, workload identity, or an attached identity. A configured environment source or marked native record fails closed if it is invalid; the command does not silently choose a different identity.
+
+## Credential precedence
+
+Choose native OAuth for an interactive desktop user, or use operator-managed service accounts and ADC for automation. OAuth consent and credential selection do not grant access to Analytics properties or Tag Manager resources: grant the authenticated principal the necessary Google Analytics, Tag Manager, and IAM permissions separately.
+
+Native records are separate for each tool and access tier. The exact scope mapping is:
+
+| Tool | Access tier | Scope |
+| --- | --- | --- |
+| `ga4datactl` | `read` | `https://www.googleapis.com/auth/analytics.readonly` |
+| `ga4adminctl` | `read` | `https://www.googleapis.com/auth/analytics.readonly` |
+| `ga4adminctl` | `edit` | `https://www.googleapis.com/auth/analytics.edit` |
+| `gtmctl` | `read` | `https://www.googleapis.com/auth/tagmanager.readonly` |
+| `gtmctl` | `users` | `https://www.googleapis.com/auth/tagmanager.manage.users` |
+| `gtmctl` | `accounts` | `https://www.googleapis.com/auth/tagmanager.manage.accounts` |
+| `gtmctl` | `containers` | `https://www.googleapis.com/auth/tagmanager.edit.containers` |
+| `gtmctl` | `versions` | `https://www.googleapis.com/auth/tagmanager.edit.containerversions` |
+| `gtmctl` | `publish` | `https://www.googleapis.com/auth/tagmanager.publish` |
+| `gtmctl` | `delete` | `https://www.googleapis.com/auth/tagmanager.delete.containers` |
+
+## Native OAuth storage
+
+Native OAuth stores refresh material, client ID, client secret, and the selected scope binding only in an approved encrypted OS keyring: macOS Keychain, Windows Credential Locker, or Linux Secret Service. There is no plaintext fallback. Access tokens are refreshed only in memory, and the stored scope is not proof of a scope Google still grants.
+
+Headless Linux commonly has no approved keyring; use externally managed ADC there. ADC files, including gcloud-managed credentials, are outside the CLI's native encrypted-keyring guarantee and must be secured by the operator. On Windows, a native record is limited by Credential Locker's 2,560-byte UTF-16LE value limit.
+
+Before changing a native record, the CLI writes a non-secret local marker. A missing or invalid marked record does not fall through to ADC. Recover incomplete or interrupted local storage with `auth forget`, then log in again.
+
+## Record lifecycle
+
+Use the selected tool and tier for each command:
+
+```bash
+ga4datactl auth status --access read
+ga4datactl auth forget --access read
+ga4datactl auth revoke --access read --apply --acknowledge-project-wide-revocation
+```
+
+`auth status` checks the selected local record without contacting Google. `auth forget` deletes only that local record; it does not revoke Google access. `auth revoke` revokes the user's grant across the OAuth project and then removes the selected local record, so it is not a tier-local remote logout. Alternatively, revoke the grant in Google Account permissions and run `auth forget` locally.
+
+For an interactive login, follow [Desktop OAuth setup](desktop-oauth.md).

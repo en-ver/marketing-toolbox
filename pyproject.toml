@@ -32,6 +32,9 @@ gtmctl = "gtmctl.cli:main"
 [tool.hatch.build.targets.wheel]
 packages = ["src/ga4datactl", "src/ga4adminctl", "src/gtmctl", "src/marketing_common", "src/marketing_toolbox"]
 
+[tool.hatch.build.targets.sdist]
+exclude = ["/docs/user", "/go.mod", "/go.sum", "/hugo.toml"]
+
 [tool.mypy]
 python_version = "3.11"
 files = ["src"]
