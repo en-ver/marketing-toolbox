@@ -30,6 +30,7 @@ from ga4adminctl.foundation.validation import (
 from ga4adminctl.operations import mutations, reads
 
 PropertiesClientFactory = reads.PropertiesClientFactory
+ACCOUNT_PATCH_WRITABLE_FIELDS = ("displayName", "regionCode")
 
 
 def list_account_summaries(*, page_size: int, page_token: str) -> dict[str, Any]:
@@ -59,13 +60,12 @@ def update_account(
     reject_route_fields(body, "name")
     account = parse_sdk_message(body, Account)
     account.name = name
-    mutable_fields = {"displayName", "regionCode"}
     mask_fields = update_mask.split(",") if update_mask else []
     if (
         not mask_fields
         or any(not field or field.strip() != field for field in mask_fields)
         or len(set(mask_fields)) != len(mask_fields)
-        or not set(mask_fields).issubset(mutable_fields)
+        or not set(mask_fields).issubset(ACCOUNT_PATCH_WRITABLE_FIELDS)
     ):
         raise RequestValidationError(
             "--update-mask must be a nonempty, comma-separated set of mutable body fields."
@@ -115,7 +115,7 @@ def delete_account(
     apply: bool = False,
     client_factory: PropertiesClientFactory | None = None,
 ) -> dict[str, Any]:
-    """Plan or soft-delete one Account without live validation or retry."""
+    """Plan or move one Account to trash without live validation or retry."""
     validate_resource_name(name, flag="--name", pattern=ACCOUNT_PATTERN)
     if not apply:
         return {"dryRun": True, "request": {"name": name}}

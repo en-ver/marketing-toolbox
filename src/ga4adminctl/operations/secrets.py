@@ -35,6 +35,7 @@ from ga4adminctl.foundation.validation import (
 from ga4adminctl.operations import mutations, reads, resources
 
 PropertiesClientFactory = reads.PropertiesClientFactory
+MEASUREMENT_PROTOCOL_SECRET_PATCH_WRITABLE_FIELDS = ("displayName",)
 _update_child = resources._update_child
 
 
@@ -80,7 +81,7 @@ def create_measurement_protocol_secret(
     validate_resource_name(
         data_stream, flag="--data-stream", pattern=DATA_STREAM_PATTERN
     )
-    reject_sensitive_fields(body, "secretValue")
+    reject_sensitive_fields(body, "secretValue", "secret_value")
     secret = parse_sdk_message(body, MeasurementProtocolSecret)
     if not apply:
         return {
@@ -112,7 +113,7 @@ def update_measurement_protocol_secret(
             body,
             update_mask,
             collection="measurementProtocolSecrets",
-            mutable_fields={"displayName"},
+            mutable_fields=MEASUREMENT_PROTOCOL_SECRET_PATCH_WRITABLE_FIELDS,
             message_type=MeasurementProtocolSecret,
             request_type=UpdateMeasurementProtocolSecretRequest,
             request_field="measurement_protocol_secret",

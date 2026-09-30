@@ -7,6 +7,9 @@ from typing import Any
 
 from google.api_core import exceptions
 
+from ga4adminctl.foundation.errors import (
+    normalize_create_mutation_error as _normalize_create_mutation_error,
+)
 from ga4adminctl.operations import reads
 from marketing_common.auth import CredentialConfigurationError
 
@@ -17,6 +20,20 @@ PropertiesClientFactory = reads.PropertiesClientFactory
 _make_properties_client = reads._make_properties_client
 _normalize_google_error = reads._normalize_google_error
 service_account_credentials = reads.service_account_credentials
+
+_UNCERTAIN_CREATE_METHODS = frozenset(
+    {
+        "create_property",
+        "create_custom_dimension",
+        "create_custom_metric",
+        "create_data_stream",
+        "create_firebase_link",
+        "create_google_ads_link",
+        "create_key_event",
+        "create_measurement_protocol_secret",
+        "provision_account_ticket",
+    }
+)
 
 
 def _write_v1beta(
@@ -36,5 +53,10 @@ def _write_v1beta(
     except CredentialConfigurationError:
         raise
     except exceptions.GoogleAPICallError as exc:
-        raise _normalize_google_error(exc) from exc
+        normalizer = (
+            _normalize_create_mutation_error
+            if method_name in _UNCERTAIN_CREATE_METHODS
+            else _normalize_google_error
+        )
+        raise normalizer(exc) from exc
     return render(response)

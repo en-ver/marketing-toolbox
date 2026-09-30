@@ -10,6 +10,11 @@ import typer
 
 from ga4adminctl.foundation.validation import read_json_body
 from ga4adminctl.operations.resources import (
+    CUSTOM_DIMENSION_PATCH_WRITABLE_FIELDS,
+    CUSTOM_METRIC_PATCH_WRITABLE_FIELDS,
+    DATA_STREAM_PATCH_WRITABLE_FIELDS,
+    GOOGLE_ADS_LINK_PATCH_WRITABLE_FIELDS,
+    KEY_EVENT_PATCH_WRITABLE_FIELDS,
     archive_custom_dimension,
     archive_custom_metric,
     create_custom_dimension,
@@ -40,6 +45,7 @@ from ga4adminctl.operations.resources import (
 )
 
 from ._common import (
+    require_destructive_confirmation,
     require_exactly_one_mutation_mode,
     run_command,
 )
@@ -163,11 +169,17 @@ def _custom_definition_mutation(
     dry_run: bool,
     apply: bool,
     operation: Callable[..., dict[str, Any]],
+    confirmation_required: bool = False,
+    confirm_resource: str | None = None,
 ) -> None:
-    """Run a create or archive custom-definition operation with explicit apply."""
+    """Run a create, archive, or child deletion with explicit apply control."""
 
     def execute() -> dict[str, Any]:
         require_exactly_one_mutation_mode(dry_run, apply)
+        if confirmation_required:
+            require_destructive_confirmation(
+                name=name, confirm_resource=confirm_resource, apply=apply
+            )
         if body_source is None:
             return operation(name, apply=apply)
         return operation(
@@ -222,6 +234,13 @@ def _install_custom_definition_lifecycle_commands(
             str,
             typer.Option("--name", help="Custom-definition resource name to archive."),
         ],
+        confirm_resource: Annotated[
+            str | None,
+            typer.Option(
+                "--confirm-resource",
+                help="Required with --apply; must exactly match --name.",
+            ),
+        ] = None,
         dry_run: Annotated[
             bool,
             typer.Option(
@@ -242,6 +261,8 @@ def _install_custom_definition_lifecycle_commands(
             dry_run=dry_run,
             apply=apply,
             operation=archive_operation,
+            confirmation_required=True,
+            confirm_resource=confirm_resource,
         )
 
 
@@ -259,7 +280,11 @@ def custom_dimensions_patch(
     update_mask: Annotated[
         str,
         typer.Option(
-            "--update-mask", help="Comma-separated mutable body fields to update."
+            "--update-mask",
+            help=(
+                "Comma-separated mutable body fields to update; allowed fields: "
+                f"{', '.join(CUSTOM_DIMENSION_PATCH_WRITABLE_FIELDS)}."
+            ),
         ),
     ],
     dry_run: Annotated[
@@ -297,7 +322,11 @@ def custom_metrics_patch(
     update_mask: Annotated[
         str,
         typer.Option(
-            "--update-mask", help="Comma-separated mutable body fields to update."
+            "--update-mask",
+            help=(
+                "Comma-separated mutable body fields to update; allowed fields: "
+                f"{', '.join(CUSTOM_METRIC_PATCH_WRITABLE_FIELDS)}."
+            ),
         ),
     ],
     dry_run: Annotated[
@@ -346,7 +375,11 @@ def data_streams_patch(
     update_mask: Annotated[
         str,
         typer.Option(
-            "--update-mask", help="Comma-separated mutable body fields to update."
+            "--update-mask",
+            help=(
+                "Comma-separated mutable body fields to update; allowed fields: "
+                f"{', '.join(DATA_STREAM_PATCH_WRITABLE_FIELDS)}."
+            ),
         ),
     ],
     dry_run: Annotated[
@@ -408,6 +441,13 @@ def data_streams_delete(
     name: Annotated[
         str, typer.Option("--name", help="Data-stream resource name to delete.")
     ],
+    confirm_resource: Annotated[
+        str | None,
+        typer.Option(
+            "--confirm-resource",
+            help="Required with --apply; must exactly match --name.",
+        ),
+    ] = None,
     dry_run: Annotated[
         bool,
         typer.Option(
@@ -426,6 +466,8 @@ def data_streams_delete(
         dry_run=dry_run,
         apply=apply,
         operation=delete_data_stream,
+        confirmation_required=True,
+        confirm_resource=confirm_resource,
     )
 
 
@@ -466,6 +508,13 @@ def firebase_links_delete(
     name: Annotated[
         str, typer.Option("--name", help="Firebase link resource name to delete.")
     ],
+    confirm_resource: Annotated[
+        str | None,
+        typer.Option(
+            "--confirm-resource",
+            help="Required with --apply; must exactly match --name.",
+        ),
+    ] = None,
     dry_run: Annotated[
         bool,
         typer.Option(
@@ -484,6 +533,8 @@ def firebase_links_delete(
         dry_run=dry_run,
         apply=apply,
         operation=delete_firebase_link,
+        confirmation_required=True,
+        confirm_resource=confirm_resource,
     )
 
 
@@ -499,7 +550,11 @@ def google_ads_links_patch(
     update_mask: Annotated[
         str,
         typer.Option(
-            "--update-mask", help="Comma-separated mutable body fields to update."
+            "--update-mask",
+            help=(
+                "Comma-separated mutable body fields to update; allowed fields: "
+                f"{', '.join(GOOGLE_ADS_LINK_PATCH_WRITABLE_FIELDS)}."
+            ),
         ),
     ],
     dry_run: Annotated[
@@ -562,6 +617,13 @@ def google_ads_links_delete(
     name: Annotated[
         str, typer.Option("--name", help="Google Ads link resource name to delete.")
     ],
+    confirm_resource: Annotated[
+        str | None,
+        typer.Option(
+            "--confirm-resource",
+            help="Required with --apply; must exactly match --name.",
+        ),
+    ] = None,
     dry_run: Annotated[
         bool,
         typer.Option(
@@ -580,6 +642,8 @@ def google_ads_links_delete(
         dry_run=dry_run,
         apply=apply,
         operation=delete_google_ads_link,
+        confirmation_required=True,
+        confirm_resource=confirm_resource,
     )
 
 
@@ -595,7 +659,11 @@ def key_events_patch(
     update_mask: Annotated[
         str,
         typer.Option(
-            "--update-mask", help="Comma-separated mutable body fields to update."
+            "--update-mask",
+            help=(
+                "Comma-separated mutable body fields to update; allowed fields: "
+                f"{', '.join(KEY_EVENT_PATCH_WRITABLE_FIELDS)}."
+            ),
         ),
     ],
     dry_run: Annotated[
@@ -657,6 +725,13 @@ def key_events_delete(
     name: Annotated[
         str, typer.Option("--name", help="Key-event resource name to delete.")
     ],
+    confirm_resource: Annotated[
+        str | None,
+        typer.Option(
+            "--confirm-resource",
+            help="Required with --apply; must exactly match --name.",
+        ),
+    ] = None,
     dry_run: Annotated[
         bool,
         typer.Option(
@@ -675,6 +750,8 @@ def key_events_delete(
         dry_run=dry_run,
         apply=apply,
         operation=delete_key_event,
+        confirmation_required=True,
+        confirm_resource=confirm_resource,
     )
 
 

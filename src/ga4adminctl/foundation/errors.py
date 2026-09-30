@@ -17,9 +17,27 @@ class GoogleApiError(RuntimeError):
         self.status = status
 
 
+def normalize_create_mutation_error(
+    error: exceptions.GoogleAPICallError,
+) -> GoogleApiError:
+    """Safely report an uncertain create or provisioning result."""
+    status = _google_status(error)
+    if status in {500, 503, 504}:
+        return GoogleApiError(
+            exit_code=1,
+            category="unexpected",
+            message=(
+                "Google Analytics Admin API mutation may have succeeded "
+                f"with HTTP {status}. Inspect current state before retrying."
+            ),
+            status=status,
+        )
+    return normalize_google_error(error)
+
+
 def normalize_google_error(error: exceptions.GoogleAPICallError) -> GoogleApiError:
     """Map documented Google API failures without exposing SDK diagnostics."""
-    status = int(error.code) if error.code is not None else None
+    status = _google_status(error)
     if isinstance(error, exceptions.FailedPrecondition):
         exit_code, category = 5, "failed_precondition"
     elif status in {401, 403}:
@@ -41,3 +59,7 @@ def normalize_google_error(error: exceptions.GoogleAPICallError) -> GoogleApiErr
         message=f"Google Analytics Admin API request failed{detail}.",
         status=status,
     )
+
+
+def _google_status(error: exceptions.GoogleAPICallError) -> int | None:
+    return int(error.code) if error.code is not None else None

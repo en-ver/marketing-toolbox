@@ -107,7 +107,7 @@ def delete_property(
     apply: bool = False,
     client_factory: PropertiesClientFactory | None = None,
 ) -> dict[str, Any]:
-    """Plan or delete one Property; deletion is irreversible and never retried."""
+    """Plan or move one Property to trash; never retry the request."""
     validate_resource_name(name, flag="--name", pattern=PROPERTY_PATTERN)
     if not apply:
         return {"dryRun": True, "request": {"name": name}}

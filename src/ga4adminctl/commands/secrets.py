@@ -10,6 +10,7 @@ import typer
 
 from ga4adminctl.foundation.validation import read_json_body
 from ga4adminctl.operations.secrets import (
+    MEASUREMENT_PROTOCOL_SECRET_PATCH_WRITABLE_FIELDS,
     create_measurement_protocol_secret,
     delete_measurement_protocol_secret,
     get_measurement_protocol_secret,
@@ -18,6 +19,7 @@ from ga4adminctl.operations.secrets import (
 )
 
 from ._common import (
+    require_destructive_confirmation,
     require_exactly_one_mutation_mode,
     require_sensitive_acknowledgement,
     run_command,
@@ -167,7 +169,11 @@ def measurement_protocol_secrets_patch(
     update_mask: Annotated[
         str,
         typer.Option(
-            "--update-mask", help="Comma-separated mutable body fields to update."
+            "--update-mask",
+            help=(
+                "Comma-separated mutable body fields to update; allowed fields: "
+                f"{', '.join(MEASUREMENT_PROTOCOL_SECRET_PATCH_WRITABLE_FIELDS)}."
+            ),
         ),
     ],
     acknowledge_sensitive_data: Annotated[
@@ -215,6 +221,13 @@ def measurement_protocol_secrets_delete(
             "--name", help="Measurement Protocol secret resource name to delete."
         ),
     ],
+    confirm_resource: Annotated[
+        str | None,
+        typer.Option(
+            "--confirm-resource",
+            help="Required with --apply; must exactly match --name.",
+        ),
+    ] = None,
     acknowledge_sensitive_data: Annotated[
         bool,
         typer.Option(
@@ -236,12 +249,16 @@ def measurement_protocol_secrets_delete(
     ] = False,
 ) -> None:
     """Irreversibly delete a secret with acknowledgement and explicit apply control."""
+
+    def operation() -> dict[str, Any]:
+        require_sensitive_acknowledgement(acknowledge_sensitive_data)
+        require_exactly_one_mutation_mode(dry_run, apply)
+        require_destructive_confirmation(
+            name=name, confirm_resource=confirm_resource, apply=apply
+        )
+        return delete_measurement_protocol_secret(name, apply=apply)
+
     run_command(
         command="ga4adminctl properties data-streams measurement-protocol-secrets delete",
-        operation=lambda: _sensitive_secret_action(
-            acknowledge_sensitive_data,
-            dry_run,
-            apply,
-            lambda: delete_measurement_protocol_secret(name, apply=apply),
-        ),
+        operation=operation,
     )

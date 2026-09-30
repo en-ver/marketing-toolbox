@@ -19,7 +19,18 @@ from ga4adminctl.cli import app as ga4_admin_app
 from ga4adminctl.cli import main as ga4_admin_main
 from ga4adminctl.commands import properties as admin_properties
 from ga4adminctl.commands.sdk import _SCHEMA_TARGETS as admin_schema_targets
+from ga4adminctl.operations.accounts import ACCOUNT_PATCH_WRITABLE_FIELDS
 from ga4adminctl.operations.properties import PROPERTY_PATCH_WRITABLE_FIELDS
+from ga4adminctl.operations.resources import (
+    CUSTOM_DIMENSION_PATCH_WRITABLE_FIELDS,
+    CUSTOM_METRIC_PATCH_WRITABLE_FIELDS,
+    DATA_STREAM_PATCH_WRITABLE_FIELDS,
+    GOOGLE_ADS_LINK_PATCH_WRITABLE_FIELDS,
+    KEY_EVENT_PATCH_WRITABLE_FIELDS,
+)
+from ga4adminctl.operations.secrets import (
+    MEASUREMENT_PROTOCOL_SECRET_PATCH_WRITABLE_FIELDS,
+)
 from ga4adminctl.service import (
     CredentialConfigurationError as AdminCredentialConfigurationError,
 )
@@ -454,6 +465,83 @@ def test_property_patch_help_runtime_policy_and_sdk_constraints_share_allowlist(
     }
 
 
+@pytest.mark.parametrize(
+    ("path", "owner_fields", "expected_fields"),
+    [
+        pytest.param(
+            ("accounts", "patch"),
+            ACCOUNT_PATCH_WRITABLE_FIELDS,
+            ("displayName", "regionCode"),
+            id="account",
+        ),
+        pytest.param(
+            ("properties", "patch"),
+            PROPERTY_PATCH_WRITABLE_FIELDS,
+            ("displayName", "industryCategory", "timeZone", "currencyCode"),
+            id="property",
+        ),
+        pytest.param(
+            ("properties", "custom-dimensions", "patch"),
+            CUSTOM_DIMENSION_PATCH_WRITABLE_FIELDS,
+            ("displayName", "description", "disallowAdsPersonalization"),
+            id="custom-dimension",
+        ),
+        pytest.param(
+            ("properties", "custom-metrics", "patch"),
+            CUSTOM_METRIC_PATCH_WRITABLE_FIELDS,
+            ("displayName", "description", "measurementUnit", "restrictedMetricType"),
+            id="custom-metric",
+        ),
+        pytest.param(
+            ("properties", "data-streams", "patch"),
+            DATA_STREAM_PATCH_WRITABLE_FIELDS,
+            ("displayName", "webStreamData.defaultUri"),
+            id="data-stream",
+        ),
+        pytest.param(
+            ("properties", "google-ads-links", "patch"),
+            GOOGLE_ADS_LINK_PATCH_WRITABLE_FIELDS,
+            ("adsPersonalizationEnabled",),
+            id="google-ads-link",
+        ),
+        pytest.param(
+            ("properties", "key-events", "patch"),
+            KEY_EVENT_PATCH_WRITABLE_FIELDS,
+            (
+                "countingMethod",
+                "defaultValue.numericValue",
+                "defaultValue.currencyCode",
+            ),
+            id="key-event",
+        ),
+        pytest.param(
+            ("properties", "data-streams", "measurement-protocol-secrets", "patch"),
+            MEASUREMENT_PROTOCOL_SECRET_PATCH_WRITABLE_FIELDS,
+            ("displayName",),
+            id="measurement-protocol-secret",
+        ),
+    ],
+)
+def test_admin_patch_help_and_sdk_constraints_match_owner_allowlists(
+    path: tuple[str, ...],
+    owner_fields: tuple[str, ...],
+    expected_fields: tuple[str, ...],
+) -> None:
+    help_result = runner.invoke(ga4_admin_app, [*path, "--help"])
+    schema_result = runner.invoke(
+        ga4_admin_app, ["sdk", "schema", "--command", " ".join(path)]
+    )
+
+    assert help_result.exit_code == schema_result.exit_code == 0
+    assert owner_fields == expected_fields
+    assert all(field in help_result.stdout for field in expected_fields)
+    payload = json.loads(schema_result.stdout)["data"]
+    assert payload["request"]["cliConstraints"] == {
+        "allowedUpdateMaskFields": list(expected_fields),
+        "bodyFieldsMustExactlyMatchUpdateMask": True,
+    }
+
+
 def test_sdk_schema_commands_derive_official_local_descriptors_without_auth_or_network(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -808,7 +896,7 @@ def test_ga4_entrypoint_version_remains_an_eager_json_success(
     assert json.loads(captured.out) == {
         "schemaVersion": "marketing-toolbox/v1",
         "command": command,
-        "data": {"version": "0.3.1"},
+        "data": {"version": "0.4.0"},
     }
     assert captured.err == ""
 
@@ -861,7 +949,7 @@ def test_ga4_entrypoint_parse_errors_remain_json_diagnostics(
         (
             ["ga4datactl", "--version"],
             0,
-            {"version": "0.3.1"},
+            {"version": "0.4.0"},
             None,
         ),
         (
@@ -1334,7 +1422,7 @@ def test_gtm_entrypoint_version_is_eager_and_uses_shared_json_success_envelope(
     assert json.loads(captured.out) == {
         "schemaVersion": "marketing-toolbox/v1",
         "command": "gtmctl",
-        "data": {"version": "0.3.1"},
+        "data": {"version": "0.4.0"},
     }
     assert captured.err == ""
 

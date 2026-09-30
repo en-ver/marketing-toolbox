@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from typing import Any, cast
 
 import pytest
@@ -227,3 +229,71 @@ def test_sensitive_mutation_keeps_acknowledgement_before_mode_and_body(
         "Specify exactly one of --dry-run or --apply for this mutation."
         in invalid_mode.stderr
     )
+
+
+@pytest.mark.parametrize("field", ["secretValue", "secret_value"])
+@pytest.mark.parametrize("mode", ["dry-run", "apply"])
+def test_secret_create_rejects_sensitive_aliases_before_render_or_auth(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, field: str, mode: str
+) -> None:
+    sentinel = "sensitive-secret-sentinel"
+    body = tmp_path / "secret.json"
+    body.write_text(json.dumps({"displayName": "Example", field: sentinel}))
+    attempted: list[str] = []
+
+    def forbid_credentials(_: object) -> object:
+        attempted.append("credentials")
+        pytest.fail("sensitive body validation must not load credentials")
+
+    def forbid_rpc(*_: object, **__: object) -> object:
+        attempted.append("rpc")
+        pytest.fail("sensitive body validation must not dispatch an RPC")
+
+    monkeypatch.setattr(mutations, "service_account_credentials", forbid_credentials)
+    monkeypatch.setattr(mutations, "_write_v1beta", forbid_rpc)
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "properties",
+            "data-streams",
+            "measurement-protocol-secrets",
+            "create",
+            "--data-stream",
+            "properties/1234/dataStreams/stream-1",
+            "--body",
+            str(body),
+            "--acknowledge-sensitive-data",
+            f"--{mode}",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert result.stdout == ""
+    assert attempted == []
+    assert sentinel not in result.stdout
+    assert sentinel not in result.stderr
+    assert json.loads(result.stderr)["category"] == "invalid_request"
+    assert f"sensitive field {field}" in result.stderr
+
+
+def test_secret_create_sdk_schema_excludes_canonical_secret_value() -> None:
+    result = CliRunner().invoke(
+        app,
+        [
+            "sdk",
+            "schema",
+            "--command",
+            "properties data-streams measurement-protocol-secrets create",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert result.stderr == ""
+    request = json.loads(result.stdout)["data"]["request"]
+    assert request["bodyForbiddenFields"] == [
+        "parent",
+        "secretValue",
+        "secret_value",
+    ]
+    assert "secretValue" not in {field["name"] for field in request["body"]["fields"]}

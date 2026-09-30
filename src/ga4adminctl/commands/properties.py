@@ -24,6 +24,7 @@ from ga4adminctl.operations.properties import (
 )
 
 from ._common import (
+    require_destructive_confirmation,
     require_exactly_one_mutation_mode,
     require_sensitive_acknowledgement,
     run_access_report_command,
@@ -187,6 +188,13 @@ def properties_delete(
     name: Annotated[
         str, typer.Option("--name", help="Property resource name to delete.")
     ],
+    confirm_resource: Annotated[
+        str | None,
+        typer.Option(
+            "--confirm-resource",
+            help="Required with --apply; must exactly match --name.",
+        ),
+    ] = None,
     dry_run: Annotated[
         bool,
         typer.Option(
@@ -197,10 +205,13 @@ def properties_delete(
         bool, typer.Option("--apply", help="Explicitly delete this Property.")
     ] = False,
 ) -> None:
-    """Delete one Property with explicit apply control; deletion is irreversible."""
+    """Move one Property to trash; this CLI has no restore operation."""
 
     def operation() -> dict[str, Any]:
         require_exactly_one_mutation_mode(dry_run, apply)
+        require_destructive_confirmation(
+            name=name, confirm_resource=confirm_resource, apply=apply
+        )
         return delete_property(name, apply=apply)
 
     run_command(command="ga4adminctl properties delete", operation=operation)

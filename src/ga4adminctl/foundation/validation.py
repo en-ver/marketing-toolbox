@@ -27,7 +27,8 @@ FIREBASE_LINK_PATTERN = re.compile(r"^properties/[0-9]+/firebaseLinks/[^/]+$")
 GOOGLE_ADS_LINK_PATTERN = re.compile(r"^properties/[0-9]+/googleAdsLinks/[^/]+$")
 KEY_EVENT_PATTERN = re.compile(r"^properties/[0-9]+/keyEvents/[^/]+$")
 PROPERTY_LIST_FILTER_PATTERN = re.compile(
-    r"^(?:parent|ancestor):accounts/[0-9]+$|^firebase_project:projects/[A-Za-z0-9][A-Za-z0-9-]{4,28}[A-Za-z0-9]$"
+    r"^(?:parent:(?:accounts|properties)/[0-9]+|ancestor:accounts/[0-9]+|"
+    r"firebase_project:(?:[0-9]+|[A-Za-z0-9][A-Za-z0-9-]{4,28}[A-Za-z0-9]))$"
 )
 MAX_BODY_CHARACTERS = 1_048_576
 MAX_PROPERTY_PAGE_SIZE = 200
@@ -97,7 +98,8 @@ def validate_properties_list_request(
     if not PROPERTY_LIST_FILTER_PATTERN.fullmatch(filter_expression):
         raise RequestValidationError(
             "--filter must be one of parent:accounts/<numeric-id>, "
-            "ancestor:accounts/<numeric-id>, or firebase_project:projects/<project-id>."
+            "parent:properties/<numeric-id>, ancestor:accounts/<numeric-id>, "
+            "firebase_project:<project-id>, or firebase_project:<project-number>."
         )
     validate_page_request(page_size, page_token)
 

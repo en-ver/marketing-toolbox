@@ -13,7 +13,18 @@ from ga4adminctl import service
 from ga4adminctl.cli import app
 from ga4adminctl.foundation.validation import RequestValidationError
 from ga4adminctl.operations import mutations, reads
+from ga4adminctl.operations.accounts import ACCOUNT_PATCH_WRITABLE_FIELDS
 from ga4adminctl.operations.properties import PROPERTY_PATCH_WRITABLE_FIELDS
+from ga4adminctl.operations.resources import (
+    CUSTOM_DIMENSION_PATCH_WRITABLE_FIELDS,
+    CUSTOM_METRIC_PATCH_WRITABLE_FIELDS,
+    DATA_STREAM_PATCH_WRITABLE_FIELDS,
+    GOOGLE_ADS_LINK_PATCH_WRITABLE_FIELDS,
+    KEY_EVENT_PATCH_WRITABLE_FIELDS,
+)
+from ga4adminctl.operations.secrets import (
+    MEASUREMENT_PROTOCOL_SECRET_PATCH_WRITABLE_FIELDS,
+)
 
 
 def _record_scopes(requested_scopes: list[str], scopes: list[str]) -> object:
@@ -368,40 +379,42 @@ def test_list_accounts_passes_show_deleted_and_bounded_page_options(
     )
 
 
-PROPERTY_CREATE_BODY = {
+PROPERTY_CREATE_INPUT = {
     "parent": "accounts/1234",
     "displayName": "Temporary property",
     "industryCategory": "TECHNOLOGY",
     "timeZone": "America/Los_Angeles",
     "currencyCode": "USD",
 }
+PROPERTY_CREATE_PLAN = {
+    "dryRun": True,
+    "request": {
+        "property": {
+            "parent": "accounts/1234",
+            "displayName": "Temporary property",
+            "industryCategory": "TECHNOLOGY",
+            "timeZone": "America/Los_Angeles",
+            "currencyCode": "USD",
+        },
+    },
+}
 
 
-def test_property_create_and_delete_dry_runs_need_no_credentials(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(
-        mutations,
-        "service_account_credentials",
-        lambda _: pytest.fail("dry runs must not load credentials"),
-    )
-
-    assert service.create_property(PROPERTY_CREATE_BODY) == {
-        "dryRun": True,
-        "request": {"property": PROPERTY_CREATE_BODY},
-    }
-    assert service.delete_property("properties/5678") == {
-        "dryRun": True,
-        "request": {"name": "properties/5678"},
-    }
-
-
-def test_property_create_and_delete_apply_once_without_retry(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    client = CapturingDiscoveryClient(
+CREATE_DELETE_LIFECYCLES = [
+    pytest.param(
         {
-            "create_property": types.Property(
+            "create_operation": service.create_property,
+            "create_sdk_method": "create_property",
+            "create_args": (PROPERTY_CREATE_INPUT,),
+            "destructive_operation": service.delete_property,
+            "destructive_sdk_method": "delete_property",
+            "destructive_name": "properties/5678",
+            "create_plan": PROPERTY_CREATE_PLAN,
+            "destructive_plan": {
+                "dryRun": True,
+                "request": {"name": "properties/5678"},
+            },
+            "create_response": types.Property(
                 name="properties/5678",
                 parent="accounts/1234",
                 display_name="Temporary property",
@@ -409,7 +422,436 @@ def test_property_create_and_delete_apply_once_without_retry(
                 time_zone="America/Los_Angeles",
                 currency_code="USD",
             ),
-            "delete_property": types.Property(name="properties/5678"),
+            "destructive_response": types.Property(name="properties/5678"),
+            "create_request": types.CreatePropertyRequest(
+                property=types.Property(
+                    parent="accounts/1234",
+                    display_name="Temporary property",
+                    industry_category="TECHNOLOGY",
+                    time_zone="America/Los_Angeles",
+                    currency_code="USD",
+                )
+            ),
+            "destructive_request": types.DeletePropertyRequest(name="properties/5678"),
+            "create_result": {
+                "name": "properties/5678",
+                "parent": "accounts/1234",
+                "displayName": "Temporary property",
+                "industryCategory": "TECHNOLOGY",
+                "timeZone": "America/Los_Angeles",
+                "currencyCode": "USD",
+            },
+            "destructive_result": {"name": "properties/5678"},
+            "secret_sentinel": None,
+        },
+        id="property",
+    ),
+    pytest.param(
+        {
+            "create_operation": service.create_data_stream,
+            "create_sdk_method": "create_data_stream",
+            "create_args": (
+                "properties/1234",
+                {
+                    "displayName": "Temporary stream",
+                    "webStreamData": {"defaultUri": "https://example.test"},
+                },
+            ),
+            "destructive_operation": service.delete_data_stream,
+            "destructive_sdk_method": "delete_data_stream",
+            "destructive_name": "properties/1234/dataStreams/5678",
+            "create_plan": {
+                "dryRun": True,
+                "request": {
+                    "parent": "properties/1234",
+                    "dataStream": {
+                        "displayName": "Temporary stream",
+                        "webStreamData": {"defaultUri": "https://example.test"},
+                    },
+                },
+            },
+            "destructive_plan": {
+                "dryRun": True,
+                "request": {"name": "properties/1234/dataStreams/5678"},
+            },
+            "create_response": types.DataStream(
+                name="properties/1234/dataStreams/5678",
+                display_name="Temporary stream",
+                web_stream_data=types.DataStream.WebStreamData(
+                    default_uri="https://example.test"
+                ),
+            ),
+            "destructive_response": Empty(),
+            "create_request": types.CreateDataStreamRequest(
+                parent="properties/1234",
+                data_stream=types.DataStream(
+                    display_name="Temporary stream",
+                    web_stream_data=types.DataStream.WebStreamData(
+                        default_uri="https://example.test"
+                    ),
+                ),
+            ),
+            "destructive_request": types.DeleteDataStreamRequest(
+                name="properties/1234/dataStreams/5678"
+            ),
+            "create_result": {
+                "name": "properties/1234/dataStreams/5678",
+                "displayName": "Temporary stream",
+                "webStreamData": {"defaultUri": "https://example.test"},
+            },
+            "destructive_result": {},
+            "secret_sentinel": None,
+        },
+        id="data-stream",
+    ),
+    pytest.param(
+        {
+            "create_operation": service.create_custom_dimension,
+            "create_sdk_method": "create_custom_dimension",
+            "create_args": (
+                "properties/1234",
+                {
+                    "parameterName": "temporary_dimension",
+                    "displayName": "Temporary dimension",
+                    "scope": "EVENT",
+                },
+            ),
+            "destructive_operation": service.archive_custom_dimension,
+            "destructive_sdk_method": "archive_custom_dimension",
+            "destructive_name": "properties/1234/customDimensions/5678",
+            "create_plan": {
+                "dryRun": True,
+                "request": {
+                    "parent": "properties/1234",
+                    "customDimension": {
+                        "parameterName": "temporary_dimension",
+                        "displayName": "Temporary dimension",
+                        "scope": "EVENT",
+                    },
+                },
+            },
+            "destructive_plan": {
+                "dryRun": True,
+                "request": {"name": "properties/1234/customDimensions/5678"},
+            },
+            "create_response": types.CustomDimension(
+                name="properties/1234/customDimensions/5678",
+                parameter_name="temporary_dimension",
+                display_name="Temporary dimension",
+                scope="EVENT",
+            ),
+            "destructive_response": Empty(),
+            "create_request": types.CreateCustomDimensionRequest(
+                parent="properties/1234",
+                custom_dimension=types.CustomDimension(
+                    parameter_name="temporary_dimension",
+                    display_name="Temporary dimension",
+                    scope="EVENT",
+                ),
+            ),
+            "destructive_request": types.ArchiveCustomDimensionRequest(
+                name="properties/1234/customDimensions/5678"
+            ),
+            "create_result": {
+                "name": "properties/1234/customDimensions/5678",
+                "parameterName": "temporary_dimension",
+                "displayName": "Temporary dimension",
+                "scope": "EVENT",
+            },
+            "destructive_result": {},
+            "secret_sentinel": None,
+        },
+        id="custom-dimension-archive",
+    ),
+    pytest.param(
+        {
+            "create_operation": service.create_custom_metric,
+            "create_sdk_method": "create_custom_metric",
+            "create_args": (
+                "properties/1234",
+                {
+                    "parameterName": "temporary_metric",
+                    "displayName": "Temporary metric",
+                    "scope": "EVENT",
+                    "measurementUnit": "STANDARD",
+                },
+            ),
+            "destructive_operation": service.archive_custom_metric,
+            "destructive_sdk_method": "archive_custom_metric",
+            "destructive_name": "properties/1234/customMetrics/5678",
+            "create_plan": {
+                "dryRun": True,
+                "request": {
+                    "parent": "properties/1234",
+                    "customMetric": {
+                        "parameterName": "temporary_metric",
+                        "displayName": "Temporary metric",
+                        "scope": "EVENT",
+                        "measurementUnit": "STANDARD",
+                    },
+                },
+            },
+            "destructive_plan": {
+                "dryRun": True,
+                "request": {"name": "properties/1234/customMetrics/5678"},
+            },
+            "create_response": types.CustomMetric(
+                name="properties/1234/customMetrics/5678",
+                parameter_name="temporary_metric",
+                display_name="Temporary metric",
+                scope="EVENT",
+                measurement_unit="STANDARD",
+            ),
+            "destructive_response": Empty(),
+            "create_request": types.CreateCustomMetricRequest(
+                parent="properties/1234",
+                custom_metric=types.CustomMetric(
+                    parameter_name="temporary_metric",
+                    display_name="Temporary metric",
+                    scope="EVENT",
+                    measurement_unit="STANDARD",
+                ),
+            ),
+            "destructive_request": types.ArchiveCustomMetricRequest(
+                name="properties/1234/customMetrics/5678"
+            ),
+            "create_result": {
+                "name": "properties/1234/customMetrics/5678",
+                "parameterName": "temporary_metric",
+                "displayName": "Temporary metric",
+                "measurementUnit": "STANDARD",
+                "scope": "EVENT",
+            },
+            "destructive_result": {},
+            "secret_sentinel": None,
+        },
+        id="custom-metric-archive",
+    ),
+    pytest.param(
+        {
+            "create_operation": service.create_firebase_link,
+            "create_sdk_method": "create_firebase_link",
+            "create_args": ("properties/1234", {"project": "projects/example-project"}),
+            "destructive_operation": service.delete_firebase_link,
+            "destructive_sdk_method": "delete_firebase_link",
+            "destructive_name": "properties/1234/firebaseLinks/5678",
+            "create_plan": {
+                "dryRun": True,
+                "request": {
+                    "parent": "properties/1234",
+                    "firebaseLink": {"project": "projects/example-project"},
+                },
+            },
+            "destructive_plan": {
+                "dryRun": True,
+                "request": {"name": "properties/1234/firebaseLinks/5678"},
+            },
+            "create_response": types.FirebaseLink(
+                name="properties/1234/firebaseLinks/5678",
+                project="projects/example-project",
+            ),
+            "destructive_response": Empty(),
+            "create_request": types.CreateFirebaseLinkRequest(
+                parent="properties/1234",
+                firebase_link=types.FirebaseLink(project="projects/example-project"),
+            ),
+            "destructive_request": types.DeleteFirebaseLinkRequest(
+                name="properties/1234/firebaseLinks/5678"
+            ),
+            "create_result": {
+                "name": "properties/1234/firebaseLinks/5678",
+                "project": "projects/example-project",
+            },
+            "destructive_result": {},
+            "secret_sentinel": None,
+        },
+        id="firebase-link",
+    ),
+    pytest.param(
+        {
+            "create_operation": service.create_google_ads_link,
+            "create_sdk_method": "create_google_ads_link",
+            "create_args": (
+                "properties/1234",
+                {"customerId": "1234567890", "adsPersonalizationEnabled": True},
+            ),
+            "destructive_operation": service.delete_google_ads_link,
+            "destructive_sdk_method": "delete_google_ads_link",
+            "destructive_name": "properties/1234/googleAdsLinks/5678",
+            "create_plan": {
+                "dryRun": True,
+                "request": {
+                    "parent": "properties/1234",
+                    "googleAdsLink": {
+                        "customerId": "1234567890",
+                        "adsPersonalizationEnabled": True,
+                    },
+                },
+            },
+            "destructive_plan": {
+                "dryRun": True,
+                "request": {"name": "properties/1234/googleAdsLinks/5678"},
+            },
+            "create_response": types.GoogleAdsLink(
+                name="properties/1234/googleAdsLinks/5678",
+                customer_id="1234567890",
+                ads_personalization_enabled=True,
+            ),
+            "destructive_response": Empty(),
+            "create_request": types.CreateGoogleAdsLinkRequest(
+                parent="properties/1234",
+                google_ads_link=types.GoogleAdsLink(
+                    customer_id="1234567890", ads_personalization_enabled=True
+                ),
+            ),
+            "destructive_request": types.DeleteGoogleAdsLinkRequest(
+                name="properties/1234/googleAdsLinks/5678"
+            ),
+            "create_result": {
+                "name": "properties/1234/googleAdsLinks/5678",
+                "customerId": "1234567890",
+                "adsPersonalizationEnabled": True,
+            },
+            "destructive_result": {},
+            "secret_sentinel": None,
+        },
+        id="google-ads-link",
+    ),
+    pytest.param(
+        {
+            "create_operation": service.create_key_event,
+            "create_sdk_method": "create_key_event",
+            "create_args": (
+                "properties/1234",
+                {"eventName": "purchase", "countingMethod": "ONCE_PER_EVENT"},
+            ),
+            "destructive_operation": service.delete_key_event,
+            "destructive_sdk_method": "delete_key_event",
+            "destructive_name": "properties/1234/keyEvents/5678",
+            "create_plan": {
+                "dryRun": True,
+                "request": {
+                    "parent": "properties/1234",
+                    "keyEvent": {
+                        "eventName": "purchase",
+                        "countingMethod": "ONCE_PER_EVENT",
+                    },
+                },
+            },
+            "destructive_plan": {
+                "dryRun": True,
+                "request": {"name": "properties/1234/keyEvents/5678"},
+            },
+            "create_response": types.KeyEvent(
+                name="properties/1234/keyEvents/5678",
+                event_name="purchase",
+                counting_method="ONCE_PER_EVENT",
+            ),
+            "destructive_response": Empty(),
+            "create_request": types.CreateKeyEventRequest(
+                parent="properties/1234",
+                key_event=types.KeyEvent(
+                    event_name="purchase", counting_method="ONCE_PER_EVENT"
+                ),
+            ),
+            "destructive_request": types.DeleteKeyEventRequest(
+                name="properties/1234/keyEvents/5678"
+            ),
+            "create_result": {
+                "name": "properties/1234/keyEvents/5678",
+                "eventName": "purchase",
+                "countingMethod": "ONCE_PER_EVENT",
+            },
+            "destructive_result": {},
+            "secret_sentinel": None,
+        },
+        id="key-event",
+    ),
+    pytest.param(
+        {
+            "create_operation": service.create_measurement_protocol_secret,
+            "create_sdk_method": "create_measurement_protocol_secret",
+            "create_args": (
+                "properties/1234/dataStreams/5678",
+                {"displayName": "Temporary secret"},
+            ),
+            "destructive_operation": service.delete_measurement_protocol_secret,
+            "destructive_sdk_method": "delete_measurement_protocol_secret",
+            "destructive_name": (
+                "properties/1234/dataStreams/5678/measurementProtocolSecrets/9012"
+            ),
+            "create_plan": {
+                "dryRun": True,
+                "request": {
+                    "parent": "properties/1234/dataStreams/5678",
+                    "measurementProtocolSecret": {"displayName": "Temporary secret"},
+                },
+            },
+            "destructive_plan": {
+                "dryRun": True,
+                "request": {
+                    "name": "properties/1234/dataStreams/5678/"
+                    "measurementProtocolSecrets/9012"
+                },
+            },
+            "create_response": types.MeasurementProtocolSecret(
+                name="properties/1234/dataStreams/5678/measurementProtocolSecrets/9012",
+                display_name="Temporary secret",
+                secret_value="generated-secret-sentinel",
+            ),
+            "destructive_response": Empty(),
+            "create_request": types.CreateMeasurementProtocolSecretRequest(
+                parent="properties/1234/dataStreams/5678",
+                measurement_protocol_secret=types.MeasurementProtocolSecret(
+                    display_name="Temporary secret"
+                ),
+            ),
+            "destructive_request": types.DeleteMeasurementProtocolSecretRequest(
+                name="properties/1234/dataStreams/5678/measurementProtocolSecrets/9012"
+            ),
+            "create_result": {
+                "name": "properties/1234/dataStreams/5678/measurementProtocolSecrets/9012",
+                "displayName": "Temporary secret",
+            },
+            "destructive_result": {},
+            "secret_sentinel": "generated-secret-sentinel",
+        },
+        id="measurement-protocol-secret",
+    ),
+]
+
+
+@pytest.mark.parametrize("case", CREATE_DELETE_LIFECYCLES)
+def test_create_destructive_lifecycle_dry_runs_are_offline_and_exact(
+    monkeypatch: pytest.MonkeyPatch,
+    case: dict[str, Any],
+) -> None:
+    monkeypatch.setattr(
+        mutations,
+        "service_account_credentials",
+        lambda _: pytest.fail("dry runs must not load credentials"),
+    )
+
+    create_result = case["create_operation"](*case["create_args"])
+    destructive_result = case["destructive_operation"](case["destructive_name"])
+
+    assert create_result == case["create_plan"]
+    assert destructive_result == case["destructive_plan"]
+    secret_sentinel = case["secret_sentinel"]
+    if secret_sentinel is not None:
+        assert secret_sentinel not in str(create_result)
+        assert secret_sentinel not in str(destructive_result)
+
+
+@pytest.mark.parametrize("case", CREATE_DELETE_LIFECYCLES)
+def test_create_destructive_lifecycle_apply_uses_exact_non_retried_requests(
+    monkeypatch: pytest.MonkeyPatch,
+    case: dict[str, Any],
+) -> None:
+    client = CapturingDiscoveryClient(
+        {
+            case["create_sdk_method"]: case["create_response"],
+            case["destructive_sdk_method"]: case["destructive_response"],
         }
     )
     scopes: list[str] = []
@@ -420,164 +862,35 @@ def test_property_create_and_delete_apply_once_without_retry(
     )
     monkeypatch.setattr(mutations, "_make_properties_client", lambda _: client)
 
-    assert service.create_property(PROPERTY_CREATE_BODY, apply=True)["name"] == (
-        "properties/5678"
+    create_result = case["create_operation"](*case["create_args"], apply=True)
+    destructive_result = case["destructive_operation"](
+        case["destructive_name"], apply=True
     )
-    assert service.delete_property("properties/5678", apply=True) == {
-        "name": "properties/5678"
-    }
-    assert scopes == [service.ANALYTICS_EDIT_SCOPE, service.ANALYTICS_EDIT_SCOPE]
-    assert [call[0] for call in client.calls] == [
-        "create_property",
-        "delete_property",
+
+    assert create_result == case["create_result"]
+    assert destructive_result == case["destructive_result"]
+    assert scopes == [
+        "https://www.googleapis.com/auth/analytics.edit",
+        "https://www.googleapis.com/auth/analytics.edit",
     ]
-    assert client.calls[0][1] == types.CreatePropertyRequest(
-        property=types.Property(
-            parent="accounts/1234",
-            display_name="Temporary property",
-            industry_category="TECHNOLOGY",
-            time_zone="America/Los_Angeles",
-            currency_code="USD",
-        )
-    )
-    assert client.calls[1][1] == types.DeletePropertyRequest(name="properties/5678")
-    assert all(call[2] is None for call in client.calls)
-
-
-CREATE_DELETE_LIFECYCLES = [
-    pytest.param(
-        service.create_data_stream,
+    assert client.calls == [
         (
-            "properties/1234",
-            {
-                "displayName": "Temporary stream",
-                "webStreamData": {"defaultUri": "https://example.test"},
-            },
+            case["create_sdk_method"],
+            case["create_request"],
+            None,
+            20.0,
         ),
         (
-            "properties/1234",
-            {
-                "displayName": "Temporary stream",
-                "webStreamData": {"defaultUri": "https://example.test"},
-            },
+            case["destructive_sdk_method"],
+            case["destructive_request"],
+            None,
+            20.0,
         ),
-        service.delete_data_stream,
-        "properties/1234/dataStreams/5678",
-        {
-            "parent": "properties/1234",
-            "dataStream": {
-                "displayName": "Temporary stream",
-                "webStreamData": {"defaultUri": "https://example.test"},
-            },
-        },
-        {
-            "create_data_stream": types.DataStream(display_name="Temporary stream"),
-            "delete_data_stream": Empty(),
-        },
-        types.CreateDataStreamRequest(
-            parent="properties/1234",
-            data_stream=types.DataStream(
-                display_name="Temporary stream",
-                web_stream_data=types.DataStream.WebStreamData(
-                    default_uri="https://example.test"
-                ),
-            ),
-        ),
-        types.DeleteDataStreamRequest(name="properties/1234/dataStreams/5678"),
-        None,
-        id="data-stream",
-    ),
-    pytest.param(
-        service.create_firebase_link,
-        ("properties/1234", {"project": "projects/example-project"}),
-        ("properties/1234", {"project": "projects/example-project"}),
-        service.delete_firebase_link,
-        "properties/1234/firebaseLinks/5678",
-        {
-            "parent": "properties/1234",
-            "firebaseLink": {"project": "projects/example-project"},
-        },
-        {
-            "create_firebase_link": types.FirebaseLink(
-                project="projects/example-project"
-            ),
-            "delete_firebase_link": Empty(),
-        },
-        types.CreateFirebaseLinkRequest(
-            parent="properties/1234",
-            firebase_link=types.FirebaseLink(project="projects/example-project"),
-        ),
-        types.DeleteFirebaseLinkRequest(name="properties/1234/firebaseLinks/5678"),
-        None,
-        id="firebase-link",
-    ),
-    pytest.param(
-        service.create_google_ads_link,
-        (
-            "properties/1234",
-            {"customerId": "1234567890", "adsPersonalizationEnabled": True},
-        ),
-        ("properties/1234", {"customerId": "1234567890"}),
-        service.delete_google_ads_link,
-        "properties/1234/googleAdsLinks/5678",
-        {
-            "parent": "properties/1234",
-            "googleAdsLink": {
-                "customerId": "1234567890",
-                "adsPersonalizationEnabled": True,
-            },
-        },
-        {
-            "create_google_ads_link": types.GoogleAdsLink(customer_id="1234567890"),
-            "delete_google_ads_link": Empty(),
-        },
-        types.CreateGoogleAdsLinkRequest(
-            parent="properties/1234",
-            google_ads_link=types.GoogleAdsLink(customer_id="1234567890"),
-        ),
-        types.DeleteGoogleAdsLinkRequest(name="properties/1234/googleAdsLinks/5678"),
-        None,
-        id="google-ads-link",
-    ),
-    pytest.param(
-        service.create_key_event,
-        (
-            "properties/1234",
-            {"eventName": "purchase", "countingMethod": "ONCE_PER_EVENT"},
-        ),
-        (
-            "properties/1234",
-            {"eventName": "purchase", "countingMethod": "ONCE_PER_EVENT"},
-        ),
-        service.delete_key_event,
-        "properties/1234/keyEvents/5678",
-        {
-            "parent": "properties/1234",
-            "keyEvent": {"eventName": "purchase", "countingMethod": "ONCE_PER_EVENT"},
-        },
-        {
-            "create_key_event": types.KeyEvent(
-                name="properties/1234/keyEvents/5678",
-                event_name="purchase",
-                counting_method="ONCE_PER_EVENT",
-            ),
-            "delete_key_event": Empty(),
-        },
-        types.CreateKeyEventRequest(
-            parent="properties/1234",
-            key_event=types.KeyEvent(
-                event_name="purchase", counting_method="ONCE_PER_EVENT"
-            ),
-        ),
-        types.DeleteKeyEventRequest(name="properties/1234/keyEvents/5678"),
-        {
-            "name": "properties/1234/keyEvents/5678",
-            "eventName": "purchase",
-            "countingMethod": "ONCE_PER_EVENT",
-        },
-        id="key-event",
-    ),
-]
+    ]
+    secret_sentinel = case["secret_sentinel"]
+    if secret_sentinel is not None:
+        assert secret_sentinel not in str(create_result)
+        assert secret_sentinel not in str(destructive_result)
 
 
 def test_update_property_dry_run_needs_no_credentials(
@@ -628,6 +941,269 @@ def test_property_patch_runtime_uses_the_shared_writable_field_allowlist(
         service.update_property("properties/1234", {"parent": "accounts/1"}, "parent")
     with pytest.raises(RequestValidationError, match="route field name"):
         service.update_property("properties/1234", {"name": "forbidden"}, "name")
+
+
+@pytest.mark.parametrize(
+    ("operation", "args", "owner_fields", "expected_fields"),
+    [
+        pytest.param(
+            service.update_account,
+            (
+                "accounts/1234",
+                {"displayName": "Example", "regionCode": "US"},
+                "displayName,regionCode",
+            ),
+            ACCOUNT_PATCH_WRITABLE_FIELDS,
+            ("displayName", "regionCode"),
+            id="account",
+        ),
+        pytest.param(
+            service.update_custom_dimension,
+            (
+                "properties/1234/customDimensions/5678",
+                {
+                    "displayName": "Example",
+                    "description": "",
+                    "disallowAdsPersonalization": False,
+                },
+                "displayName,description,disallowAdsPersonalization",
+            ),
+            CUSTOM_DIMENSION_PATCH_WRITABLE_FIELDS,
+            ("displayName", "description", "disallowAdsPersonalization"),
+            id="custom-dimension",
+        ),
+        pytest.param(
+            service.update_custom_metric,
+            (
+                "properties/1234/customMetrics/5678",
+                {
+                    "displayName": "Example",
+                    "description": "",
+                    "measurementUnit": "STANDARD",
+                    "restrictedMetricType": [],
+                },
+                "displayName,description,measurementUnit,restrictedMetricType",
+            ),
+            CUSTOM_METRIC_PATCH_WRITABLE_FIELDS,
+            ("displayName", "description", "measurementUnit", "restrictedMetricType"),
+            id="custom-metric",
+        ),
+        pytest.param(
+            service.update_data_stream,
+            (
+                "properties/1234/dataStreams/5678",
+                {
+                    "displayName": "Example",
+                    "webStreamData": {"defaultUri": "https://example.test"},
+                },
+                "displayName,webStreamData.defaultUri",
+            ),
+            DATA_STREAM_PATCH_WRITABLE_FIELDS,
+            ("displayName", "webStreamData.defaultUri"),
+            id="data-stream",
+        ),
+        pytest.param(
+            service.update_google_ads_link,
+            (
+                "properties/1234/googleAdsLinks/5678",
+                {"adsPersonalizationEnabled": False},
+                "adsPersonalizationEnabled",
+            ),
+            GOOGLE_ADS_LINK_PATCH_WRITABLE_FIELDS,
+            ("adsPersonalizationEnabled",),
+            id="google-ads-link",
+        ),
+        pytest.param(
+            service.update_key_event,
+            (
+                "properties/1234/keyEvents/5678",
+                {
+                    "countingMethod": None,
+                    "defaultValue": {"numericValue": 0, "currencyCode": "USD"},
+                },
+                "countingMethod,defaultValue.numericValue,defaultValue.currencyCode",
+            ),
+            KEY_EVENT_PATCH_WRITABLE_FIELDS,
+            (
+                "countingMethod",
+                "defaultValue.numericValue",
+                "defaultValue.currencyCode",
+            ),
+            id="key-event",
+        ),
+        pytest.param(
+            service.update_measurement_protocol_secret,
+            (
+                "properties/1234/dataStreams/5678/measurementProtocolSecrets/9012",
+                {"displayName": "Example"},
+                "displayName",
+            ),
+            MEASUREMENT_PROTOCOL_SECRET_PATCH_WRITABLE_FIELDS,
+            ("displayName",),
+            id="measurement-protocol-secret",
+        ),
+    ],
+)
+def test_non_property_patch_runtime_uses_owner_writable_field_allowlists(
+    monkeypatch: pytest.MonkeyPatch,
+    operation: Any,
+    args: tuple[Any, ...],
+    owner_fields: tuple[str, ...],
+    expected_fields: tuple[str, ...],
+) -> None:
+    monkeypatch.setattr(
+        mutations,
+        "service_account_credentials",
+        lambda _: pytest.fail("dry runs must not load credentials"),
+    )
+
+    assert owner_fields == expected_fields
+    result = operation(*args)
+
+    assert result["dryRun"] is True
+    assert result["request"]["updateMask"] == ",".join(expected_fields)
+
+
+@pytest.mark.parametrize(
+    ("operation", "args"),
+    [
+        pytest.param(
+            service.update_key_event,
+            (
+                "properties/1234/keyEvents/5678",
+                {"defaultValue": {"currencyCode": "USD"}},
+                "defaultValue.numericValue",
+            ),
+            id="key-event-missing-masked-nested-leaf",
+        ),
+        pytest.param(
+            service.update_key_event,
+            (
+                "properties/1234/keyEvents/5678",
+                {
+                    "defaultValue": {
+                        "numericValue": 0,
+                        "currencyCode": "USD",
+                    }
+                },
+                "defaultValue.numericValue",
+            ),
+            id="key-event-extra-unmasked-nested-leaf",
+        ),
+        pytest.param(
+            service.update_data_stream,
+            (
+                "properties/1234/dataStreams/5678",
+                {"webStreamData": {"measurementId": "G-123"}},
+                "webStreamData.defaultUri",
+            ),
+            id="data-stream-missing-default-uri",
+        ),
+        pytest.param(
+            service.update_data_stream,
+            (
+                "properties/1234/dataStreams/5678",
+                {
+                    "webStreamData": {
+                        "defaultUri": "https://example.test",
+                        "measurementId": "G-123",
+                    }
+                },
+                "webStreamData.defaultUri",
+            ),
+            id="data-stream-extra-unmasked-nested-field",
+        ),
+        pytest.param(
+            service.update_key_event,
+            (
+                "properties/1234/keyEvents/5678",
+                {"defaultValue": {}},
+                "defaultValue.numericValue",
+            ),
+            id="empty-nested-object",
+        ),
+        pytest.param(
+            service.update_key_event,
+            (
+                "properties/1234/keyEvents/5678",
+                {"defaultValue": None},
+                "defaultValue.numericValue",
+            ),
+            id="null-nested-parent",
+        ),
+        pytest.param(
+            service.update_key_event,
+            (
+                "properties/1234/keyEvents/5678",
+                {"default_value": {"numericValue": 0}},
+                "defaultValue.numericValue",
+            ),
+            id="snake-case-root-body",
+        ),
+        pytest.param(
+            service.update_key_event,
+            (
+                "properties/1234/keyEvents/5678",
+                {"defaultValue": {"numericValue": 0}},
+                "default_value.numeric_value",
+            ),
+            id="snake-case-mask",
+        ),
+    ],
+)
+def test_child_patch_rejects_nested_body_mask_mismatches_before_authentication(
+    monkeypatch: pytest.MonkeyPatch,
+    operation: Any,
+    args: tuple[Any, ...],
+) -> None:
+    monkeypatch.setattr(
+        mutations,
+        "service_account_credentials",
+        lambda _: pytest.fail("invalid nested body fields must not load credentials"),
+    )
+
+    with pytest.raises(RequestValidationError):
+        operation(*args)
+
+
+def test_child_patch_nested_aliases_keep_raw_dry_runs_and_normalize_apply_mask(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    name = "properties/1234/keyEvents/5678"
+    body = {"defaultValue": {"numeric_value": 0}}
+    dry_run = service.update_key_event(name, body, "defaultValue.numericValue")
+    stream_name = "properties/1234/dataStreams/5678"
+    stream_body = {"webStreamData": {"default_uri": "https://example.test"}}
+
+    assert dry_run == {
+        "dryRun": True,
+        "request": {
+            "keyEvent": {"name": name, "defaultValue": {"numeric_value": 0}},
+            "updateMask": "defaultValue.numericValue",
+        },
+    }
+    assert service.update_data_stream(
+        stream_name, stream_body, "webStreamData.defaultUri"
+    ) == {
+        "dryRun": True,
+        "request": {
+            "dataStream": {"name": stream_name, **stream_body},
+            "updateMask": "webStreamData.defaultUri",
+        },
+    }
+
+    client = CapturingDiscoveryClient({"update_key_event": types.KeyEvent(name=name)})
+    monkeypatch.setattr(mutations, "service_account_credentials", lambda _: object())
+    monkeypatch.setattr(mutations, "_make_properties_client", lambda _: client)
+
+    service.update_key_event(name, body, "defaultValue.numericValue", apply=True)
+
+    method, request, retry, timeout = client.calls[0]
+    assert method == "update_key_event"
+    assert request.update_mask.paths == ["default_value.numeric_value"]
+    assert request.key_event.default_value.numeric_value == 0
+    assert retry is None
+    assert timeout == 20.0
 
 
 def test_update_property_uses_one_edit_scoped_non_retried_call(

@@ -39,7 +39,18 @@ from google.analytics.admin_v1beta.types import (
     UpdatePropertyRequest,
 )
 
+from ga4adminctl.operations.accounts import ACCOUNT_PATCH_WRITABLE_FIELDS
 from ga4adminctl.operations.properties import PROPERTY_PATCH_WRITABLE_FIELDS
+from ga4adminctl.operations.resources import (
+    CUSTOM_DIMENSION_PATCH_WRITABLE_FIELDS,
+    CUSTOM_METRIC_PATCH_WRITABLE_FIELDS,
+    DATA_STREAM_PATCH_WRITABLE_FIELDS,
+    GOOGLE_ADS_LINK_PATCH_WRITABLE_FIELDS,
+    KEY_EVENT_PATCH_WRITABLE_FIELDS,
+)
+from ga4adminctl.operations.secrets import (
+    MEASUREMENT_PROTOCOL_SECRET_PATCH_WRITABLE_FIELDS,
+)
 from marketing_common.cli import exit_with_diagnostic, write_success
 from marketing_common.introspection import (
     ProtobufSchemaTarget,
@@ -70,6 +81,22 @@ def _target(
         path_or_query_fields=path_or_query_fields,
         body_forbidden_fields=body_forbidden_fields,
     )
+
+
+_PATCH_WRITABLE_FIELDS_BY_CLI_PATH = {
+    ("accounts", "patch"): ACCOUNT_PATCH_WRITABLE_FIELDS,
+    ("properties", "patch"): PROPERTY_PATCH_WRITABLE_FIELDS,
+    ("properties", "custom-dimensions", "patch"): (
+        CUSTOM_DIMENSION_PATCH_WRITABLE_FIELDS
+    ),
+    ("properties", "custom-metrics", "patch"): CUSTOM_METRIC_PATCH_WRITABLE_FIELDS,
+    ("properties", "data-streams", "patch"): DATA_STREAM_PATCH_WRITABLE_FIELDS,
+    ("properties", "data-streams", "measurement-protocol-secrets", "patch"): (
+        MEASUREMENT_PROTOCOL_SECRET_PATCH_WRITABLE_FIELDS
+    ),
+    ("properties", "google-ads-links", "patch"): GOOGLE_ADS_LINK_PATCH_WRITABLE_FIELDS,
+    ("properties", "key-events", "patch"): KEY_EVENT_PATCH_WRITABLE_FIELDS,
+}
 
 
 _SCHEMA_TARGETS: dict[tuple[str, ...], ProtobufSchemaTarget] = {
@@ -190,7 +217,7 @@ _SCHEMA_TARGETS: dict[tuple[str, ...], ProtobufSchemaTarget] = {
         CreateMeasurementProtocolSecretRequest,
         body_type=MeasurementProtocolSecret,
         path_or_query_fields=("parent",),
-        body_forbidden_fields=("parent", "secretValue"),
+        body_forbidden_fields=("parent", "secretValue", "secret_value"),
     ),
     ("properties", "data-streams", "measurement-protocol-secrets", "patch"): _target(
         ("properties", "data-streams", "measurement-protocol-secrets", "patch"),
@@ -271,9 +298,10 @@ def schema(
         package="google-analytics-admin",
         api_version="v1beta",
     )
-    if target.cli_path == ("properties", "patch"):
+    fields = _PATCH_WRITABLE_FIELDS_BY_CLI_PATH.get(target.cli_path)
+    if fields is not None:
         data["request"]["cliConstraints"] = {
-            "allowedUpdateMaskFields": list(PROPERTY_PATCH_WRITABLE_FIELDS),
+            "allowedUpdateMaskFields": list(fields),
             "bodyFieldsMustExactlyMatchUpdateMask": True,
         }
     write_success(command="ga4adminctl sdk schema", data=data)

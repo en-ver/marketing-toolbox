@@ -13,6 +13,7 @@ from ga4adminctl.foundation.validation import (
     read_json_body,
 )
 from ga4adminctl.operations.accounts import (
+    ACCOUNT_PATCH_WRITABLE_FIELDS,
     delete_account,
     get_account,
     list_account_summaries,
@@ -23,6 +24,7 @@ from ga4adminctl.operations.accounts import (
 from ga4adminctl.operations.properties import get_data_sharing_settings
 
 from ._common import (
+    require_destructive_confirmation,
     require_exactly_one_mutation_mode,
     run_access_report_command,
     run_command,
@@ -118,6 +120,13 @@ def accounts_delete(
     name: Annotated[
         str, typer.Option("--name", help="Account resource name to delete.")
     ],
+    confirm_resource: Annotated[
+        str | None,
+        typer.Option(
+            "--confirm-resource",
+            help="Required with --apply; must exactly match --name.",
+        ),
+    ] = None,
     dry_run: Annotated[
         bool,
         typer.Option(
@@ -128,10 +137,13 @@ def accounts_delete(
         bool, typer.Option("--apply", help="Explicitly delete this Account.")
     ] = False,
 ) -> None:
-    """Soft-delete one Account with explicit apply control; this is irreversible."""
+    """Move one Account to trash; this CLI has no restore operation."""
 
     def operation() -> dict[str, Any]:
         require_exactly_one_mutation_mode(dry_run, apply)
+        require_destructive_confirmation(
+            name=name, confirm_resource=confirm_resource, apply=apply
+        )
         return delete_account(name, apply=apply)
 
     run_command(command="ga4adminctl accounts delete", operation=operation)
@@ -192,7 +204,11 @@ def accounts_patch(
     update_mask: Annotated[
         str,
         typer.Option(
-            "--update-mask", help="Comma-separated mutable body fields to update."
+            "--update-mask",
+            help=(
+                "Comma-separated mutable body fields to update; allowed fields: "
+                f"{', '.join(ACCOUNT_PATCH_WRITABLE_FIELDS)}."
+            ),
         ),
     ],
     dry_run: Annotated[

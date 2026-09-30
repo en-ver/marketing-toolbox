@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Mapping
+from collections.abc import Collection, Mapping
 from typing import Any
 
 from google.analytics.admin_v1beta.types import (
@@ -69,6 +69,54 @@ from ga4adminctl.foundation.validation import (
 from ga4adminctl.operations import mutations, reads
 
 PropertiesClientFactory = reads.PropertiesClientFactory
+CUSTOM_DIMENSION_PATCH_WRITABLE_FIELDS = (
+    "displayName",
+    "description",
+    "disallowAdsPersonalization",
+)
+CUSTOM_METRIC_PATCH_WRITABLE_FIELDS = (
+    "displayName",
+    "description",
+    "measurementUnit",
+    "restrictedMetricType",
+)
+DATA_STREAM_PATCH_WRITABLE_FIELDS = ("displayName", "webStreamData.defaultUri")
+GOOGLE_ADS_LINK_PATCH_WRITABLE_FIELDS = ("adsPersonalizationEnabled",)
+KEY_EVENT_PATCH_WRITABLE_FIELDS = (
+    "countingMethod",
+    "defaultValue.numericValue",
+    "defaultValue.currencyCode",
+)
+
+
+def _canonical_body_leaf_paths(body: Mapping[str, Any], message_type: Any) -> set[str]:
+    """Return canonical protobuf paths for supplied child-update body leaves."""
+
+    def resolve_field(descriptor: Any, key: str) -> Any:
+        field = descriptor.fields_by_name.get(key)
+        if field is not None:
+            return field
+        return next(field for field in descriptor.fields if field.json_name == key)
+
+    def collect(
+        value: Mapping[str, Any], descriptor: Any, prefix: str = ""
+    ) -> set[str]:
+        paths: set[str] = set()
+        for key, nested_value in value.items():
+            field = resolve_field(descriptor, key)
+            path = f"{prefix}.{field.name}" if prefix else field.name
+            if (
+                field.message_type is not None
+                and isinstance(nested_value, Mapping)
+                and not field.message_type.GetOptions().map_entry
+                and not field.message_type.full_name.startswith("google.protobuf.")
+            ):
+                paths.update(collect(nested_value, field.message_type, path))
+            elif field.message_type is None or nested_value is not None:
+                paths.add(path)
+        return paths
+
+    return collect(body, message_type.pb().DESCRIPTOR)
 
 
 def _update_child(
@@ -77,7 +125,7 @@ def _update_child(
     update_mask: str,
     *,
     collection: str,
-    mutable_fields: set[str],
+    mutable_fields: Collection[str],
     message_type: Any,
     request_type: Any,
     request_field: str,
@@ -106,6 +154,11 @@ def _update_child(
             "--update-mask must be a nonempty, comma-separated set of mutable body fields."
         )
     if {field.split(".", 1)[0] for field in mask_fields} != set(body):
+        raise RequestValidationError(
+            "--update-mask fields must match --body fields exactly."
+        )
+    normalized_mask_paths = set(request_type(update_mask=update_mask).update_mask.paths)
+    if _canonical_body_leaf_paths(body, message_type) != normalized_mask_paths:
         raise RequestValidationError(
             "--update-mask fields must match --body fields exactly."
         )
@@ -139,7 +192,7 @@ def update_custom_dimension(
         body,
         update_mask,
         collection="customDimensions",
-        mutable_fields={"displayName", "description", "disallowAdsPersonalization"},
+        mutable_fields=CUSTOM_DIMENSION_PATCH_WRITABLE_FIELDS,
         message_type=CustomDimension,
         request_type=UpdateCustomDimensionRequest,
         request_field="custom_dimension",
@@ -163,12 +216,7 @@ def update_custom_metric(
         body,
         update_mask,
         collection="customMetrics",
-        mutable_fields={
-            "displayName",
-            "description",
-            "measurementUnit",
-            "restrictedMetricType",
-        },
+        mutable_fields=CUSTOM_METRIC_PATCH_WRITABLE_FIELDS,
         message_type=CustomMetric,
         request_type=UpdateCustomMetricRequest,
         request_field="custom_metric",
@@ -316,7 +364,7 @@ def update_data_stream(
         body,
         update_mask,
         collection="dataStreams",
-        mutable_fields={"displayName", "webStreamData.defaultUri"},
+        mutable_fields=DATA_STREAM_PATCH_WRITABLE_FIELDS,
         message_type=DataStream,
         request_type=UpdateDataStreamRequest,
         request_field="data_stream",
@@ -497,7 +545,7 @@ def update_google_ads_link(
         body,
         update_mask,
         collection="googleAdsLinks",
-        mutable_fields={"adsPersonalizationEnabled"},
+        mutable_fields=GOOGLE_ADS_LINK_PATCH_WRITABLE_FIELDS,
         message_type=GoogleAdsLink,
         request_type=UpdateGoogleAdsLinkRequest,
         request_field="google_ads_link",
@@ -522,11 +570,7 @@ def update_key_event(
         body,
         update_mask,
         collection="keyEvents",
-        mutable_fields={
-            "countingMethod",
-            "defaultValue.numericValue",
-            "defaultValue.currencyCode",
-        },
+        mutable_fields=KEY_EVENT_PATCH_WRITABLE_FIELDS,
         message_type=KeyEvent,
         request_type=UpdateKeyEventRequest,
         request_field="key_event",

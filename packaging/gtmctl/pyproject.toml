@@ -4,13 +4,13 @@ build-backend = "hatchling.build"
 
 [project]
 name = "gtmctl"
-version = "0.3.1"
+version = "0.4.0"
 description = "Thin launcher for the marketing-toolbox GTM CLI."
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
 license-files = ["LICENSE"]
-dependencies = ["marketing-toolbox==0.3.1"]
+dependencies = ["marketing-toolbox==0.4.0"]
 
 [project.scripts]
 gtmctl = "gtmctl.cli:main"

@@ -15,7 +15,7 @@ ga4datactl sdk schema --command "reports run"
 
 The descriptor is a request shape, not a response schema or a complete statement of CLI requiredness and Google semantics. `sdk schema` is available for the six report leaves (`reports run`, `batch-run`, `pivot-run`, `realtime-run`, `batch-pivot-run`, and `compatibility-check`) and for `audience-exports create`.
 
-Each of those six report leaves supports `--schema` in 0.3.1. For example:
+Each of those six report leaves supports `--schema` in 0.4.0. For example:
 
 ```bash
 ga4datactl reports run --schema

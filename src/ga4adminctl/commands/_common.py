@@ -72,6 +72,18 @@ def require_exactly_one_mutation_mode(dry_run: bool, apply: bool) -> None:
         )
 
 
+def require_destructive_confirmation(
+    *, name: str, confirm_resource: str | None, apply: bool
+) -> None:
+    """Require an exact target confirmation before a destructive request."""
+    if (apply and confirm_resource is None) or (
+        confirm_resource is not None and confirm_resource != name
+    ):
+        raise RequestValidationError(
+            "--confirm-resource must exactly match --name; it is required with --apply."
+        )
+
+
 def run_access_report_command(
     *,
     entity: str,
