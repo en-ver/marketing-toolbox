@@ -8,7 +8,9 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from dataclasses import field as dataclass_field
 from importlib.metadata import version
+from types import MappingProxyType
 from typing import Any
 
 from google.protobuf.descriptor import (
@@ -28,6 +30,12 @@ class ProtobufSchemaTarget:
     body_type: type[Any] | None = None
     path_or_query_fields: tuple[str, ...] = ()
     body_forbidden_fields: tuple[str, ...] = ()
+    descriptor_field_exclusions: Mapping[str, frozenset[str]] = dataclass_field(
+        default_factory=dict
+    )
+
+
+_EMPTY_DESCRIPTOR_FIELD_EXCLUSIONS: Mapping[str, frozenset[str]] = MappingProxyType({})
 
 
 _FIELD_KIND_NAMES: dict[int, str] = {
@@ -69,11 +77,15 @@ def _message_payload(
     active: set[str],
     *,
     excluded_json_names: frozenset[str] = frozenset(),
+    descriptor_field_exclusions: Mapping[str, frozenset[str]],
 ) -> None:
     """Add a message and its reachable types once, safely handling cycles."""
     if descriptor.full_name in definitions or descriptor.full_name in active:
         return
     active.add(descriptor.full_name)
+    excluded_json_names = excluded_json_names | descriptor_field_exclusions.get(
+        descriptor.full_name, frozenset()
+    )
     definitions[descriptor.full_name] = {
         "type": descriptor.full_name,
         "fields": [
@@ -84,12 +96,22 @@ def _message_payload(
     }
     for field in descriptor.fields:
         if field.message_type is not None:
-            _message_payload(field.message_type, definitions, active)
+            _message_payload(
+                field.message_type,
+                definitions,
+                active,
+                descriptor_field_exclusions=descriptor_field_exclusions,
+            )
     active.remove(descriptor.full_name)
 
 
 def protobuf_body_schema(
-    request_type: type[Any], *, excluded_json_names: frozenset[str] = frozenset()
+    request_type: type[Any],
+    *,
+    excluded_json_names: frozenset[str] = frozenset(),
+    descriptor_field_exclusions: Mapping[
+        str, frozenset[str]
+    ] = _EMPTY_DESCRIPTOR_FIELD_EXCLUSIONS,
 ) -> dict[str, Any]:
     """Serialize an official generated protobuf request descriptor.
 
@@ -99,7 +121,11 @@ def protobuf_body_schema(
     descriptor = request_type.pb().DESCRIPTOR
     definitions: dict[str, dict[str, Any]] = {}
     _message_payload(
-        descriptor, definitions, set(), excluded_json_names=excluded_json_names
+        descriptor,
+        definitions,
+        set(),
+        excluded_json_names=excluded_json_names,
+        descriptor_field_exclusions=descriptor_field_exclusions,
     )
     root = definitions.pop(descriptor.full_name)
     return {**root, "definitions": definitions}
@@ -128,6 +154,7 @@ def protobuf_schema_response(
             "body": protobuf_body_schema(
                 target.body_type or target.request_type,
                 excluded_json_names=frozenset(target.body_forbidden_fields),
+                descriptor_field_exclusions=target.descriptor_field_exclusions,
             ),
         },
     }

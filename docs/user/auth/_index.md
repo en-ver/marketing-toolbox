@@ -12,7 +12,7 @@ Commands select credentials in this order:
 3. A matching local native OAuth record for the current tool and access tier.
 4. Ambient [Application Default Credentials (ADC)](https://cloud.google.com/docs/authentication/application-default-credentials).
 
-The explicit file and ambient ADC can represent any Google-supported credential type, including service accounts, user credentials, workload identity, or an attached identity. A configured environment source or marked native record fails closed if it is invalid; the command does not silently choose a different identity.
+The explicit file and ambient ADC can represent any Google-supported credential type, including service accounts, user credentials, workload identity, or an attached identity. A configured environment source or marked native record fails closed if it is invalid; the command does not silently choose a different identity. To skip an environment source, leave its variable unset: an explicitly set empty value is invalid at that source and does not fall through to a lower-priority identity.
 
 ## Credential precedence
 

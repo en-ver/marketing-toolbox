@@ -42,6 +42,9 @@ _SCHEMA_TARGETS: dict[tuple[str, ...], ProtobufSchemaTarget] = {
         request_type=BatchRunReportsRequest,
         path_or_query_fields=("property",),
         body_forbidden_fields=("property",),
+        descriptor_field_exclusions={
+            RunReportRequest.pb().DESCRIPTOR.full_name: frozenset({"property"})
+        },
     ),
     ("reports", "pivot-run"): ProtobufSchemaTarget(
         cli_path=("reports", "pivot-run"),
@@ -63,6 +66,9 @@ _SCHEMA_TARGETS: dict[tuple[str, ...], ProtobufSchemaTarget] = {
         request_type=BatchRunPivotReportsRequest,
         path_or_query_fields=("property",),
         body_forbidden_fields=("property",),
+        descriptor_field_exclusions={
+            RunPivotReportRequest.pb().DESCRIPTOR.full_name: frozenset({"property"})
+        },
     ),
     ("reports", "compatibility-check"): ProtobufSchemaTarget(
         cli_path=("reports", "compatibility-check"),

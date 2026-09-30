@@ -7,7 +7,7 @@ members = ["packaging/*"]
 
 [project]
 name = "marketing-toolbox"
-version = "0.3.0"
+version = "0.3.1"
 description = "Command-line tools for Google Analytics 4 and Google Tag Manager."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -33,7 +33,7 @@ gtmctl = "gtmctl.cli:main"
 packages = ["src/ga4datactl", "src/ga4adminctl", "src/gtmctl", "src/marketing_common", "src/marketing_toolbox"]
 
 [tool.hatch.build.targets.sdist]
-exclude = ["/docs/user", "/go.mod", "/go.sum", "/hugo.toml"]
+exclude = ["/docs/user", "/go.mod", "/go.sum", "/hugo.toml", "/dist", "/.release-build-*"]
 
 [tool.mypy]
 python_version = "3.11"

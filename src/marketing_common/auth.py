@@ -37,14 +37,8 @@ def service_account_credentials(
     :func:`resolve_credentials`.
     """
     values = os.environ if env is None else env
-    serialized = values.get(SERVICE_ACCOUNT_JSON_ENV)
-    credential_file = values.get(APPLICATION_CREDENTIALS_ENV)
-    if not serialized and not credential_file:
-        raise CredentialConfigurationError(
-            "Missing required runtime credential: set GOOGLE_SERVICE_ACCOUNT_JSON "
-            "or GOOGLE_APPLICATION_CREDENTIALS."
-        )
-    if serialized:
+    if SERVICE_ACCOUNT_JSON_ENV in values:
+        serialized = values[SERVICE_ACCOUNT_JSON_ENV]
         try:
             info = json.loads(serialized)
         except json.JSONDecodeError as exc:
@@ -66,17 +60,22 @@ def service_account_credentials(
             raise CredentialConfigurationError(
                 f"{SERVICE_ACCOUNT_JSON_ENV} is not a valid service-account document."
             ) from exc
-    try:
-        return cast(
-            service_account.Credentials,
-            service_account.Credentials.from_service_account_file(  # type: ignore[no-untyped-call]
-                cast(str, credential_file), scopes=scopes
-            ),
-        )
-    except (OSError, TypeError, ValueError) as exc:
-        raise CredentialConfigurationError(
-            f"{APPLICATION_CREDENTIALS_ENV} must name a valid readable service-account document."
-        ) from exc
+    if APPLICATION_CREDENTIALS_ENV in values:
+        try:
+            return cast(
+                service_account.Credentials,
+                service_account.Credentials.from_service_account_file(  # type: ignore[no-untyped-call]
+                    values[APPLICATION_CREDENTIALS_ENV], scopes=scopes
+                ),
+            )
+        except (OSError, TypeError, ValueError) as exc:
+            raise CredentialConfigurationError(
+                f"{APPLICATION_CREDENTIALS_ENV} must name a valid readable service-account document."
+            ) from exc
+    raise CredentialConfigurationError(
+        "Missing required runtime credential: set GOOGLE_SERVICE_ACCOUNT_JSON "
+        "or GOOGLE_APPLICATION_CREDENTIALS."
+    )
 
 
 def resolve_credentials(
@@ -89,8 +88,8 @@ def resolve_credentials(
     """
     values = os.environ if env is None else env
     requested = list(scopes)
-    serialized = values.get(SERVICE_ACCOUNT_JSON_ENV)
-    if serialized:
+    if SERVICE_ACCOUNT_JSON_ENV in values:
+        serialized = values[SERVICE_ACCOUNT_JSON_ENV]
         try:
             info = json.loads(serialized)
             if not isinstance(info, dict):
@@ -105,8 +104,8 @@ def resolve_credentials(
             raise CredentialConfigurationError(
                 f"{SERVICE_ACCOUNT_JSON_ENV} must contain a JSON service-account document."
             ) from exc
-    credential_file = values.get(APPLICATION_CREDENTIALS_ENV)
-    if credential_file:
+    if APPLICATION_CREDENTIALS_ENV in values:
+        credential_file = values[APPLICATION_CREDENTIALS_ENV]
         try:
             loaded = google.auth.load_credentials_from_file(  # type: ignore[no-untyped-call]
                 credential_file, scopes=requested

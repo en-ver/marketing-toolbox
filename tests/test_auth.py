@@ -53,6 +53,28 @@ def test_malformed_service_account_secret_is_sanitized() -> None:
         )
 
 
+def test_empty_inline_service_account_secret_does_not_fall_through_to_file(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        service_account.Credentials,
+        "from_service_account_file",
+        lambda *_args, **_kwargs: pytest.fail("file credentials must not be used"),
+    )
+
+    with pytest.raises(
+        CredentialConfigurationError,
+        match="GOOGLE_SERVICE_ACCOUNT_JSON must contain a JSON service-account document",
+    ):
+        service_account_credentials(
+            ["https://www.googleapis.com/auth/analytics.readonly"],
+            env={
+                "GOOGLE_SERVICE_ACCOUNT_JSON": "",
+                "GOOGLE_APPLICATION_CREDENTIALS": "/runtime/credential.json",
+            },
+        )
+
+
 def test_inline_service_account_secret_takes_precedence_over_application_credentials(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

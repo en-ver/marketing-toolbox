@@ -6,6 +6,11 @@ from pathlib import Path
 
 import pytest
 import typer
+from google.analytics.data_v1beta.types import (
+    BatchRunReportsRequest,
+    RunPivotReportRequest,
+    RunReportRequest,
+)
 from google.api_core import exceptions
 from typer.main import get_command
 from typer.testing import CliRunner
@@ -23,6 +28,8 @@ from ga4datactl.cli import app as ga4_data_app
 from ga4datactl.cli import main as ga4_data_main
 from ga4datactl.commands import audience_exports, metadata, reports
 from ga4datactl.commands.sdk import _SCHEMA_TARGETS as data_schema_targets
+from ga4datactl.operations import audience_exports as audience_export_operations
+from ga4datactl.operations import reports as report_operations
 from ga4datactl.schemas import (
     BATCH_RUN_PIVOT_REPORTS_BODY_SCHEMA,
     BATCH_RUN_REPORTS_BODY_SCHEMA,
@@ -44,6 +51,7 @@ from marketing_common.cli import (
     exit_with_diagnostic,
     write_success,
 )
+from marketing_common.introspection import protobuf_body_schema
 from marketing_common.oauth import OAuthAuthenticationError
 
 runner = CliRunner()
@@ -373,6 +381,58 @@ def test_every_sdk_schema_target_resolves_with_complete_provenance_and_reference
         assert _discovery_references(body).issubset(body["definitions"])
 
 
+@pytest.mark.parametrize(
+    ("command", "nested_request_type"),
+    [
+        ("batch-run", RunReportRequest),
+        ("batch-pivot-run", RunPivotReportRequest),
+    ],
+)
+def test_sdk_schema_batch_reports_exclude_only_nested_request_properties(
+    monkeypatch: pytest.MonkeyPatch, command: str, nested_request_type: type[object]
+) -> None:
+    def forbidden(*_: object, **__: object) -> None:
+        raise AssertionError(
+            "static schema lookup must not authenticate or call Google"
+        )
+
+    monkeypatch.setattr("google.auth.default", forbidden)
+    monkeypatch.setattr("googleapiclient.discovery.build", forbidden)
+
+    result = runner.invoke(
+        ga4_data_app, ["sdk", "schema", "--command", f"reports {command}"]
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.stdout)["data"]
+    assert set(payload) == {"cliPath", "officialMethod", "source", "request"}
+    assert payload["source"]["kind"] == "installed-sdk-descriptor"
+    assert set(payload["request"]) == {
+        "type",
+        "pathOrQueryFields",
+        "bodyForbiddenFields",
+        "body",
+    }
+    assert payload["request"]["bodyForbiddenFields"] == ["property"]
+    body = payload["request"]["body"]
+    assert "property" not in {field["name"] for field in body["fields"]}
+    nested = body["definitions"][nested_request_type.pb().DESCRIPTOR.full_name]
+    assert "property" not in {field["name"] for field in nested["fields"]}
+
+
+def test_protobuf_body_schema_descriptor_exclusions_do_not_filter_root_fields() -> None:
+    body = protobuf_body_schema(
+        BatchRunReportsRequest,
+        descriptor_field_exclusions={
+            RunReportRequest.pb().DESCRIPTOR.full_name: frozenset({"property"})
+        },
+    )
+
+    assert "property" in {field["name"] for field in body["fields"]}
+    nested = body["definitions"][RunReportRequest.pb().DESCRIPTOR.full_name]
+    assert "property" not in {field["name"] for field in nested["fields"]}
+
+
 def test_property_patch_help_runtime_policy_and_sdk_constraints_share_allowlist() -> (
     None
 ):
@@ -488,6 +548,25 @@ def test_report_schema_is_standalone_structural_cli_validation(
         "command": f"ga4datactl reports {command}",
         "data": {"bodySchema": expected_schema},
     }
+
+
+def test_pivot_schema_overrides_do_not_tighten_ordinary_report_definitions() -> None:
+    for command in ("pivot-run", "batch-pivot-run"):
+        result = runner.invoke(ga4_data_app, ["reports", command, "--schema"])
+
+        assert result.exit_code == 0
+        definitions = json.loads(result.stdout)["data"]["bodySchema"]["$defs"]
+        for definition in ("Dimension", "Metric"):
+            assert "name" in definitions[definition]["required"]
+            assert definitions[definition]["properties"]["name"]["minLength"] == 1
+        assert definitions["Pivot"]["properties"]["limit"]["maxLength"] == 6
+
+    ordinary = json.loads(
+        runner.invoke(ga4_data_app, ["reports", "run", "--schema"]).stdout
+    )["data"]["bodySchema"]["$defs"]
+    for definition in ("Dimension", "Metric"):
+        assert "required" not in ordinary[definition]
+        assert "minLength" not in ordinary[definition]["properties"]["name"]
 
 
 def test_report_body_schema_and_sdk_descriptor_remain_distinct_contracts() -> None:
@@ -729,7 +808,7 @@ def test_ga4_entrypoint_version_remains_an_eager_json_success(
     assert json.loads(captured.out) == {
         "schemaVersion": "marketing-toolbox/v1",
         "command": command,
-        "data": {"version": "0.3.0"},
+        "data": {"version": "0.3.1"},
     }
     assert captured.err == ""
 
@@ -782,7 +861,7 @@ def test_ga4_entrypoint_parse_errors_remain_json_diagnostics(
         (
             ["ga4datactl", "--version"],
             0,
-            {"version": "0.3.0"},
+            {"version": "0.3.1"},
             None,
         ),
         (
@@ -973,6 +1052,147 @@ def test_audience_exports_create_apply_calls_adapter_with_apply(
     assert json.loads(result.stdout)["data"] == {"operationName": "operations/export-1"}
 
 
+def test_audience_exports_create_ambiguous_failure_is_sanitized_and_not_retryable(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    body = tmp_path / "create.json"
+    body.write_text(
+        '{"audience": "properties/1234/audiences/42", '
+        '"dimensions": [{"dimensionName": "audienceId"}]}',
+        encoding="utf-8",
+    )
+    sentinel = "UPSTREAM-SECRET-MARKER"
+    calls = 0
+
+    class FailingCreateClient:
+        def create_audience_export(self, *_args: object, **kwargs: object) -> object:
+            nonlocal calls
+            calls += 1
+            assert kwargs["retry"] is None
+            assert (
+                kwargs["timeout"]
+                == audience_export_operations.CREATE_AUDIENCE_EXPORT_TIMEOUT_SECONDS
+            )
+            raise exceptions.ServiceUnavailable(sentinel)  # type: ignore[no-untyped-call]
+
+    monkeypatch.setattr(
+        audience_export_operations, "service_account_credentials", lambda _: object()
+    )
+    monkeypatch.setattr(
+        audience_exports,
+        "create_audience_export",
+        lambda *args, **kwargs: audience_export_operations.create_audience_export(
+            *args, client_factory=lambda _: FailingCreateClient(), **kwargs
+        ),
+    )
+
+    result = runner.invoke(
+        ga4_data_app,
+        [
+            "audience-exports",
+            "create",
+            "--property",
+            "properties/1234",
+            "--body",
+            str(body),
+            "--apply",
+        ],
+    )
+
+    assert calls == 1
+    assert result.exit_code == 1
+    assert result.stdout == ""
+    diagnostic = json.loads(result.stderr)
+    assert diagnostic == {
+        "schemaVersion": "marketing-toolbox/v1",
+        "command": "ga4datactl audience-exports create",
+        "exitCode": 1,
+        "category": "unexpected",
+        "message": (
+            "Audience export creation may have succeeded. Inspect audience exports "
+            "before retrying."
+        ),
+        "googleStatus": 503,
+    }
+    assert sentinel not in result.stderr
+
+
+@pytest.mark.parametrize(
+    ("command", "body"),
+    [
+        ("batch-run", "{}"),
+        (
+            "pivot-run",
+            (
+                '{"dimensions": [{"name": ""}], "metrics": [{"name": "eventCount"}], '
+                '"pivots": [{"fieldNames": ["country"], "limit": "1"}]}'
+            ),
+        ),
+        (
+            "realtime-run",
+            '{"metrics": [{"name": "eventCount"}], "limit": "' + "9" * 4301 + '"}',
+        ),
+    ],
+)
+def test_report_cli_rejects_local_validation_errors_without_authentication(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, command: str, body: str
+) -> None:
+    request_body = tmp_path / f"{command}.json"
+    request_body.write_text(body, encoding="utf-8")
+    monkeypatch.setattr(
+        report_operations,
+        "service_account_credentials",
+        lambda _: pytest.fail("local request errors must not load credentials"),
+    )
+
+    result = runner.invoke(
+        ga4_data_app,
+        [
+            "reports",
+            command,
+            "--property",
+            "properties/1234",
+            "--body",
+            str(request_body),
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert result.stdout == ""
+    assert json.loads(result.stderr)["category"] == "invalid_request"
+
+
+def test_audience_export_query_rejects_out_of_range_offset_without_authentication(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        audience_export_operations,
+        "service_account_credentials",
+        lambda _: pytest.fail("invalid offsets must not load credentials"),
+    )
+
+    result = runner.invoke(
+        ga4_data_app,
+        [
+            "audience-exports",
+            "query",
+            "--property",
+            "properties/1234",
+            "--name",
+            "properties/1234/audienceExports/export-1",
+            "--limit",
+            "1",
+            "--offset",
+            str(2**63),
+            "--acknowledge-sensitive-data",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert result.stdout == ""
+    assert json.loads(result.stderr)["category"] == "invalid_request"
+
+
 def test_reports_run_rejects_invalid_body_before_credential_lookup(
     tmp_path: Path,
 ) -> None:
@@ -1114,7 +1334,7 @@ def test_gtm_entrypoint_version_is_eager_and_uses_shared_json_success_envelope(
     assert json.loads(captured.out) == {
         "schemaVersion": "marketing-toolbox/v1",
         "command": "gtmctl",
-        "data": {"version": "0.3.0"},
+        "data": {"version": "0.3.1"},
     }
     assert captured.err == ""
 

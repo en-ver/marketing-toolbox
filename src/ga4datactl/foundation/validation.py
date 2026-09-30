@@ -24,6 +24,7 @@ PROPERTY_PATTERN = re.compile(r"^properties/[0-9]+$")
 AUDIENCE_EXPORT_PATTERN = re.compile(r"^properties/[0-9]+/audienceExports/[^/]+$")
 AUDIENCE_PATTERN = re.compile(r"^properties/[0-9]+/audiences/[^/]+$")
 MAX_BODY_CHARACTERS = 1_048_576
+_MAX_QUERY_AUDIENCE_EXPORT_OFFSET = 2**63 - 1
 
 
 class RequestValidationError(ValueError):
@@ -120,8 +121,10 @@ def validate_query_audience_export_request(
     validate_get_audience_export_request(property_name, name)
     if not 1 <= limit <= 1_000:
         raise RequestValidationError("--limit must be between 1 and 1000.")
-    if offset < 0:
-        raise RequestValidationError("--offset must be zero or greater.")
+    if not 0 <= offset <= _MAX_QUERY_AUDIENCE_EXPORT_OFFSET:
+        raise RequestValidationError(
+            f"--offset must be between 0 and {_MAX_QUERY_AUDIENCE_EXPORT_OFFSET}."
+        )
 
 
 def validate_list_audience_exports_request(

@@ -20,6 +20,7 @@ from google.auth.credentials import Credentials
 
 from ga4datactl.foundation.errors import (
     is_retryable_google_error,
+    normalize_create_audience_export_error,
     normalize_google_error,
 )
 from ga4datactl.foundation.serialization import parse_request, response_to_json
@@ -87,7 +88,11 @@ class CreateAudienceExportClient(Protocol):
     """The official SDK surface used by `audience-exports create`."""
 
     def create_audience_export(
-        self, request: CreateAudienceExportRequest, *, retry: Retry, timeout: float
+        self,
+        request: CreateAudienceExportRequest,
+        *,
+        retry: Retry | None,
+        timeout: float,
     ) -> CreateAudienceExportOperation: ...
 
 
@@ -187,17 +192,17 @@ def create_audience_export(
     request_body = {"parent": property_name, "audienceExport": dict(body)}
     if not apply:
         return {"dryRun": True, "request": request_body}
-    credentials = service_account_credentials([ANALYTICS_SCOPE])
     request = CreateAudienceExportRequest()
     parse_request(request_body, request)
+    credentials = service_account_credentials([ANALYTICS_SCOPE])
     try:
         operation = client_factory(credentials).create_audience_export(
             request,
-            retry=RUN_REPORT_RETRY,
+            retry=None,
             timeout=CREATE_AUDIENCE_EXPORT_TIMEOUT_SECONDS,
         )
     except (exceptions.GoogleAPICallError, exceptions.RetryError) as exc:
-        raise normalize_google_error(exc) from exc
+        raise normalize_create_audience_export_error(exc) from exc
     return {"operationName": operation.operation.name}
 
 
@@ -211,8 +216,8 @@ def query_audience_export(
 ) -> dict[str, Any]:
     """Return exactly one bounded page of sensitive audience-export user rows."""
     validate_query_audience_export_request(property_name, name, limit, offset)
-    credentials = service_account_credentials([ANALYTICS_READONLY_SCOPE])
     request = QueryAudienceExportRequest(name=name, limit=limit, offset=offset)
+    credentials = service_account_credentials([ANALYTICS_READONLY_SCOPE])
     try:
         response = client_factory(credentials).query_audience_export(
             request, retry=RUN_REPORT_RETRY

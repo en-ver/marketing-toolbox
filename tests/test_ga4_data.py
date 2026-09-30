@@ -1,4 +1,5 @@
 import json
+from collections.abc import Callable
 from io import StringIO
 from pathlib import Path
 from typing import Any, cast
@@ -6,14 +7,21 @@ from typing import Any, cast
 import pytest
 from google.analytics.data_v1beta.types import (
     AudienceExport,
+    BatchRunPivotReportsRequest,
     BatchRunPivotReportsResponse,
+    BatchRunReportsRequest,
     BatchRunReportsResponse,
+    CheckCompatibilityRequest,
     CheckCompatibilityResponse,
     CreateAudienceExportRequest,
     ListAudienceExportsResponse,
     Metadata,
     QueryAudienceExportResponse,
+    RunPivotReportRequest,
+    RunPivotReportResponse,
+    RunRealtimeReportRequest,
     RunRealtimeReportResponse,
+    RunReportRequest,
     RunReportResponse,
 )
 from google.api_core import exceptions
@@ -269,6 +277,47 @@ def test_query_audience_export_uses_one_bounded_official_request(
     }
 
 
+def test_query_audience_export_constructs_the_official_request_before_auth(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ordered_calls: list[tuple[str, object]] = []
+    original_request = audience_exports.QueryAudienceExportRequest
+    client = CapturingQueryAudienceExportClient(QueryAudienceExportResponse())
+
+    def construct_request(**kwargs: object) -> Any:
+        ordered_calls.append(("request", kwargs))
+        return original_request(**kwargs)
+
+    monkeypatch.setattr(
+        audience_exports, "QueryAudienceExportRequest", construct_request
+    )
+    monkeypatch.setattr(
+        audience_exports,
+        "service_account_credentials",
+        lambda _: ordered_calls.append(("credentials", None)) or object(),
+    )
+
+    audience_exports.query_audience_export(
+        "properties/1234",
+        "properties/1234/audienceExports/export-1",
+        10,
+        5,
+        client_factory=lambda _: client,
+    )
+
+    assert ordered_calls == [
+        (
+            "request",
+            {
+                "name": "properties/1234/audienceExports/export-1",
+                "limit": 10,
+                "offset": 5,
+            },
+        ),
+        ("credentials", None),
+    ]
+
+
 @pytest.mark.parametrize(
     ("name", "limit", "offset", "message"),
     [
@@ -391,8 +440,93 @@ def test_create_audience_export_apply_uses_official_request_without_polling(
     assert client.request.parent == "properties/1234"
     assert client.request.audience_export.audience == "properties/1234/audiences/42"
     assert client.request.audience_export.dimensions[0].dimension_name == "deviceId"
+    assert client.retry is None
     assert client.timeout == ga4_data.CREATE_AUDIENCE_EXPORT_TIMEOUT_SECONDS
     assert response == {"operationName": "operations/export-1"}
+
+
+def test_create_audience_export_apply_parses_before_credential_lookup(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    body = json.loads(
+        (AUDIENCE_EXPORT_CREATE_FIXTURES / "valid-basic-request.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    monkeypatch.setattr(
+        audience_exports,
+        "parse_request",
+        lambda *_args: (_ for _ in ()).throw(
+            data_validation.RequestValidationError("invalid request")
+        ),
+    )
+    monkeypatch.setattr(
+        audience_exports,
+        "service_account_credentials",
+        lambda _: pytest.fail("credentials must not be loaded before parsing"),
+    )
+
+    with pytest.raises(data_validation.RequestValidationError, match="invalid request"):
+        ga4_data.create_audience_export("properties/1234", body, apply=True)
+
+
+@pytest.mark.parametrize(
+    ("error", "exit_code", "category", "status", "may_have_succeeded"),
+    [
+        (exceptions.InternalServerError("UPSTREAM-SECRET"), 1, "unexpected", 500, True),  # type: ignore[no-untyped-call]
+        (exceptions.ServiceUnavailable("UPSTREAM-SECRET"), 1, "unexpected", 503, True),  # type: ignore[no-untyped-call]
+        (exceptions.DeadlineExceeded("UPSTREAM-SECRET"), 1, "unexpected", 504, True),  # type: ignore[no-untyped-call]
+        (
+            exceptions.RetryError(
+                "retry exhausted",
+                exceptions.ServiceUnavailable("UPSTREAM-SECRET"),  # type: ignore[no-untyped-call]
+            ),
+            1,
+            "unexpected",
+            503,
+            True,
+        ),
+        (exceptions.BadRequest("UPSTREAM-SECRET"), 2, "invalid_request", 400, False),  # type: ignore[no-untyped-call]
+    ],
+)
+def test_create_audience_export_normalizes_failures_without_retries(
+    monkeypatch: pytest.MonkeyPatch,
+    error: exceptions.GoogleAPICallError | exceptions.RetryError,
+    exit_code: int,
+    category: str,
+    status: int,
+    may_have_succeeded: bool,
+) -> None:
+    body = json.loads(
+        (AUDIENCE_EXPORT_CREATE_FIXTURES / "valid-basic-request.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    client = CapturingCreateAudienceExportClient()
+
+    def fail_once(*_args: Any, **_kwargs: Any) -> Any:
+        client.calls += 1
+        raise error
+
+    client.create_audience_export = fail_once
+    monkeypatch.setattr(
+        audience_exports, "service_account_credentials", lambda _: object()
+    )
+
+    with pytest.raises(data_errors.GoogleApiError) as raised:
+        ga4_data.create_audience_export(
+            "properties/1234", body, apply=True, client_factory=lambda _: client
+        )
+
+    normalized = raised.value
+    assert client.calls == 1
+    assert (normalized.exit_code, normalized.category, normalized.status) == (
+        exit_code,
+        category,
+        status,
+    )
+    assert "UPSTREAM-SECRET" not in str(normalized)
+    assert ("may have succeeded" in str(normalized)) is may_have_succeeded
 
 
 class CapturingBatchClient:
@@ -471,3 +605,288 @@ class CapturingCompatibilityClient:
         self.request = request
         self.retry = retry
         return self.response
+
+
+def _pivot_request(
+    *, dimension: dict[str, Any] | None = None, metric: dict[str, Any] | None = None
+) -> dict[str, Any]:
+    return {
+        "dimensions": [dimension if dimension is not None else {"name": "country"}],
+        "metrics": [metric if metric is not None else {"name": "eventCount"}],
+        "pivots": [{"fieldNames": ["country"], "limit": "1"}],
+    }
+
+
+@pytest.mark.parametrize(
+    ("validator", "body"),
+    [
+        (data_validation.validate_batch_run_reports_request, {}),
+        (data_validation.validate_batch_run_reports_request, {"requests": []}),
+        (data_validation.validate_batch_run_pivot_reports_request, {}),
+        (
+            data_validation.validate_batch_run_pivot_reports_request,
+            {"requests": []},
+        ),
+    ],
+)
+def test_batch_report_requests_are_required_and_nonempty(
+    validator: Callable[[str, dict[str, Any]], None], body: dict[str, Any]
+) -> None:
+    with pytest.raises(data_validation.RequestValidationError, match="request schema"):
+        validator("properties/1234", body)
+
+
+@pytest.mark.parametrize("batch", [False, True])
+@pytest.mark.parametrize(
+    ("dimension", "metric"),
+    [
+        ({}, None),
+        ({"name": ""}, None),
+        (None, {}),
+        (None, {"name": ""}),
+    ],
+)
+def test_pivot_reports_require_nonempty_dimension_and_metric_names(
+    batch: bool, dimension: dict[str, Any] | None, metric: dict[str, Any] | None
+) -> None:
+    request = _pivot_request(dimension=dimension, metric=metric)
+    body = {"requests": [request]} if batch else request
+    validator = (
+        data_validation.validate_batch_run_pivot_reports_request
+        if batch
+        else data_validation.validate_run_pivot_report_request
+    )
+
+    with pytest.raises(data_validation.RequestValidationError, match="request schema"):
+        validator("properties/1234", body)
+
+
+@pytest.mark.parametrize(
+    ("validator", "body"),
+    [
+        (
+            data_validation.validate_run_pivot_report_request,
+            _pivot_request(),
+        ),
+        (
+            data_validation.validate_run_realtime_report_request,
+            {"metrics": [{"name": "eventCount"}], "limit": "1"},
+        ),
+    ],
+)
+def test_pivot_and_realtime_limits_keep_their_250000_boundary(
+    validator: Callable[[str, dict[str, Any]], None], body: dict[str, Any]
+) -> None:
+    limit = body["pivots"][0] if "pivots" in body else body
+    limit["limit"] = "250000"
+    validator("properties/1234", body)
+
+    limit["limit"] = "250001"
+    with pytest.raises(data_validation.RequestValidationError, match="250000"):
+        validator("properties/1234", body)
+
+    limit["limit"] = "9" * 4301
+    with pytest.raises(data_validation.RequestValidationError, match="request schema"):
+        validator("properties/1234", body)
+
+
+@pytest.mark.parametrize(
+    ("offset", "valid"),
+    [
+        (-1, False),
+        (0, True),
+        (2**63 - 1, True),
+        (2**63, False),
+    ],
+)
+def test_query_audience_export_offset_stays_in_the_official_int64_range(
+    offset: int, valid: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    args = ("properties/1234", "properties/1234/audienceExports/export-1", 1, offset)
+    if valid:
+        data_validation.validate_query_audience_export_request(*args)
+        return
+
+    monkeypatch.setattr(
+        audience_exports,
+        "service_account_credentials",
+        lambda _: pytest.fail("invalid offsets must not load credentials"),
+    )
+    with pytest.raises(data_validation.RequestValidationError, match="--offset"):
+        audience_exports.query_audience_export(*args)
+
+
+class CapturingReportAdapterClient:
+    def __init__(self, response: Any) -> None:
+        self.response = response
+        self.calls = 0
+        self.request: Any = None
+        self.retry: Any = None
+
+    def __getattr__(self, _name: str) -> Callable[..., Any]:
+        def invoke(request: Any, *, retry: Any) -> Any:
+            self.calls += 1
+            self.request = request
+            self.retry = retry
+            return self.response
+
+        return invoke
+
+
+@pytest.mark.parametrize(
+    ("operation", "request_type", "response", "body"),
+    [
+        (
+            reports.run_report,
+            RunReportRequest,
+            RunReportResponse(),
+            {"metrics": [{"name": "eventCount"}]},
+        ),
+        (
+            reports.batch_run_reports,
+            BatchRunReportsRequest,
+            BatchRunReportsResponse(),
+            {"requests": [{"metrics": [{"name": "eventCount"}]}]},
+        ),
+        (
+            reports.batch_run_pivot_reports,
+            BatchRunPivotReportsRequest,
+            BatchRunPivotReportsResponse(),
+            {"requests": [_pivot_request()]},
+        ),
+        (
+            reports.run_pivot_report,
+            RunPivotReportRequest,
+            RunPivotReportResponse(),
+            _pivot_request(),
+        ),
+        (
+            reports.run_realtime_report,
+            RunRealtimeReportRequest,
+            RunRealtimeReportResponse(),
+            {"metrics": [{"name": "eventCount"}]},
+        ),
+        (
+            reports.check_compatibility,
+            CheckCompatibilityRequest,
+            CheckCompatibilityResponse(),
+            {"metrics": [{"name": "eventCount"}]},
+        ),
+    ],
+)
+def test_report_adapters_preserve_valid_requests_responses_and_retry(
+    monkeypatch: pytest.MonkeyPatch,
+    operation: Callable[..., dict[str, Any]],
+    request_type: type[Any],
+    response: Any,
+    body: dict[str, Any],
+) -> None:
+    credentials = object()
+    client = CapturingReportAdapterClient(response)
+    monkeypatch.setattr(reports, "service_account_credentials", lambda _: credentials)
+
+    result = operation(
+        "properties/1234",
+        body,
+        client_factory=lambda supplied: (
+            client if supplied is credentials else pytest.fail("wrong credentials")
+        ),
+    )
+
+    assert client.calls == 1
+    assert type(client.request) is request_type
+    assert client.request.property == "properties/1234"
+    assert client.retry is reports.RUN_REPORT_RETRY
+    assert result == {}
+
+
+@pytest.mark.parametrize(
+    ("operation", "validator", "body"),
+    [
+        (
+            reports.run_report,
+            data_validation.validate_run_report_request,
+            {"metrics": [{"name": "eventCount"}], "limit": "not-an-int"},
+        ),
+        (
+            reports.batch_run_reports,
+            data_validation.validate_batch_run_reports_request,
+            {
+                "requests": [
+                    {"metrics": [{"name": "eventCount"}], "limit": "not-an-int"}
+                ]
+            },
+        ),
+        (
+            reports.batch_run_pivot_reports,
+            data_validation.validate_batch_run_pivot_reports_request,
+            {
+                "requests": [
+                    {
+                        **_pivot_request(),
+                        "pivots": [
+                            {
+                                "fieldNames": ["country"],
+                                "limit": "1",
+                                "offset": "not-an-int",
+                            }
+                        ],
+                    }
+                ]
+            },
+        ),
+        (
+            reports.run_pivot_report,
+            data_validation.validate_run_pivot_report_request,
+            {
+                **_pivot_request(),
+                "pivots": [
+                    {"fieldNames": ["country"], "limit": "1", "offset": "not-an-int"}
+                ],
+            },
+        ),
+        (
+            reports.run_realtime_report,
+            data_validation.validate_run_realtime_report_request,
+            {
+                "metrics": [{"name": "eventCount"}],
+                "metricFilter": {
+                    "filter": {"numericFilter": {"value": {"int64Value": "not-an-int"}}}
+                },
+            },
+        ),
+        (
+            reports.check_compatibility,
+            data_validation.validate_check_compatibility_request,
+            {
+                "metrics": [{"name": "eventCount"}],
+                "metricFilter": {
+                    "filter": {"numericFilter": {"value": {"int64Value": "not-an-int"}}}
+                },
+            },
+        ),
+    ],
+)
+def test_report_adapters_parse_protobuf_before_credentials_and_clients(
+    monkeypatch: pytest.MonkeyPatch,
+    operation: Callable[..., dict[str, Any]],
+    validator: Callable[[str, dict[str, Any]], None],
+    body: dict[str, Any],
+) -> None:
+    validator("properties/1234", body)
+    monkeypatch.setattr(
+        reports,
+        "service_account_credentials",
+        lambda _: pytest.fail("protobuf errors must not load credentials"),
+    )
+
+    with pytest.raises(
+        data_validation.RequestValidationError, match="cannot be converted"
+    ):
+        operation(
+            "properties/1234",
+            body,
+            client_factory=lambda _: pytest.fail(
+                "protobuf errors must not create clients"
+            ),
+        )

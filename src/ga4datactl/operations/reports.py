@@ -152,9 +152,9 @@ def run_report(
 ) -> dict[str, Any]:
     """Call the official SDK and preserve its response JSON field names."""
     validate_run_report_request(property_name, body)
-    credentials = service_account_credentials([ANALYTICS_READONLY_SCOPE])
     request = RunReportRequest()
     parse_request({"property": property_name, **body}, request)
+    credentials = service_account_credentials([ANALYTICS_READONLY_SCOPE])
     try:
         response = client_factory(credentials).run_report(
             request, retry=RUN_REPORT_RETRY
@@ -172,9 +172,9 @@ def batch_run_reports(
 ) -> dict[str, Any]:
     """Call the official SDK for up to five reports and preserve response JSON."""
     validate_batch_run_reports_request(property_name, body)
-    credentials = service_account_credentials([ANALYTICS_READONLY_SCOPE])
     request = BatchRunReportsRequest()
     parse_request({"property": property_name, **body}, request)
+    credentials = service_account_credentials([ANALYTICS_READONLY_SCOPE])
     try:
         response = client_factory(credentials).batch_run_reports(
             request, retry=RUN_REPORT_RETRY
@@ -192,9 +192,9 @@ def batch_run_pivot_reports(
 ) -> dict[str, Any]:
     """Call the official SDK for up to five pivot reports."""
     validate_batch_run_pivot_reports_request(property_name, body)
-    credentials = service_account_credentials([ANALYTICS_READONLY_SCOPE])
     request = BatchRunPivotReportsRequest()
     parse_request({"property": property_name, **body}, request)
+    credentials = service_account_credentials([ANALYTICS_READONLY_SCOPE])
     try:
         response = client_factory(credentials).batch_run_pivot_reports(
             request, retry=RUN_REPORT_RETRY
@@ -212,9 +212,9 @@ def run_pivot_report(
 ) -> dict[str, Any]:
     """Call the official SDK for a pivot report and preserve response JSON."""
     validate_run_pivot_report_request(property_name, body)
-    credentials = service_account_credentials([ANALYTICS_READONLY_SCOPE])
     request = RunPivotReportRequest()
     parse_request({"property": property_name, **body}, request)
+    credentials = service_account_credentials([ANALYTICS_READONLY_SCOPE])
     try:
         response = client_factory(credentials).run_pivot_report(
             request, retry=RUN_REPORT_RETRY
@@ -232,9 +232,9 @@ def run_realtime_report(
 ) -> dict[str, Any]:
     """Call the official SDK to return one GA4 realtime report."""
     validate_run_realtime_report_request(property_name, body)
-    credentials = service_account_credentials([ANALYTICS_READONLY_SCOPE])
     request = RunRealtimeReportRequest()
     parse_request({"property": property_name, **body}, request)
+    credentials = service_account_credentials([ANALYTICS_READONLY_SCOPE])
     try:
         response = client_factory(credentials).run_realtime_report(
             request, retry=RUN_REPORT_RETRY
@@ -252,9 +252,9 @@ def check_compatibility(
 ) -> dict[str, Any]:
     """Check a candidate core report using the official Data API SDK."""
     validate_check_compatibility_request(property_name, body)
-    credentials = service_account_credentials([ANALYTICS_READONLY_SCOPE])
     request = CheckCompatibilityRequest()
     parse_request({"property": property_name, **body}, request)
+    credentials = service_account_credentials([ANALYTICS_READONLY_SCOPE])
     try:
         response = client_factory(credentials).check_compatibility(
             request, retry=RUN_REPORT_RETRY

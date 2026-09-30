@@ -15,7 +15,7 @@ ga4datactl sdk schema --command "reports run"
 
 The descriptor is a request shape, not a response schema or a complete statement of CLI requiredness and Google semantics. `sdk schema` is available for the six report leaves (`reports run`, `batch-run`, `pivot-run`, `realtime-run`, `batch-pivot-run`, and `compatibility-check`) and for `audience-exports create`.
 
-Each of those six report leaves supports `--schema` in 0.3.0. For example:
+Each of those six report leaves supports `--schema` in 0.3.1. For example:
 
 ```bash
 ga4datactl reports run --schema
@@ -31,6 +31,8 @@ ga4datactl sdk schema --command "audience-exports create"
 ```
 
 The first is the CLI structural validator schema; the second is the installed SDK request descriptor. Audience-export reads use their leaf help rather than an SDK body schema.
+
+Audience-export creation requires exactly one of `--dry-run` or `--apply`. A dry run stays local and returns the request plan. An apply submits the create request once, with no automatic retry or operation polling. If apply returns an `unexpected` diagnostic saying creation may have succeeded, inspect existing audience exports before submitting the same request again.
 
 Run a small core report with a property you are allowed to read. The request body must not include `property` because `--property` supplies it:
 

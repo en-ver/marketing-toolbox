@@ -176,6 +176,52 @@ def test_generic_resolver_precedence_and_explicit_fail_closed(
         )
 
 
+def test_generic_resolver_empty_explicit_sources_do_not_fall_through(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        auth.google.auth,
+        "load_credentials_from_file",
+        lambda *_args, **_kwargs: pytest.fail("file credentials must not be used"),
+    )
+    with pytest.raises(
+        auth.CredentialConfigurationError,
+        match="GOOGLE_SERVICE_ACCOUNT_JSON must contain a JSON service-account document",
+    ):
+        auth.resolve_credentials(
+            ["scope"],
+            tool="ga4datactl",
+            env={
+                "GOOGLE_SERVICE_ACCOUNT_JSON": "",
+                "GOOGLE_APPLICATION_CREDENTIALS": "/credentials.json",
+            },
+        )
+
+    monkeypatch.setattr(
+        auth.google.auth,
+        "load_credentials_from_file",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("secret path")),
+    )
+    monkeypatch.setattr(
+        auth,
+        "native_marker_exists",
+        lambda *_args: pytest.fail("native OAuth must not be selected"),
+    )
+    monkeypatch.setattr(
+        auth.google.auth,
+        "default",
+        lambda **_kwargs: pytest.fail("ADC must not be selected"),
+    )
+    with pytest.raises(
+        auth.CredentialConfigurationError, match="valid readable credential"
+    ):
+        auth.resolve_credentials(
+            ["scope"],
+            tool="ga4datactl",
+            env={"GOOGLE_APPLICATION_CREDENTIALS": ""},
+        )
+
+
 def test_generic_resolver_uses_marked_native_before_ambient(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

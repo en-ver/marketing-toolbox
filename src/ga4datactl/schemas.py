@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from typing import Any
 
 CORE_REPORTING_DEFINITIONS: dict[str, Any] = json.loads(
@@ -10,12 +11,58 @@ CORE_REPORTING_DEFINITIONS: dict[str, Any] = json.loads(
 )
 
 
-def _operation_schema(definition: str, *, schema_id: str, title: str) -> dict[str, Any]:
+def _operation_schema(
+    definition: str,
+    *,
+    schema_id: str,
+    title: str,
+    definition_overrides: Mapping[str, dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Build an operation schema without mutating shared discovery definitions."""
     return {
         **CORE_REPORTING_DEFINITIONS,
         "$id": schema_id,
         "title": title,
         "$ref": f"#/$defs/{definition}",
+        "$defs": {
+            **CORE_REPORTING_DEFINITIONS["$defs"],
+            **(definition_overrides or {}),
+        },
+    }
+
+
+def _required_batch_definition(definition: str) -> dict[str, Any]:
+    return {
+        **CORE_REPORTING_DEFINITIONS["$defs"][definition],
+        "required": ["requests"],
+    }
+
+
+def _pivot_definition_overrides() -> dict[str, dict[str, Any]]:
+    """Return pivot-only overlays without tightening other report contracts."""
+
+    def named_definition(definition: str) -> dict[str, Any]:
+        base = CORE_REPORTING_DEFINITIONS["$defs"][definition]
+        return {
+            **base,
+            "properties": {
+                **base["properties"],
+                "name": {**base["properties"]["name"], "minLength": 1},
+            },
+            "required": ["name"],
+        }
+
+    pivot = CORE_REPORTING_DEFINITIONS["$defs"]["Pivot"]
+    return {
+        "Dimension": named_definition("Dimension"),
+        "Metric": named_definition("Metric"),
+        "Pivot": {
+            **pivot,
+            "properties": {
+                **pivot["properties"],
+                "limit": {**pivot["properties"]["limit"], "maxLength": 6},
+            },
+        },
     }
 
 
@@ -30,14 +77,18 @@ BATCH_RUN_REPORTS_BODY_SCHEMA: dict[str, Any] = _operation_schema(
         "urn:marketing-toolbox:ga4datactl:schema:batch-run-reports-body.schema.json"
     ),
     title="GA4 Data API v1beta BatchRunReportsRequest",
+    definition_overrides={
+        "BatchRunReportsRequest": _required_batch_definition("BatchRunReportsRequest")
+    },
 )
-BATCH_RUN_PIVOT_REPORTS_BODY_SCHEMA: dict[str, Any] = {
-    **CORE_REPORTING_DEFINITIONS,
-    "$id": "urn:marketing-toolbox:ga4datactl:schema:batch-run-pivot-reports-body.schema.json",
-    "title": "GA4 Data API v1beta BatchRunPivotReportsRequest",
-    "$ref": "#/$defs/BatchRunPivotReportsRequest",
-    "$defs": {
-        **CORE_REPORTING_DEFINITIONS["$defs"],
+BATCH_RUN_PIVOT_REPORTS_BODY_SCHEMA: dict[str, Any] = _operation_schema(
+    "BatchRunPivotReportsRequest",
+    schema_id=(
+        "urn:marketing-toolbox:ga4datactl:schema:batch-run-pivot-reports-body.schema.json"
+    ),
+    title="GA4 Data API v1beta BatchRunPivotReportsRequest",
+    definition_overrides={
+        **_pivot_definition_overrides(),
         "BatchRunPivotReportsRequest": {
             "additionalProperties": False,
             "description": "The batch request containing multiple pivot report requests.",
@@ -53,16 +104,18 @@ BATCH_RUN_PIVOT_REPORTS_BODY_SCHEMA: dict[str, Any] = {
                     "type": "array",
                 }
             },
+            "required": ["requests"],
             "type": "object",
         },
     },
-}
+)
 RUN_PIVOT_REPORT_BODY_SCHEMA: dict[str, Any] = _operation_schema(
     "RunPivotReportRequest",
     schema_id=(
         "urn:marketing-toolbox:ga4datactl:schema:run-pivot-report-body.schema.json"
     ),
     title="GA4 Data API v1beta RunPivotReportRequest",
+    definition_overrides=_pivot_definition_overrides(),
 )
 
 RUN_REALTIME_REPORT_BODY_SCHEMA: dict[str, Any] = {
@@ -103,6 +156,7 @@ RUN_REALTIME_REPORT_BODY_SCHEMA: dict[str, Any] = {
                 "limit": {
                     "description": "A positive row limit no greater than 250,000.",
                     "format": "int64",
+                    "maxLength": 6,
                     "pattern": "^[1-9][0-9]*$",
                     "type": "string",
                 },
