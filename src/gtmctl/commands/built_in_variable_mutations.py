@@ -14,9 +14,37 @@ from gtmctl.foundation.validation import (
     validate_workspace_path,
 )
 from gtmctl.operations import mutations
+from marketing_common.discovery import discovery_method_parameters
 
 
-def _validate_variable_types(variable_types: str | list[str] | None) -> None:
+def _official_variable_types(method_id: str) -> tuple[str, ...]:
+    """Read the closed ``type`` enum for one official built-in-variable method."""
+    parameter = discovery_method_parameters(
+        api="tagmanager", api_version="v2", method_id=method_id
+    )["type"]
+    return tuple(parameter["enum"])
+
+
+_CREATE_VARIABLE_TYPES = _official_variable_types(
+    "tagmanager.accounts.containers.workspaces.built_in_variables.create"
+)
+_DELETE_VARIABLE_TYPES = _official_variable_types(
+    "tagmanager.accounts.containers.workspaces.built_in_variables.delete"
+)
+_REVERT_VARIABLE_TYPES = _official_variable_types(
+    "tagmanager.accounts.containers.workspaces.built_in_variables.revert"
+)
+
+
+def _variable_type_help(action: str, variable_types: tuple[str, ...]) -> str:
+    return f"Official built-in variable type to {action}. Valid values: " + ", ".join(
+        variable_types
+    )
+
+
+def _validate_variable_types(
+    variable_types: str | list[str] | None, allowed_types: tuple[str, ...]
+) -> None:
     values = [variable_types] if isinstance(variable_types, str) else variable_types
     if values is not None and any(
         not variable_type or variable_type.strip() != variable_type
@@ -24,6 +52,12 @@ def _validate_variable_types(variable_types: str | list[str] | None) -> None:
     ):
         raise RequestValidationError(
             "--type must be a non-empty built-in variable type without surrounding whitespace."
+        )
+    if values is not None and any(
+        variable_type not in allowed_types for variable_type in values
+    ):
+        raise RequestValidationError(
+            "--type must be one of: " + ", ".join(allowed_types) + "."
         )
 
 
@@ -38,7 +72,8 @@ def register_built_in_variable_mutation_commands(entity_app: typer.Typer) -> Non
         variable_type: Annotated[
             list[str] | None,
             typer.Option(
-                "--type", help="Official built-in variable type to enable (repeatable)."
+                "--type",
+                help=_variable_type_help("enable (repeatable)", _CREATE_VARIABLE_TYPES),
             ),
         ] = None,
         dry_run: Annotated[bool, typer.Option("--dry-run", help=DRY_RUN_HELP)] = False,
@@ -50,7 +85,7 @@ def register_built_in_variable_mutation_commands(entity_app: typer.Typer) -> Non
 
         def operation() -> dict[str, Any]:
             validate_workspace_path(parent)
-            _validate_variable_types(variable_type)
+            _validate_variable_types(variable_type, _CREATE_VARIABLE_TYPES)
             _validate_execution_mode(dry_run=dry_run, apply=apply)
             if dry_run:
                 return _dry_run(
@@ -75,7 +110,9 @@ def register_built_in_variable_mutation_commands(entity_app: typer.Typer) -> Non
             list[str] | None,
             typer.Option(
                 "--type",
-                help="Official built-in variable type to disable (repeatable).",
+                help=_variable_type_help(
+                    "disable (repeatable)", _DELETE_VARIABLE_TYPES
+                ),
             ),
         ] = None,
         acknowledge_delete: Annotated[
@@ -94,7 +131,7 @@ def register_built_in_variable_mutation_commands(entity_app: typer.Typer) -> Non
 
         def operation() -> dict[str, Any]:
             validate_built_in_variables_path(path)
-            _validate_variable_types(variable_type)
+            _validate_variable_types(variable_type, _DELETE_VARIABLE_TYPES)
             _validate_execution_mode(dry_run=dry_run, apply=apply)
             if not acknowledge_delete:
                 raise RequestValidationError(
@@ -118,7 +155,9 @@ def register_built_in_variable_mutation_commands(entity_app: typer.Typer) -> Non
         ],
         variable_type: Annotated[
             str | None,
-            typer.Option("--type", help="Official built-in variable type to revert."),
+            typer.Option(
+                "--type", help=_variable_type_help("revert", _REVERT_VARIABLE_TYPES)
+            ),
         ] = None,
         dry_run: Annotated[bool, typer.Option("--dry-run", help=DRY_RUN_HELP)] = False,
         apply: Annotated[
@@ -129,7 +168,7 @@ def register_built_in_variable_mutation_commands(entity_app: typer.Typer) -> Non
 
         def operation() -> dict[str, Any]:
             validate_workspace_path(path)
-            _validate_variable_types(variable_type)
+            _validate_variable_types(variable_type, _REVERT_VARIABLE_TYPES)
             _validate_execution_mode(dry_run=dry_run, apply=apply)
             if dry_run:
                 return _dry_run(operation="built-in-variables.revert", target=path) | {

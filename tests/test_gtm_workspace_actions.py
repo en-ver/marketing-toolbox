@@ -125,6 +125,20 @@ def test_workspace_actions_use_one_official_request_and_catalogued_scope(
     assert scopes == [[scope]]
 
 
+def test_create_version_help_discloses_workspace_deletion_and_base_version_change() -> (
+    None
+):
+    result = CliRunner().invoke(
+        app,
+        ["accounts", "containers", "workspaces", "create-version", "--help"],
+    )
+
+    assert result.exit_code == 0
+    normalized = " ".join(result.output.split()).lower()
+    assert "deletes the workspace" in normalized
+    assert "container's base version" in normalized
+
+
 def _body_file(tmp_path: Any) -> str:
     path = tmp_path / "action.json"
     path.write_text('{"name":"private"}')

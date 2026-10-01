@@ -19,6 +19,9 @@ __pycache__/
 
 /.worktrees/
 
+# Local package validation output
+/.release-build-*/
+
 # Hugo build output
 /public/
 /resources/

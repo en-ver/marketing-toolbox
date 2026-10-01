@@ -48,11 +48,19 @@ because its grant is project-wide. Resource access is still controlled separatel
 by Analytics, Tag Manager, and IAM permissions.
 
 `ga4datactl/service.py` and `ga4adminctl/service.py` are compatibility facades
-for their existing APIs. GTM has no corresponding service facade.
+for their existing APIs. GTM has no corresponding service facade. GTM reads retain
+Discovery's default `httplib2` transport; mutations use a GTM-owned Requests adapter
+through Discovery's public `http=` seam, with at most one GTM API dispatch, redirects
+disabled, and a 60-second connect/read timeout. Credential refresh may make separately
+retried pre-API HTTP requests. The adapter preserves the selected credential
+for Discovery universe checks and blocks `.netrc` from replacing its Bearer header
+without disabling environment proxy or CA settings. Mutation mTLS accepts only
+standard-endpoint `auto` or `never`; reads retain Discovery's existing mTLS behavior.
 `marketing_common/` holds shared authentication, JSON presentation, command,
-Discovery, and introspection facilities. `marketing_toolbox/cli.py` provides
-compatibility exports for shared CLI presentation. `ga4datactl/schemas.py` owns
-the runtime GA4 Data validation schemas.
+Discovery, and introspection facilities. `marketing_common.cli` is the canonical
+owner of shared CLI presentation; the legacy `marketing_toolbox` Python namespace
+no longer exists. `ga4datactl/schemas.py` owns the runtime GA4 Data validation
+schemas.
 
 ```text
 Typer command

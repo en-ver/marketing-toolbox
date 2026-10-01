@@ -68,6 +68,15 @@ def test_core_sdist_excludes_release_output_directories() -> None:
     assert {"/dist", "/.release-build-*"} <= set(sdist["exclude"])
 
 
+def test_legacy_marketing_toolbox_package_source_is_absent_and_not_packaged() -> None:
+    with (ROOT / "pyproject.toml").open("rb") as manifest:
+        wheel = tomllib.load(manifest)["tool"]["hatch"]["build"]["targets"]["wheel"]
+
+    assert not (ROOT / "src/marketing_toolbox/__init__.py").exists()
+    assert not (ROOT / "src/marketing_toolbox/cli.py").exists()
+    assert "src/marketing_toolbox" not in wheel["packages"]
+
+
 def test_workspace_distributions_have_synchronized_installed_metadata() -> None:
     versions = {
         distribution: _project_metadata(distribution)["version"]
@@ -89,7 +98,7 @@ def test_aliases_pin_the_exact_core_version_and_expose_expected_scripts() -> Non
         "google-analytics-admin==0.30.1",
         "google-analytics-data==0.23.0",
         "google-api-python-client==2.198.0",
-        "google-auth==2.56.2",
+        "google-auth[requests]==2.56.2",
         "google-auth-oauthlib==1.2.4",
         "jsonschema==4.25.1",
         "keyring==25.6.0",
@@ -223,20 +232,20 @@ def test_release_workflow_stages_the_right_artifacts_per_mode(tmp_path: Path) ->
     assert stage["env"]["PUBLISH_TARGET"] == "${{ inputs.publish_target }}"
     stage_script = cast(str, stage["run"])
     artifacts = {
-        "marketing_toolbox-0.4.0-py3-none-any.whl",
-        "marketing_toolbox-0.4.0.tar.gz",
-        "ga4datactl-0.4.0-py3-none-any.whl",
-        "ga4datactl-0.4.0.tar.gz",
-        "ga4adminctl-0.4.0-py3-none-any.whl",
-        "ga4adminctl-0.4.0.tar.gz",
-        "gtmctl-0.4.0-py3-none-any.whl",
-        "gtmctl-0.4.0.tar.gz",
+        "marketing_toolbox-0.5.0-py3-none-any.whl",
+        "marketing_toolbox-0.5.0.tar.gz",
+        "ga4datactl-0.5.0-py3-none-any.whl",
+        "ga4datactl-0.5.0.tar.gz",
+        "ga4adminctl-0.5.0-py3-none-any.whl",
+        "ga4adminctl-0.5.0.tar.gz",
+        "gtmctl-0.5.0-py3-none-any.whl",
+        "gtmctl-0.5.0.tar.gz",
     }
 
     for target, bootstrap in MANUAL_BOOTSTRAP_TARGETS.items():
         stem = str(bootstrap["artifact_stem"])
-        wheel = f"{stem}-0.4.0-py3-none-any.whl"
-        sdist = f"{stem}-0.4.0.tar.gz"
+        wheel = f"{stem}-0.5.0-py3-none-any.whl"
+        sdist = f"{stem}-0.5.0.tar.gz"
         manual_artifact_cases = {
             "valid-pair": ({wheel, sdist}, True),
             "missing-wheel": ({sdist}, False),
@@ -333,10 +342,10 @@ def test_release_workflow_validates_tag_versions_and_publishes_once() -> None:
     verify_script = cast(str, verify_tag["run"])
 
     valid = _run_workflow_script(
-        verify_script, cwd=ROOT, environment={"RELEASE_TAG": "v0.4.0"}
+        verify_script, cwd=ROOT, environment={"RELEASE_TAG": "v0.5.0"}
     )
     assert valid.returncode == 0, valid.stderr
-    for tag in ("0.4.0", "v", "v0.2.0", "v0.4.1"):
+    for tag in ("0.5.0", "v", "v0.2.0", "v0.5.1"):
         invalid = _run_workflow_script(
             verify_script, cwd=ROOT, environment={"RELEASE_TAG": tag}
         )

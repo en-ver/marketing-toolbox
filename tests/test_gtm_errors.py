@@ -7,16 +7,14 @@ import ssl
 
 import pytest
 import typer
+from google.auth.exceptions import RefreshError, TransportError
 from googleapiclient.errors import HttpError
 from httplib2 import Response
 from httplib2.error import ServerNotFoundError
 
 from gtmctl.commands._common import run_command
-from gtmctl.foundation.errors import (
-    GoogleApiError,
-    normalize_google_error,
-)
-from gtmctl.operations import reads
+from gtmctl.foundation.errors import GoogleApiError, normalize_google_error
+from gtmctl.operations import mutations, reads
 
 _SENTINEL = "UPSTREAM-SECRET-MARKER"
 
@@ -35,9 +33,13 @@ def _http_error(status: int) -> HttpError:
     ("status", "exit_code", "category"),
     [
         (400, 2, "invalid_request"),
+        (401, 4, "authentication"),
+        (403, 4, "authentication"),
+        (404, 3, "not_found"),
         (409, 5, "conflict"),
         (412, 5, "conflict"),
         (429, 6, "retryable"),
+        (500, 6, "retryable"),
     ],
 )
 def test_normalize_google_error_uses_status_without_upstream_diagnostics(
@@ -51,6 +53,77 @@ def test_normalize_google_error_uses_status_without_upstream_diagnostics(
         status,
     )
     assert _SENTINEL not in str(error)
+
+
+@pytest.mark.parametrize(
+    ("status", "exit_code", "category"),
+    [
+        (400, 2, "invalid_request"),
+        (401, 4, "authentication"),
+        (403, 4, "authentication"),
+        (404, 3, "not_found"),
+        (409, 5, "conflict"),
+        (412, 5, "conflict"),
+        (429, 6, "retryable"),
+        (500, 1, "unexpected"),
+        (503, 1, "unexpected"),
+        (307, 1, "unexpected"),
+    ],
+)
+def test_mutation_execution_boundary_applies_http_error_policy(
+    monkeypatch: pytest.MonkeyPatch, status: int, exit_code: int, category: str
+) -> None:
+    monkeypatch.setattr(mutations, "service_account_credentials", lambda _: object())
+    request = type(
+        "FailingRequest",
+        (),
+        {
+            "execute": lambda *_args, **_kwargs: (_ for _ in ()).throw(
+                _http_error(status)
+            )
+        },
+    )()
+
+    with pytest.raises(GoogleApiError) as raised:
+        mutations.execute_mutation(
+            "accounts containers workspaces tags create",
+            lambda _: request,
+            service_factory=lambda _: object(),  # type: ignore[return-value]
+        )
+
+    error = raised.value
+    assert (error.exit_code, error.category, error.status) == (
+        exit_code,
+        category,
+        status,
+    )
+    assert _SENTINEL not in str(error)
+    if status >= 500:
+        assert "may have completed" in str(error)
+
+
+def test_mutation_mtls_factory_configuration_is_an_authentication_diagnostic(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(mutations, "service_account_credentials", lambda _: object())
+    monkeypatch.setenv("GOOGLE_API_USE_MTLS_ENDPOINT", "always")
+
+    with pytest.raises(typer.Exit) as raised:
+        run_command(
+            command="gtmctl accounts containers workspaces tags create",
+            operation=lambda: mutations.execute_mutation(
+                "accounts containers workspaces tags create",
+                lambda _: pytest.fail("request must not be created"),
+            ),
+        )
+
+    assert raised.value.exit_code == 4
+    diagnostic = json.loads(capsys.readouterr().err)
+    assert diagnostic["category"] == "authentication"
+    assert (
+        diagnostic["message"]
+        == "GTM mutations do not support an always-on mTLS endpoint."
+    )
 
 
 def test_gtm_diagnostic_envelope_is_shared_and_redacts_google_payload(
@@ -75,6 +148,54 @@ def test_gtm_diagnostic_envelope_is_shared_and_redacts_google_payload(
         "googleStatus": 400,
     }
     assert _SENTINEL not in json.dumps(diagnostic)
+
+
+@pytest.mark.parametrize(
+    "auth_error", [RefreshError(_SENTINEL), TransportError(_SENTINEL)]
+)
+def test_read_execution_boundary_normalizes_request_time_authentication_errors(
+    monkeypatch: pytest.MonkeyPatch, auth_error: Exception
+) -> None:
+    monkeypatch.setattr(reads, "service_account_credentials", lambda _: object())
+    request = type(
+        "FailingRequest",
+        (),
+        {"execute": lambda *_args, **_kwargs: (_ for _ in ()).throw(auth_error)},
+    )()
+
+    with pytest.raises(GoogleApiError) as raised:
+        reads.execute_read(
+            "accounts list",
+            lambda _: request,
+            service_factory=lambda _: object(),  # type: ignore[return-value]
+        )
+
+    assert (raised.value.exit_code, raised.value.category) == (4, "authentication")
+    assert _SENTINEL not in str(raised.value)
+
+
+@pytest.mark.parametrize(
+    "auth_error", [RefreshError(_SENTINEL), TransportError(_SENTINEL)]
+)
+def test_mutation_execution_boundary_normalizes_request_time_authentication_errors(
+    monkeypatch: pytest.MonkeyPatch, auth_error: Exception
+) -> None:
+    monkeypatch.setattr(mutations, "service_account_credentials", lambda _: object())
+    request = type(
+        "FailingRequest",
+        (),
+        {"execute": lambda *_args, **_kwargs: (_ for _ in ()).throw(auth_error)},
+    )()
+
+    with pytest.raises(GoogleApiError) as raised:
+        mutations.execute_mutation(
+            "accounts containers workspaces tags create",
+            lambda _: request,
+            service_factory=lambda _: object(),  # type: ignore[return-value]
+        )
+
+    assert (raised.value.exit_code, raised.value.category) == (4, "authentication")
+    assert _SENTINEL not in str(raised.value)
 
 
 @pytest.mark.parametrize(

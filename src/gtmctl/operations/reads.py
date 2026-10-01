@@ -7,11 +7,16 @@ from collections.abc import Callable
 from typing import Any, Protocol
 
 from google.auth.credentials import Credentials
+from google.auth.exceptions import RefreshError, TransportError
 from googleapiclient.discovery import Resource, build
 from googleapiclient.errors import HttpError
 from httplib2.error import ServerNotFoundError  # type: ignore[import-untyped]
 
-from gtmctl.foundation.errors import normalize_google_error, normalize_transport_error
+from gtmctl.foundation.errors import (
+    normalize_authentication_error,
+    normalize_google_error,
+    normalize_transport_error,
+)
 from marketing_common.auth import CredentialConfigurationError, resolve_credentials
 
 
@@ -24,7 +29,6 @@ TAG_MANAGER_READONLY_SCOPE = "https://www.googleapis.com/auth/tagmanager.readonl
 TAG_MANAGER_MANAGE_USERS_SCOPE = (
     "https://www.googleapis.com/auth/tagmanager.manage.users"
 )
-TAG_MANAGER_READ_TIMEOUT_SECONDS = 20
 
 
 class Request(Protocol):
@@ -55,6 +59,8 @@ def execute_read(
         response = request_factory(service).execute(num_retries=0)
     except CredentialConfigurationError:
         raise
+    except (RefreshError, TransportError) as exc:
+        raise normalize_authentication_error(exc) from exc
     except HttpError as exc:
         raise normalize_google_error(exc) from exc
     except (TimeoutError, ConnectionError, ssl.SSLError, ServerNotFoundError) as exc:

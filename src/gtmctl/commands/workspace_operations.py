@@ -179,7 +179,7 @@ def register_workspace_action_commands(workspaces_app: typer.Typer) -> None:
             bool,
             typer.Option(
                 "--acknowledge-version-create",
-                help="Acknowledge irreversible creation of a container version from this workspace.",
+                help="Acknowledge that this deletes the workspace and makes the new version the container's base version.",
             ),
         ] = False,
         dry_run: Annotated[bool, typer.Option("--dry-run", help=DRY_RUN_HELP)] = False,
@@ -187,7 +187,7 @@ def register_workspace_action_commands(workspaces_app: typer.Typer) -> None:
             bool, typer.Option("--apply", help="Create the container version.")
         ] = False,
     ) -> None:
-        """Create a container version from one workspace; requires versions access."""
+        """Create a container version, delete its workspace, and replace the base version."""
 
         def operation() -> dict[str, Any]:
             validate_workspace_path(path)

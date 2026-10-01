@@ -3,16 +3,21 @@
 from __future__ import annotations
 
 import json
-import ssl
 from collections.abc import Callable
 from typing import Any, Protocol
 
 from google.auth.credentials import Credentials
-from googleapiclient.discovery import Resource, build
+from google.auth.exceptions import RefreshError, TransportError
+from googleapiclient.discovery import Resource
 from googleapiclient.errors import HttpError
-from httplib2.error import ServerNotFoundError  # type: ignore[import-untyped]
+from requests.exceptions import RequestException
 
-from gtmctl.foundation.errors import normalize_google_error, normalize_transport_error
+from gtmctl.foundation.errors import (
+    normalize_authentication_error,
+    normalize_mutation_google_error,
+    normalize_mutation_transport_error,
+)
+from gtmctl.operations.mutation_transport import make_tag_manager_mutation_service
 from marketing_common.auth import CredentialConfigurationError, resolve_credentials
 
 
@@ -46,11 +51,6 @@ class Request(Protocol):
 ServiceFactory = Callable[[Credentials], Resource]
 
 
-def make_tag_manager_service(credentials: Credentials) -> Resource:
-    """Create the official Discovery-backed GTM API v2 client."""
-    return build("tagmanager", "v2", credentials=credentials, cache_discovery=False)
-
-
 def execute_mutation(
     command: str,
     request_factory: Callable[[Resource], Request],
@@ -61,16 +61,21 @@ def execute_mutation(
     """Execute exactly one GTM write request without automatic retry."""
     try:
         credentials = service_account_credentials([scope])
-        service = (
-            make_tag_manager_service if service_factory is None else service_factory
-        )(credentials)
-        response = request_factory(service).execute(num_retries=0)
+        if service_factory is None:
+            with make_tag_manager_mutation_service(credentials) as service:
+                response = request_factory(service).execute(num_retries=0)
+        else:
+            response = request_factory(service_factory(credentials)).execute(
+                num_retries=0
+            )
     except CredentialConfigurationError:
         raise
+    except (RefreshError, TransportError) as exc:
+        raise normalize_authentication_error(exc) from exc
     except HttpError as exc:
-        raise normalize_google_error(exc) from exc
-    except (TimeoutError, ConnectionError, ssl.SSLError, ServerNotFoundError) as exc:
-        raise normalize_transport_error(exc) from exc
+        raise normalize_mutation_google_error(exc) from exc
+    except RequestException as exc:
+        raise normalize_mutation_transport_error(exc) from exc
     if response is None or response == "" or response == b"":
         return {}
     if isinstance(response, str | bytes):
@@ -225,54 +230,6 @@ def delete_container(
         "accounts containers delete",
         lambda service: _containers(service).delete(path=path),
         scope=TAG_MANAGER_DELETE_CONTAINERS_SCOPE,
-        service_factory=service_factory,
-    )
-
-
-def combine_container(
-    path: str,
-    *,
-    container_id: str | None,
-    allow_user_permission_feature_update: bool,
-    setting_source: str | None,
-    service_factory: ServiceFactory | None = None,
-) -> dict[str, Any]:
-    """Combine container settings through the official container action."""
-    return execute_mutation(
-        "accounts containers combine",
-        lambda service: _containers(service).combine(
-            path=path,
-            containerId=container_id,
-            allowUserPermissionFeatureUpdate=allow_user_permission_feature_update,
-            settingSource=setting_source,
-        ),
-        service_factory=service_factory,
-    )
-
-
-def move_container_tag_id(
-    path: str,
-    *,
-    copy_settings: bool,
-    allow_user_permission_feature_update: bool,
-    tag_id: str | None,
-    tag_name: str | None,
-    copy_users: bool,
-    copy_terms_of_service: bool,
-    service_factory: ServiceFactory | None = None,
-) -> dict[str, Any]:
-    """Move a Google tag ID through the official container action."""
-    return execute_mutation(
-        "accounts containers move-tag-id",
-        lambda service: _containers(service).move_tag_id(
-            path=path,
-            copySettings=copy_settings,
-            allowUserPermissionFeatureUpdate=allow_user_permission_feature_update,
-            tagId=tag_id,
-            tagName=tag_name,
-            copyUsers=copy_users,
-            copyTermsOfService=copy_terms_of_service,
-        ),
         service_factory=service_factory,
     )
 

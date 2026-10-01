@@ -7,7 +7,6 @@ from typing import Annotated
 import typer
 
 from gtmctl.commands._common import DRY_RUN_HELP, run_command
-from gtmctl.commands.container_actions import register_container_action_commands
 from gtmctl.commands.core_mutations import (
     register_container_core_mutation_commands,
     register_workspace_core_mutation_commands,
@@ -49,7 +48,6 @@ register_workspace_discovery_commands(workspaces_app)
 register_workspace_core_mutation_commands(workspaces_app)
 register_workspace_action_commands(workspaces_app)
 register_container_core_mutation_commands(containers_app)
-register_container_action_commands(containers_app)
 
 user_permissions_app = typer.Typer(
     help="Sensitive official GTM account user-permission operations.",
@@ -351,20 +349,26 @@ def containers_get(
 @containers_app.command("lookup")
 def containers_lookup(
     destination_id: Annotated[
-        str | None, typer.Option("--destination-id", help="Official destination ID.")
+        str | None,
+        typer.Option(
+            "--destination-id",
+            help="Official destination ID; mutually exclusive with --tag-id.",
+        ),
     ] = None,
     tag_id: Annotated[
-        str | None, typer.Option("--tag-id", help="Official Google tag ID.")
+        str | None,
+        typer.Option(
+            "--tag-id",
+            help="Official Google tag ID; mutually exclusive with --destination-id.",
+        ),
     ] = None,
 ) -> None:
-    """Look up the official GTM container for a destination or Google tag."""
+    """Look up the official GTM container for exactly one destination or Google tag."""
 
     def operation() -> dict[str, object]:
-        if not destination_id and not tag_id:
-            from gtmctl.foundation.validation import RequestValidationError
-
+        if bool(destination_id) == bool(tag_id):
             raise RequestValidationError(
-                "Specify at least one of --destination-id or --tag-id."
+                "Specify exactly one of --destination-id or --tag-id."
             )
         return reads.lookup_container(destination_id=destination_id, tag_id=tag_id)
 

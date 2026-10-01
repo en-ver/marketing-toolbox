@@ -1,4 +1,4 @@
-"""Contracts for guarded GTM environment and container actions."""
+"""Contracts for guarded GTM environment reauthorization."""
 
 from __future__ import annotations
 
@@ -46,60 +46,8 @@ class FakeResource:
         return request
 
 
-@pytest.mark.parametrize(
-    ("operation", "args", "expected", "scope"),
-    [
-        (
-            mutations.reauthorize_environment,
-            ("accounts/1/containers/2/environments/3", {"name": "env"}),
-            (
-                "reauthorize",
-                {
-                    "path": "accounts/1/containers/2/environments/3",
-                    "body": {"name": "env"},
-                },
-            ),
-            mutations.TAG_MANAGER_PUBLISH_SCOPE,
-        ),
-        (
-            mutations.combine_container,
-            ("accounts/1/containers/2",),
-            (
-                "combine",
-                {
-                    "path": "accounts/1/containers/2",
-                    "containerId": "9",
-                    "allowUserPermissionFeatureUpdate": False,
-                    "settingSource": "other",
-                },
-            ),
-            mutations.TAG_MANAGER_EDIT_SCOPE,
-        ),
-        (
-            mutations.move_container_tag_id,
-            ("accounts/1/containers/2",),
-            (
-                "move_tag_id",
-                {
-                    "path": "accounts/1/containers/2",
-                    "copySettings": True,
-                    "allowUserPermissionFeatureUpdate": False,
-                    "tagId": "G-ABC",
-                    "tagName": "tag",
-                    "copyUsers": False,
-                    "copyTermsOfService": False,
-                },
-            ),
-            mutations.TAG_MANAGER_EDIT_SCOPE,
-        ),
-    ],
-)
-def test_actions_use_one_official_request_with_catalogued_scope(
+def test_reauthorize_environment_uses_one_official_request_with_publish_scope(
     monkeypatch: pytest.MonkeyPatch,
-    operation: Any,
-    args: tuple[Any, ...],
-    expected: tuple[str, dict[str, Any]],
-    scope: str,
 ) -> None:
     service = FakeResource()
     scopes: list[list[str]] = []
@@ -111,78 +59,50 @@ def test_actions_use_one_official_request_with_catalogued_scope(
             object(),
         )[1],
     )
-    kwargs: dict[str, Any] = {}
-    if operation is mutations.combine_container:
-        kwargs = {
-            "container_id": "9",
-            "allow_user_permission_feature_update": False,
-            "setting_source": "other",
-        }
-    if operation is mutations.move_container_tag_id:
-        kwargs = {
-            "copy_settings": True,
-            "allow_user_permission_feature_update": False,
-            "tag_id": "G-ABC",
-            "tag_name": "tag",
-            "copy_users": False,
-            "copy_terms_of_service": False,
-        }
 
-    assert operation(*args, **kwargs, service_factory=lambda _: service) == {
-        "operation": expected[0]
-    }
-    assert service.calls == [expected]
+    assert mutations.reauthorize_environment(
+        "accounts/1/containers/2/environments/3",
+        {"name": "env"},
+        service_factory=lambda _: service,
+    ) == {"operation": "reauthorize"}
+    assert service.calls == [
+        (
+            "reauthorize",
+            {
+                "path": "accounts/1/containers/2/environments/3",
+                "body": {"name": "env"},
+            },
+        )
+    ]
     assert [request.retries for request in service.requests] == [[0]]
-    assert scopes == [[scope]]
+    assert scopes == [[mutations.TAG_MANAGER_PUBLISH_SCOPE]]
 
 
-@pytest.mark.parametrize(
-    ("args", "acknowledgement"),
-    [
-        (
-            [
-                "accounts",
-                "containers",
-                "combine",
-                "--path",
-                "accounts/1/containers/2",
-                "--apply",
-            ],
-            "--acknowledge-container-combine",
-        ),
-        (
-            [
-                "accounts",
-                "containers",
-                "move-tag-id",
-                "--path",
-                "accounts/1/containers/2",
-                "--apply",
-            ],
-            "--acknowledge-container-move-tag-id",
-        ),
-        (
-            [
-                "accounts",
-                "containers",
-                "environments",
-                "reauthorize",
-                "--path",
-                "accounts/1/containers/2/environments/3",
-                "--body",
-                "ignored.json",
-                "--apply",
-            ],
-            "--acknowledge-environment-reauthorize",
-        ),
-    ],
-)
-def test_high_impact_actions_require_operation_specific_acknowledgement(
-    args: list[str], acknowledgement: str
+def test_reauthorize_requires_operation_specific_acknowledgement(
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    result = CliRunner().invoke(app, args)
+    monkeypatch.setattr(
+        mutations,
+        "service_account_credentials",
+        lambda _: pytest.fail("missing acknowledgement must not load credentials"),
+    )
+    result = CliRunner().invoke(
+        app,
+        [
+            "accounts",
+            "containers",
+            "environments",
+            "reauthorize",
+            "--path",
+            "accounts/1/containers/2/environments/3",
+            "--body",
+            "ignored.json",
+            "--apply",
+        ],
+    )
+
     assert result.exit_code == 2
-    assert acknowledgement in result.output
+    assert "--acknowledge-environment-reauthorize" in result.output
 
 
 def test_reauthorize_dry_run_is_bounded_and_never_loads_credentials(

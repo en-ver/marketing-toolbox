@@ -9,6 +9,8 @@ from typing import Any, Protocol, cast
 from typer.main import get_command
 
 from gtmctl.cli import app
+from gtmctl.commands.sdk import _registered_body_paths
+from gtmctl.operations import mutations
 
 INVENTORY_PATH = Path(__file__).parent / "data/gtmctl/upstream-inventory.json"
 
@@ -64,10 +66,54 @@ def test_gtm_inventory_covers_the_pinned_discovery_snapshot() -> None:
     assert len(methods) == 106
     assert len({method["googleMethod"] for method in methods}) == len(methods)
     assert len({method["cliCommand"] for method in methods}) == len(methods)
+    stable = [
+        method
+        for method in methods
+        if method["publicContractStatus"] == "stable-target"
+    ]
+    assert len(stable) == 102
     assert (
-        sum(method["publicContractStatus"] == "stable-target" for method in methods)
-        == 104
+        sum(
+            method["operationKind"] in {"read", "sensitive-permission-read"}
+            for method in stable
+        )
+        == 38
     )
+    assert (
+        sum(
+            method["operationKind"]
+            in {
+                "mutation",
+                "destructive",
+                "high-impact",
+                "publish",
+                "sensitive-permission",
+            }
+            for method in stable
+        )
+        == 64
+    )
+
+    excluded_unsupported = {
+        method["googleMethod"]: method
+        for method in methods
+        if method["publicContractStatus"] == "excluded-unsupported"
+    }
+    assert set(excluded_unsupported) == {
+        "tagmanager.accounts.containers.combine",
+        "tagmanager.accounts.containers.move_tag_id",
+    }
+    assert all(
+        method["deprecated"] is False for method in excluded_unsupported.values()
+    )
+    policy = _inventory()["currentSupportPolicy"]["excludedUnsupported"]
+    assert policy["reason"] == (
+        "Official GTM API documentation marks these methods unsupported and scheduled for removal."
+    )
+    assert {evidence["googleMethod"] for evidence in policy["evidence"]} == set(
+        excluded_unsupported
+    )
+
     assert {
         method["googleMethod"]
         for method in methods
@@ -90,7 +136,7 @@ def test_gtm_registered_leaf_commands_match_stable_inventory_targets() -> None:
     excluded = {
         method["cliCommand"]
         for method in methods
-        if method["publicContractStatus"] == "excluded"
+        if method["publicContractStatus"] in {"excluded", "excluded-unsupported"}
     }
 
     assert registered == stable | {
@@ -101,6 +147,12 @@ def test_gtm_registered_leaf_commands_match_stable_inventory_targets() -> None:
         "gtmctl auth revoke",
     }
     assert not registered & excluded
+    assert not hasattr(mutations, "combine_container")
+    assert not hasattr(mutations, "move_container_tag_id")
+
+
+def test_gtm_sdk_schema_body_target_count_is_unchanged() -> None:
+    assert len(_registered_body_paths(app)) == 34
 
 
 def test_gtm_cli_required_options_cover_required_inventory_parameters() -> None:

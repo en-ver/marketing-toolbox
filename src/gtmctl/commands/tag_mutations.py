@@ -81,7 +81,7 @@ def register_workspace_entity_mutation_commands(
         ] = False,
     ) -> None:
         """Create one resource in a workspace."""
-        command = f"gtmctl accounts containers workspaces {entity} create"
+        command = f"gtmctl accounts containers workspaces {cli_name} create"
 
         def operation() -> dict[str, Any]:
             validate_workspace_entity_parent(parent)
@@ -113,7 +113,7 @@ def register_workspace_entity_mutation_commands(
         ] = False,
     ) -> None:
         """Update one resource in a workspace."""
-        command = f"gtmctl accounts containers workspaces {entity} update"
+        command = f"gtmctl accounts containers workspaces {cli_name} update"
 
         def operation() -> dict[str, Any]:
             validate_workspace_entity_path(path, entity)
@@ -152,7 +152,7 @@ def register_workspace_entity_mutation_commands(
             ] = False,
         ) -> None:
             """Revert one resource to its base workspace state."""
-            command = f"gtmctl accounts containers workspaces {entity} revert"
+            command = f"gtmctl accounts containers workspaces {cli_name} revert"
 
             def operation() -> dict[str, Any]:
                 validate_workspace_entity_path(path, entity)
@@ -184,7 +184,7 @@ def register_workspace_entity_mutation_commands(
         ] = False,
     ) -> None:
         """Delete one workspace resource; requires containers access, not delete access."""
-        command = f"gtmctl accounts containers workspaces {entity} delete"
+        command = f"gtmctl accounts containers workspaces {cli_name} delete"
 
         def operation() -> dict[str, Any]:
             validate_workspace_entity_path(path, entity)
