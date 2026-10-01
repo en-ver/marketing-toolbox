@@ -15,11 +15,6 @@ def message_response(message_type: Any) -> Callable[[Any], dict[str, Any]]:
     )
 
 
-def raw_message_response(response: Any) -> dict[str, Any]:
-    """Render a raw protobuf response with established Admin JSON semantics."""
-    return MessageToDict(response, preserving_proto_field_name=False)
-
-
 def empty_response(_response: Any) -> dict[str, Any]:
     """Render successful empty RPC responses, including GAPIC ``None`` values."""
     return {}

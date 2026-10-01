@@ -11,11 +11,13 @@ from google.analytics.admin_v1beta.types import (
 from google.api_core import exceptions
 from typer.testing import CliRunner
 
-from ga4adminctl import service as ga4_admin
 from ga4adminctl.cli import app
 from ga4adminctl.commands import properties as admin_properties
+from ga4adminctl.foundation import errors as admin_errors
+from ga4adminctl.foundation import validation as admin_validation
 from ga4adminctl.foundation.errors import normalize_create_mutation_error
 from ga4adminctl.operations import mutations, reads
+from ga4adminctl.operations import properties as property_operations
 
 _UNCERTAIN_CREATE_METHODS = (
     "create_property",
@@ -44,24 +46,26 @@ class FailingWriteClient:
 
 
 def test_read_json_body_rejects_nonstandard_constants() -> None:
-    with pytest.raises(ga4_admin.RequestValidationError, match="valid JSON"):
-        ga4_admin.read_json_body("-", stdin=StringIO('{"value": NaN}'))
+    with pytest.raises(admin_validation.RequestValidationError, match="valid JSON"):
+        admin_validation.read_json_body("-", stdin=StringIO('{"value": NaN}'))
 
 
 def test_read_json_body_rejects_non_utf8_file(tmp_path: Path) -> None:
     body = tmp_path / "invalid.json"
     body.write_bytes(b"\xff")
 
-    with pytest.raises(ga4_admin.RequestValidationError, match="readable UTF-8"):
-        ga4_admin.read_json_body(str(body), stdin=StringIO())
+    with pytest.raises(admin_validation.RequestValidationError, match="readable UTF-8"):
+        admin_validation.read_json_body(str(body), stdin=StringIO())
 
 
 def test_read_json_body_bounds_file_reads(tmp_path: Path) -> None:
     body = tmp_path / "oversized.json"
-    body.write_text("x" * (ga4_admin.MAX_BODY_CHARACTERS + 1), encoding="utf-8")
+    body.write_text("x" * (admin_validation.MAX_BODY_CHARACTERS + 1), encoding="utf-8")
 
-    with pytest.raises(ga4_admin.RequestValidationError, match="must not exceed"):
-        ga4_admin.read_json_body(str(body), stdin=StringIO())
+    with pytest.raises(
+        admin_validation.RequestValidationError, match="must not exceed"
+    ):
+        admin_validation.read_json_body(str(body), stdin=StringIO())
 
 
 @pytest.mark.parametrize(
@@ -90,7 +94,7 @@ def test_read_json_body_bounds_file_reads(tmp_path: Path) -> None:
 def test_normalize_google_error(
     error: exceptions.GoogleAPICallError, expected: tuple[int, str, int]
 ) -> None:
-    normalized = ga4_admin._normalize_google_error(error)
+    normalized = admin_errors.normalize_google_error(error)
 
     assert (normalized.exit_code, normalized.category, normalized.status) == expected
     assert str(error) not in str(normalized)
@@ -132,10 +136,10 @@ def test_normalize_create_mutation_error_preserves_definitive_errors(
     error: exceptions.GoogleAPICallError,
 ) -> None:
     assert normalize_create_mutation_error(error).__dict__ == (
-        ga4_admin._normalize_google_error(error).__dict__
+        admin_errors.normalize_google_error(error).__dict__
     )
     assert str(normalize_create_mutation_error(error)) == str(
-        ga4_admin._normalize_google_error(error)
+        admin_errors.normalize_google_error(error)
     )
 
 
@@ -149,7 +153,7 @@ def test_create_like_writes_use_uncertain_error_policy_once_without_retry(
     )
     monkeypatch.setattr(mutations, "service_account_credentials", lambda _: object())
 
-    with pytest.raises(ga4_admin.GoogleApiError) as raised:
+    with pytest.raises(admin_errors.GoogleApiError) as raised:
         mutations._write_v1beta(
             request,
             method_name,
@@ -159,7 +163,7 @@ def test_create_like_writes_use_uncertain_error_policy_once_without_retry(
 
     assert mutations._UNCERTAIN_CREATE_METHODS == frozenset(_UNCERTAIN_CREATE_METHODS)
     assert client.calls == [
-        (method_name, request, None, ga4_admin.PROPERTY_READ_TIMEOUT_SECONDS)
+        (method_name, request, None, reads.PROPERTY_READ_TIMEOUT_SECONDS)
     ]
     error = raised.value
     assert (error.exit_code, error.category, error.status) == (1, "unexpected", 503)
@@ -178,14 +182,14 @@ def test_non_create_write_and_read_keep_generic_error_policy(
     monkeypatch.setattr(mutations, "service_account_credentials", lambda _: object())
     monkeypatch.setattr(reads, "service_account_credentials", lambda _: object())
 
-    with pytest.raises(ga4_admin.GoogleApiError) as write_raised:
+    with pytest.raises(admin_errors.GoogleApiError) as write_raised:
         mutations._write_v1beta(
             object(),
             "update_property",
             lambda _: {},
             client_factory=lambda _: write_client,
         )
-    with pytest.raises(ga4_admin.GoogleApiError) as read_raised:
+    with pytest.raises(admin_errors.GoogleApiError) as read_raised:
         reads._read_v1beta(
             GetPropertyRequest(name="properties/1234"),
             "get_property",
@@ -279,14 +283,14 @@ def test_get_property_uses_v1beta_readonly_scope_and_raw_sdk_json(
 
     monkeypatch.setattr(reads, "service_account_credentials", credentials)
 
-    response = ga4_admin.get_property(
+    response = property_operations.get_property(
         "properties/1234", client_factory=lambda _: client
     )
 
-    assert scopes == [ga4_admin.ANALYTICS_READONLY_SCOPE]
+    assert scopes == [reads.ANALYTICS_READONLY_SCOPE]
     assert client.get_request == GetPropertyRequest(name="properties/1234")
     assert client.retry is None
-    assert client.timeout == ga4_admin.PROPERTY_READ_TIMEOUT_SECONDS
+    assert client.timeout == reads.PROPERTY_READ_TIMEOUT_SECONDS
     assert response == {"name": "properties/1234", "displayName": "Example property"}
 
 
@@ -307,7 +311,7 @@ def test_list_properties_forwards_documented_filters_unchanged(
     client = CapturingPropertiesClient()
     monkeypatch.setattr(reads, "service_account_credentials", lambda _: object())
 
-    response = ga4_admin.list_properties(
+    response = property_operations.list_properties(
         filter_expression,
         page_size=25,
         page_token="prior-page",
@@ -322,7 +326,7 @@ def test_list_properties_forwards_documented_filters_unchanged(
         show_deleted=True,
     )
     assert client.retry is None
-    assert client.timeout == ga4_admin.PROPERTY_READ_TIMEOUT_SECONDS
+    assert client.timeout == reads.PROPERTY_READ_TIMEOUT_SECONDS
     assert response == {
         "properties": [{"name": "properties/1234", "displayName": "Example property"}],
         "nextPageToken": "next-page",
@@ -346,8 +350,8 @@ def test_invalid_property_filters_fail_before_credential_lookup(
         lambda _: pytest.fail("invalid input must not load credentials"),
     )
 
-    with pytest.raises(ga4_admin.RequestValidationError, match="--filter"):
-        ga4_admin.list_properties(
+    with pytest.raises(admin_validation.RequestValidationError, match="--filter"):
+        property_operations.list_properties(
             filter_expression,
             page_size=25,
             page_token="",
@@ -376,11 +380,11 @@ def test_property_read_validation_happens_before_credential_lookup(
     )
 
     if property_name != "properties/1234":
-        with pytest.raises(ga4_admin.RequestValidationError):
-            ga4_admin.get_property(property_name)
+        with pytest.raises(admin_validation.RequestValidationError):
+            property_operations.get_property(property_name)
     else:
-        with pytest.raises(ga4_admin.RequestValidationError):
-            ga4_admin.list_properties(
+        with pytest.raises(admin_validation.RequestValidationError):
+            property_operations.list_properties(
                 filter_expression,
                 page_size=page_size,
                 page_token="",

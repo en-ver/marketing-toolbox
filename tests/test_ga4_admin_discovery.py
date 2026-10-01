@@ -9,10 +9,22 @@ from google.analytics.admin_v1beta import types
 from google.protobuf.empty_pb2 import Empty
 from typer.testing import CliRunner
 
-from ga4adminctl import service
 from ga4adminctl.cli import app
-from ga4adminctl.foundation.validation import RequestValidationError, parse_sdk_message
-from ga4adminctl.operations import mutations, reads
+from ga4adminctl.foundation.validation import (
+    ACCOUNT_PATTERN,
+    PROPERTY_PATTERN,
+    RequestValidationError,
+    parse_sdk_message,
+)
+from ga4adminctl.operations import (
+    access,
+    accounts,
+    mutations,
+    properties,
+    reads,
+    resources,
+    secrets,
+)
 from ga4adminctl.operations.accounts import ACCOUNT_PATCH_WRITABLE_FIELDS
 from ga4adminctl.operations.properties import PROPERTY_PATCH_WRITABLE_FIELDS
 from ga4adminctl.operations.resources import (
@@ -100,21 +112,21 @@ def forbid_credentials(monkeypatch: pytest.MonkeyPatch) -> Any:
     ("operation", "args", "kwargs"),
     [
         # Resource-name validation, including the nested secret resource shape.
-        (service.delete_property, ("properties/not-a-number",), {}),
+        (properties.delete_property, ("properties/not-a-number",), {}),
         (
-            service.delete_measurement_protocol_secret,
+            secrets.delete_measurement_protocol_secret,
             ("properties/1234/dataStreams/5678/measurementProtocolSecrets/a/b",),
             {},
         ),
         # The official SDK parser rejects fields outside its protobuf messages.
-        (service.create_property, ({"notAnOfficialField": True},), {}),
+        (properties.create_property, ({"notAnOfficialField": True},), {}),
         (
-            service.update_custom_dimension,
+            resources.update_custom_dimension,
             ("properties/1234/customDimensions/5678", {"scope": "EVENT"}, "scope"),
             {},
         ),
         (
-            service.update_custom_metric,
+            resources.update_custom_metric,
             (
                 "properties/1234/customMetrics/5678",
                 {"parameterName": "immutable"},
@@ -122,20 +134,20 @@ def forbid_credentials(monkeypatch: pytest.MonkeyPatch) -> Any:
             ),
             {},
         ),
-        (service.provision_account_ticket, ({"notAnOfficialField": True},), {}),
+        (accounts.provision_account_ticket, ({"notAnOfficialField": True},), {}),
         (
-            service.create_measurement_protocol_secret,
+            secrets.create_measurement_protocol_secret,
             ("properties/1234/dataStreams/5678", {"secretValue": "never-accept"}),
             {},
         ),
         (
-            service.acknowledge_user_data_collection,
+            properties.acknowledge_user_data_collection,
             ("properties/1234", {"property": "properties/999"}),
             {},
         ),
         # Update-mask exactness and nested body schema are separate mechanisms.
         (
-            service.update_data_retention_settings,
+            properties.update_data_retention_settings,
             (
                 "properties/1234/dataRetentionSettings",
                 {"eventDataRetention": "TWO_MONTHS"},
@@ -144,12 +156,12 @@ def forbid_credentials(monkeypatch: pytest.MonkeyPatch) -> Any:
             {},
         ),
         (
-            service.update_property,
+            properties.update_property,
             ("properties/1234", {"displayName": "Example"}, "displayName,timeZone"),
             {},
         ),
         (
-            service.update_data_stream,
+            resources.update_data_stream,
             (
                 "properties/1234/dataStreams/5678",
                 {"webStreamData": {"notAnOfficialField": "bad"}},
@@ -158,7 +170,7 @@ def forbid_credentials(monkeypatch: pytest.MonkeyPatch) -> Any:
             {},
         ),
         (
-            service.update_google_ads_link,
+            resources.update_google_ads_link,
             (
                 "properties/1234/googleAdsLinks/5678",
                 {"adsPersonalizationEnabled": True},
@@ -167,12 +179,12 @@ def forbid_credentials(monkeypatch: pytest.MonkeyPatch) -> Any:
             {},
         ),
         (
-            service.update_account,
+            accounts.update_account,
             ("accounts/1234", {"displayName": "Example"}, "displayName,regionCode"),
             {},
         ),
         (
-            service.update_key_event,
+            resources.update_key_event,
             (
                 "properties/1234/keyEvents/5678",
                 {"countingMethod": "ONCE_PER_EVENT"},
@@ -181,7 +193,7 @@ def forbid_credentials(monkeypatch: pytest.MonkeyPatch) -> Any:
             {},
         ),
         (
-            service.update_measurement_protocol_secret,
+            secrets.update_measurement_protocol_secret,
             (
                 "properties/1234/dataStreams/5678/measurementProtocolSecrets/9012",
                 {"displayName": "Example"},
@@ -190,14 +202,14 @@ def forbid_credentials(monkeypatch: pytest.MonkeyPatch) -> Any:
             {},
         ),
         # Read/list validation: bounded pages and request-body routing/schema.
-        (service.list_account_summaries, (), {"page_size": 201, "page_token": ""}),
+        (accounts.list_account_summaries, (), {"page_size": 201, "page_token": ""}),
         (
-            service.run_access_report,
+            access.run_access_report,
             ("accounts/123", {"entity": "properties/999"}),
-            {"entity_pattern": service.ACCOUNT_PATTERN},
+            {"entity_pattern": ACCOUNT_PATTERN},
         ),
         (
-            service.search_change_history_events,
+            access.search_change_history_events,
             ("accounts/123", {"pageToken": " token "}),
             {},
         ),
@@ -210,7 +222,7 @@ def test_representative_validation_precedes_credential_lookup(
     kwargs: dict[str, Any],
 ) -> None:
     forbid_credentials("invalid input must not load credentials")
-    with pytest.raises(service.RequestValidationError):
+    with pytest.raises(RequestValidationError):
         operation(*args, **kwargs)
 
 
@@ -246,13 +258,13 @@ def test_parse_sdk_message_discloses_only_request_type(body: dict[str, Any]) -> 
     ("operation", "args", "kwargs", "request_type"),
     [
         (
-            service.run_access_report,
+            access.run_access_report,
             ("accounts/123", {"ACCESS_FIELD_SENTINEL": "ACCESS_VALUE_SENTINEL"}),
-            {"entity_pattern": service.ACCOUNT_PATTERN},
+            {"entity_pattern": ACCOUNT_PATTERN},
             "RunAccessReportRequest",
         ),
         (
-            service.search_change_history_events,
+            access.search_change_history_events,
             ("accounts/123", {"HISTORY_FIELD_SENTINEL": "HISTORY_VALUE_SENTINEL"}),
             {},
             "SearchChangeHistoryEventsRequest",
@@ -280,112 +292,112 @@ def test_access_parsers_are_sanitized_before_credential_lookup(
     ("operation", "args", "method", "request_type", "response"),
     [
         (
-            service.list_account_summaries,
+            accounts.list_account_summaries,
             (),
             "list_account_summaries",
             types.ListAccountSummariesRequest,
             types.ListAccountSummariesResponse(next_page_token="next"),
         ),
         (
-            service.list_accounts,
+            accounts.list_accounts,
             (),
             "list_accounts",
             types.ListAccountsRequest,
             types.ListAccountsResponse(next_page_token="next"),
         ),
         (
-            service.get_account,
+            accounts.get_account,
             ("accounts/1234",),
             "get_account",
             types.GetAccountRequest,
             types.Account(name="accounts/1234"),
         ),
         (
-            service.get_data_sharing_settings,
+            properties.get_data_sharing_settings,
             ("accounts/1234/dataSharingSettings",),
             "get_data_sharing_settings",
             types.GetDataSharingSettingsRequest,
             types.DataSharingSettings(name="accounts/1234/dataSharingSettings"),
         ),
         (
-            service.get_data_retention_settings,
+            properties.get_data_retention_settings,
             ("properties/1234/dataRetentionSettings",),
             "get_data_retention_settings",
             types.GetDataRetentionSettingsRequest,
             types.DataRetentionSettings(name="properties/1234/dataRetentionSettings"),
         ),
         (
-            service.get_data_stream,
+            resources.get_data_stream,
             ("properties/1234/dataStreams/5678",),
             "get_data_stream",
             types.GetDataStreamRequest,
             types.DataStream(name="properties/1234/dataStreams/5678"),
         ),
         (
-            service.list_data_streams,
+            resources.list_data_streams,
             ("properties/1234",),
             "list_data_streams",
             types.ListDataStreamsRequest,
             types.ListDataStreamsResponse(next_page_token="next"),
         ),
         (
-            service.get_custom_dimension,
+            resources.get_custom_dimension,
             ("properties/1234/customDimensions/5678",),
             "get_custom_dimension",
             types.GetCustomDimensionRequest,
             types.CustomDimension(name="properties/1234/customDimensions/5678"),
         ),
         (
-            service.list_custom_dimensions,
+            resources.list_custom_dimensions,
             ("properties/1234",),
             "list_custom_dimensions",
             types.ListCustomDimensionsRequest,
             types.ListCustomDimensionsResponse(next_page_token="next"),
         ),
         (
-            service.get_custom_metric,
+            resources.get_custom_metric,
             ("properties/1234/customMetrics/5678",),
             "get_custom_metric",
             types.GetCustomMetricRequest,
             types.CustomMetric(name="properties/1234/customMetrics/5678"),
         ),
         (
-            service.list_custom_metrics,
+            resources.list_custom_metrics,
             ("properties/1234",),
             "list_custom_metrics",
             types.ListCustomMetricsRequest,
             types.ListCustomMetricsResponse(next_page_token="next"),
         ),
         (
-            service.list_firebase_links,
+            resources.list_firebase_links,
             ("properties/1234",),
             "list_firebase_links",
             types.ListFirebaseLinksRequest,
             types.ListFirebaseLinksResponse(next_page_token="next"),
         ),
         (
-            service.list_google_ads_links,
+            resources.list_google_ads_links,
             ("properties/1234",),
             "list_google_ads_links",
             types.ListGoogleAdsLinksRequest,
             types.ListGoogleAdsLinksResponse(next_page_token="next"),
         ),
         (
-            service.get_key_event,
+            resources.get_key_event,
             ("properties/1234/keyEvents/5678",),
             "get_key_event",
             types.GetKeyEventRequest,
             types.KeyEvent(name="properties/1234/keyEvents/5678"),
         ),
         (
-            service.list_key_events,
+            resources.list_key_events,
             ("properties/1234",),
             "list_key_events",
             types.ListKeyEventsRequest,
             types.ListKeyEventsResponse(next_page_token="next"),
         ),
         (
-            service.get_measurement_protocol_secret,
+            secrets.get_measurement_protocol_secret,
             ("properties/1234/dataStreams/5678/measurementProtocolSecrets/9012",),
             "get_measurement_protocol_secret",
             types.GetMeasurementProtocolSecretRequest,
@@ -394,7 +406,7 @@ def test_access_parsers_are_sanitized_before_credential_lookup(
             ),
         ),
         (
-            service.list_measurement_protocol_secrets,
+            secrets.list_measurement_protocol_secrets,
             ("properties/1234/dataStreams/5678",),
             "list_measurement_protocol_secrets",
             types.ListMeasurementProtocolSecretsRequest,
@@ -418,13 +430,13 @@ def test_v1beta_discovery_operations_use_one_readonly_sdk_call_and_raw_page(
         else operation(*args)
     )
 
-    assert credentials.scopes == [service.ANALYTICS_READONLY_SCOPE]
+    assert credentials.scopes == [reads.ANALYTICS_READONLY_SCOPE]
     assert len(client.calls) == 1
     actual_method, request, retry, timeout = client.calls[0]
     assert actual_method == method
     assert isinstance(request, request_type)
     assert retry is None
-    assert timeout == service.PROPERTY_READ_TIMEOUT_SECONDS
+    assert timeout == reads.PROPERTY_READ_TIMEOUT_SECONDS
     assert result.get("nextPageToken", "next") == "next"
 
 
@@ -433,7 +445,7 @@ def test_list_accounts_passes_show_deleted_and_bounded_page_options(
 ) -> None:
     client, _ = capturing_client({"list_accounts": types.ListAccountsResponse()})
 
-    service.list_accounts(page_size=25, page_token="prior", show_deleted=True)
+    accounts.list_accounts(page_size=25, page_token="prior", show_deleted=True)
 
     request = client.calls[0][1]
     assert request == types.ListAccountsRequest(
@@ -465,10 +477,10 @@ PROPERTY_CREATE_PLAN = {
 CREATE_DELETE_LIFECYCLES = [
     pytest.param(
         {
-            "create_operation": service.create_property,
+            "create_operation": properties.create_property,
             "create_sdk_method": "create_property",
             "create_args": (PROPERTY_CREATE_INPUT,),
-            "destructive_operation": service.delete_property,
+            "destructive_operation": properties.delete_property,
             "destructive_sdk_method": "delete_property",
             "destructive_name": "properties/5678",
             "create_plan": PROPERTY_CREATE_PLAN,
@@ -510,7 +522,7 @@ CREATE_DELETE_LIFECYCLES = [
     ),
     pytest.param(
         {
-            "create_operation": service.create_data_stream,
+            "create_operation": resources.create_data_stream,
             "create_sdk_method": "create_data_stream",
             "create_args": (
                 "properties/1234",
@@ -519,7 +531,7 @@ CREATE_DELETE_LIFECYCLES = [
                     "webStreamData": {"defaultUri": "https://example.test"},
                 },
             ),
-            "destructive_operation": service.delete_data_stream,
+            "destructive_operation": resources.delete_data_stream,
             "destructive_sdk_method": "delete_data_stream",
             "destructive_name": "properties/1234/dataStreams/5678",
             "create_plan": {
@@ -568,7 +580,7 @@ CREATE_DELETE_LIFECYCLES = [
     ),
     pytest.param(
         {
-            "create_operation": service.create_custom_dimension,
+            "create_operation": resources.create_custom_dimension,
             "create_sdk_method": "create_custom_dimension",
             "create_args": (
                 "properties/1234",
@@ -578,7 +590,7 @@ CREATE_DELETE_LIFECYCLES = [
                     "scope": "EVENT",
                 },
             ),
-            "destructive_operation": service.archive_custom_dimension,
+            "destructive_operation": resources.archive_custom_dimension,
             "destructive_sdk_method": "archive_custom_dimension",
             "destructive_name": "properties/1234/customDimensions/5678",
             "create_plan": {
@@ -627,7 +639,7 @@ CREATE_DELETE_LIFECYCLES = [
     ),
     pytest.param(
         {
-            "create_operation": service.create_custom_metric,
+            "create_operation": resources.create_custom_metric,
             "create_sdk_method": "create_custom_metric",
             "create_args": (
                 "properties/1234",
@@ -638,7 +650,7 @@ CREATE_DELETE_LIFECYCLES = [
                     "measurementUnit": "STANDARD",
                 },
             ),
-            "destructive_operation": service.archive_custom_metric,
+            "destructive_operation": resources.archive_custom_metric,
             "destructive_sdk_method": "archive_custom_metric",
             "destructive_name": "properties/1234/customMetrics/5678",
             "create_plan": {
@@ -691,10 +703,10 @@ CREATE_DELETE_LIFECYCLES = [
     ),
     pytest.param(
         {
-            "create_operation": service.create_firebase_link,
+            "create_operation": resources.create_firebase_link,
             "create_sdk_method": "create_firebase_link",
             "create_args": ("properties/1234", {"project": "projects/example-project"}),
-            "destructive_operation": service.delete_firebase_link,
+            "destructive_operation": resources.delete_firebase_link,
             "destructive_sdk_method": "delete_firebase_link",
             "destructive_name": "properties/1234/firebaseLinks/5678",
             "create_plan": {
@@ -731,13 +743,13 @@ CREATE_DELETE_LIFECYCLES = [
     ),
     pytest.param(
         {
-            "create_operation": service.create_google_ads_link,
+            "create_operation": resources.create_google_ads_link,
             "create_sdk_method": "create_google_ads_link",
             "create_args": (
                 "properties/1234",
                 {"customerId": "1234567890", "adsPersonalizationEnabled": True},
             ),
-            "destructive_operation": service.delete_google_ads_link,
+            "destructive_operation": resources.delete_google_ads_link,
             "destructive_sdk_method": "delete_google_ads_link",
             "destructive_name": "properties/1234/googleAdsLinks/5678",
             "create_plan": {
@@ -781,13 +793,13 @@ CREATE_DELETE_LIFECYCLES = [
     ),
     pytest.param(
         {
-            "create_operation": service.create_key_event,
+            "create_operation": resources.create_key_event,
             "create_sdk_method": "create_key_event",
             "create_args": (
                 "properties/1234",
                 {"eventName": "purchase", "countingMethod": "ONCE_PER_EVENT"},
             ),
-            "destructive_operation": service.delete_key_event,
+            "destructive_operation": resources.delete_key_event,
             "destructive_sdk_method": "delete_key_event",
             "destructive_name": "properties/1234/keyEvents/5678",
             "create_plan": {
@@ -831,13 +843,13 @@ CREATE_DELETE_LIFECYCLES = [
     ),
     pytest.param(
         {
-            "create_operation": service.create_measurement_protocol_secret,
+            "create_operation": secrets.create_measurement_protocol_secret,
             "create_sdk_method": "create_measurement_protocol_secret",
             "create_args": (
                 "properties/1234/dataStreams/5678",
                 {"displayName": "Temporary secret"},
             ),
-            "destructive_operation": service.delete_measurement_protocol_secret,
+            "destructive_operation": secrets.delete_measurement_protocol_secret,
             "destructive_sdk_method": "delete_measurement_protocol_secret",
             "destructive_name": (
                 "properties/1234/dataStreams/5678/measurementProtocolSecrets/9012"
@@ -964,7 +976,7 @@ def test_update_property_dry_run_needs_no_credentials(
         lambda _: pytest.fail("dry runs must not load credentials"),
     )
 
-    result = service.update_property(
+    result = properties.update_property(
         "properties/1234", {"displayName": "Example"}, "displayName"
     )
 
@@ -995,21 +1007,25 @@ def test_property_patch_runtime_uses_the_shared_writable_field_allowlist(
     assert tuple(values) == PROPERTY_PATCH_WRITABLE_FIELDS
     for field, value in values.items():
         assert (
-            service.update_property("properties/1234", {field: value}, field)["dryRun"]
+            properties.update_property("properties/1234", {field: value}, field)[
+                "dryRun"
+            ]
             is True
         )
 
     with pytest.raises(RequestValidationError, match="mutable body fields"):
-        service.update_property("properties/1234", {"parent": "accounts/1"}, "parent")
+        properties.update_property(
+            "properties/1234", {"parent": "accounts/1"}, "parent"
+        )
     with pytest.raises(RequestValidationError, match="route field name"):
-        service.update_property("properties/1234", {"name": "forbidden"}, "name")
+        properties.update_property("properties/1234", {"name": "forbidden"}, "name")
 
 
 @pytest.mark.parametrize(
     ("operation", "args", "owner_fields", "expected_fields"),
     [
         pytest.param(
-            service.update_account,
+            accounts.update_account,
             (
                 "accounts/1234",
                 {"displayName": "Example", "regionCode": "US"},
@@ -1020,7 +1036,7 @@ def test_property_patch_runtime_uses_the_shared_writable_field_allowlist(
             id="account",
         ),
         pytest.param(
-            service.update_custom_dimension,
+            resources.update_custom_dimension,
             (
                 "properties/1234/customDimensions/5678",
                 {
@@ -1035,7 +1051,7 @@ def test_property_patch_runtime_uses_the_shared_writable_field_allowlist(
             id="custom-dimension",
         ),
         pytest.param(
-            service.update_custom_metric,
+            resources.update_custom_metric,
             (
                 "properties/1234/customMetrics/5678",
                 {
@@ -1051,7 +1067,7 @@ def test_property_patch_runtime_uses_the_shared_writable_field_allowlist(
             id="custom-metric",
         ),
         pytest.param(
-            service.update_data_stream,
+            resources.update_data_stream,
             (
                 "properties/1234/dataStreams/5678",
                 {
@@ -1065,7 +1081,7 @@ def test_property_patch_runtime_uses_the_shared_writable_field_allowlist(
             id="data-stream",
         ),
         pytest.param(
-            service.update_google_ads_link,
+            resources.update_google_ads_link,
             (
                 "properties/1234/googleAdsLinks/5678",
                 {"adsPersonalizationEnabled": False},
@@ -1076,7 +1092,7 @@ def test_property_patch_runtime_uses_the_shared_writable_field_allowlist(
             id="google-ads-link",
         ),
         pytest.param(
-            service.update_key_event,
+            resources.update_key_event,
             (
                 "properties/1234/keyEvents/5678",
                 {
@@ -1094,7 +1110,7 @@ def test_property_patch_runtime_uses_the_shared_writable_field_allowlist(
             id="key-event",
         ),
         pytest.param(
-            service.update_measurement_protocol_secret,
+            secrets.update_measurement_protocol_secret,
             (
                 "properties/1234/dataStreams/5678/measurementProtocolSecrets/9012",
                 {"displayName": "Example"},
@@ -1130,7 +1146,7 @@ def test_non_property_patch_runtime_uses_owner_writable_field_allowlists(
     ("operation", "args"),
     [
         pytest.param(
-            service.update_key_event,
+            resources.update_key_event,
             (
                 "properties/1234/keyEvents/5678",
                 {"defaultValue": {"currencyCode": "USD"}},
@@ -1139,7 +1155,7 @@ def test_non_property_patch_runtime_uses_owner_writable_field_allowlists(
             id="key-event-missing-masked-nested-leaf",
         ),
         pytest.param(
-            service.update_key_event,
+            resources.update_key_event,
             (
                 "properties/1234/keyEvents/5678",
                 {
@@ -1153,7 +1169,7 @@ def test_non_property_patch_runtime_uses_owner_writable_field_allowlists(
             id="key-event-extra-unmasked-nested-leaf",
         ),
         pytest.param(
-            service.update_data_stream,
+            resources.update_data_stream,
             (
                 "properties/1234/dataStreams/5678",
                 {"webStreamData": {"measurementId": "G-123"}},
@@ -1162,7 +1178,7 @@ def test_non_property_patch_runtime_uses_owner_writable_field_allowlists(
             id="data-stream-missing-default-uri",
         ),
         pytest.param(
-            service.update_data_stream,
+            resources.update_data_stream,
             (
                 "properties/1234/dataStreams/5678",
                 {
@@ -1176,7 +1192,7 @@ def test_non_property_patch_runtime_uses_owner_writable_field_allowlists(
             id="data-stream-extra-unmasked-nested-field",
         ),
         pytest.param(
-            service.update_key_event,
+            resources.update_key_event,
             (
                 "properties/1234/keyEvents/5678",
                 {"defaultValue": {}},
@@ -1185,7 +1201,7 @@ def test_non_property_patch_runtime_uses_owner_writable_field_allowlists(
             id="empty-nested-object",
         ),
         pytest.param(
-            service.update_key_event,
+            resources.update_key_event,
             (
                 "properties/1234/keyEvents/5678",
                 {"defaultValue": None},
@@ -1194,7 +1210,7 @@ def test_non_property_patch_runtime_uses_owner_writable_field_allowlists(
             id="null-nested-parent",
         ),
         pytest.param(
-            service.update_key_event,
+            resources.update_key_event,
             (
                 "properties/1234/keyEvents/5678",
                 {"default_value": {"numericValue": 0}},
@@ -1203,7 +1219,7 @@ def test_non_property_patch_runtime_uses_owner_writable_field_allowlists(
             id="snake-case-root-body",
         ),
         pytest.param(
-            service.update_key_event,
+            resources.update_key_event,
             (
                 "properties/1234/keyEvents/5678",
                 {"defaultValue": {"numericValue": 0}},
@@ -1233,7 +1249,7 @@ def test_child_patch_nested_aliases_keep_raw_dry_runs_and_normalize_apply_mask(
 ) -> None:
     name = "properties/1234/keyEvents/5678"
     body = {"defaultValue": {"numeric_value": 0}}
-    dry_run = service.update_key_event(name, body, "defaultValue.numericValue")
+    dry_run = resources.update_key_event(name, body, "defaultValue.numericValue")
     stream_name = "properties/1234/dataStreams/5678"
     stream_body = {"webStreamData": {"default_uri": "https://example.test"}}
 
@@ -1244,7 +1260,7 @@ def test_child_patch_nested_aliases_keep_raw_dry_runs_and_normalize_apply_mask(
             "updateMask": "defaultValue.numericValue",
         },
     }
-    assert service.update_data_stream(
+    assert resources.update_data_stream(
         stream_name, stream_body, "webStreamData.defaultUri"
     ) == {
         "dryRun": True,
@@ -1258,7 +1274,7 @@ def test_child_patch_nested_aliases_keep_raw_dry_runs_and_normalize_apply_mask(
     monkeypatch.setattr(mutations, "service_account_credentials", lambda _: object())
     monkeypatch.setattr(mutations, "_make_properties_client", lambda _: client)
 
-    service.update_key_event(name, body, "defaultValue.numericValue", apply=True)
+    resources.update_key_event(name, body, "defaultValue.numericValue", apply=True)
 
     method, request, retry, timeout = client.calls[0]
     assert method == "update_key_event"
@@ -1286,12 +1302,12 @@ def test_update_property_uses_one_edit_scoped_non_retried_call(
     )
     monkeypatch.setattr(mutations, "_make_properties_client", lambda _: client)
 
-    result = service.update_property(
+    result = properties.update_property(
         "properties/1234", {"displayName": "Example"}, "displayName", apply=True
     )
 
     assert result == {"name": "properties/1234", "displayName": "Example"}
-    assert scopes == [service.ANALYTICS_EDIT_SCOPE]
+    assert scopes == [reads.ANALYTICS_EDIT_SCOPE]
     method, request, retry, timeout = client.calls[0]
     assert method == "update_property"
     assert request == types.UpdatePropertyRequest(
@@ -1299,14 +1315,14 @@ def test_update_property_uses_one_edit_scoped_non_retried_call(
         update_mask="displayName",
     )
     assert retry is None
-    assert timeout == service.PROPERTY_READ_TIMEOUT_SECONDS
+    assert timeout == reads.PROPERTY_READ_TIMEOUT_SECONDS
 
 
 @pytest.mark.parametrize(
     ("entity", "entity_pattern"),
     [
-        ("accounts/1234", service.ACCOUNT_PATTERN),
-        ("properties/1234", service.PROPERTY_PATTERN),
+        ("accounts/1234", ACCOUNT_PATTERN),
+        ("properties/1234", PROPERTY_PATTERN),
     ],
 )
 def test_access_reports_use_one_readonly_sdk_call_and_route_entity(
@@ -1325,14 +1341,14 @@ def test_access_reports_use_one_readonly_sdk_call_and_route_entity(
     )
     monkeypatch.setattr(reads, "_make_properties_client", lambda _: client)
 
-    result = service.run_access_report(
+    result = access.run_access_report(
         entity,
         {"dimensions": [{"dimensionName": "userEmail"}]},
         entity_pattern=entity_pattern,
     )
 
     assert result == {}
-    assert scopes == [service.ANALYTICS_READONLY_SCOPE]
+    assert scopes == [reads.ANALYTICS_READONLY_SCOPE]
     assert len(client.calls) == 1
     method, request, retry, timeout = client.calls[0]
     assert method == "run_access_report"
@@ -1341,7 +1357,7 @@ def test_access_reports_use_one_readonly_sdk_call_and_route_entity(
         dimensions=[types.AccessDimension(dimension_name="userEmail")],
     )
     assert retry is None
-    assert timeout == service.PROPERTY_READ_TIMEOUT_SECONDS
+    assert timeout == reads.PROPERTY_READ_TIMEOUT_SECONDS
 
 
 def test_change_history_search_uses_one_edit_scoped_sdk_call_and_route_account(
@@ -1362,12 +1378,12 @@ def test_change_history_search_uses_one_edit_scoped_sdk_call_and_route_account(
     )
     monkeypatch.setattr(reads, "_make_properties_client", lambda _: client)
 
-    result = service.search_change_history_events(
+    result = access.search_change_history_events(
         "accounts/1234", {"pageSize": 25, "actorEmail": ["user@example.com"]}
     )
 
     assert result == {"nextPageToken": "next"}
-    assert scopes == [service.ANALYTICS_EDIT_SCOPE]
+    assert scopes == [reads.ANALYTICS_EDIT_SCOPE]
     assert len(client.calls) == 1
     method, request, retry, timeout = client.calls[0]
     assert method == "search_change_history_events"
@@ -1375,7 +1391,7 @@ def test_change_history_search_uses_one_edit_scoped_sdk_call_and_route_account(
         account="accounts/1234", page_size=25, actor_email=["user@example.com"]
     )
     assert retry is None
-    assert timeout == service.PROPERTY_READ_TIMEOUT_SECONDS
+    assert timeout == reads.PROPERTY_READ_TIMEOUT_SECONDS
 
 
 def test_change_history_search_command_is_exposed_in_help() -> None:
@@ -1501,7 +1517,7 @@ def test_measurement_protocol_secret_create_dry_run_is_offline_and_secret_free(
         "service_account_credentials",
         lambda _: pytest.fail("dry runs must not load credentials"),
     )
-    assert service.create_measurement_protocol_secret(
+    assert secrets.create_measurement_protocol_secret(
         "properties/1234/dataStreams/5678", {"displayName": "Example"}
     ) == {
         "dryRun": True,
@@ -1516,7 +1532,7 @@ def test_measurement_protocol_secret_create_dry_run_is_offline_and_secret_free(
     ("operation", "args", "method", "expected_request"),
     [
         (
-            service.create_measurement_protocol_secret,
+            secrets.create_measurement_protocol_secret,
             ("properties/1234/dataStreams/5678", {"displayName": "Example"}),
             "create_measurement_protocol_secret",
             types.CreateMeasurementProtocolSecretRequest(
@@ -1527,7 +1543,7 @@ def test_measurement_protocol_secret_create_dry_run_is_offline_and_secret_free(
             ),
         ),
         (
-            service.update_measurement_protocol_secret,
+            secrets.update_measurement_protocol_secret,
             (
                 "properties/1234/dataStreams/5678/measurementProtocolSecrets/9012",
                 {"displayName": "Example"},
@@ -1543,7 +1559,7 @@ def test_measurement_protocol_secret_create_dry_run_is_offline_and_secret_free(
             ),
         ),
         (
-            service.delete_measurement_protocol_secret,
+            secrets.delete_measurement_protocol_secret,
             ("properties/1234/dataStreams/5678/measurementProtocolSecrets/9012",),
             "delete_measurement_protocol_secret",
             types.DeleteMeasurementProtocolSecretRequest(
@@ -1575,13 +1591,13 @@ def test_measurement_protocol_secret_actions_use_one_edit_scoped_non_retried_cal
 
     operation(*args, apply=True)
 
-    assert scopes == [service.ANALYTICS_EDIT_SCOPE]
+    assert scopes == [reads.ANALYTICS_EDIT_SCOPE]
     assert len(client.calls) == 1
     actual_method, actual_request, retry, timeout = client.calls[0]
     assert actual_method == method
     assert actual_request == expected_request
     assert retry is None
-    assert timeout == service.PROPERTY_READ_TIMEOUT_SECONDS
+    assert timeout == reads.PROPERTY_READ_TIMEOUT_SECONDS
 
 
 PROVISION_ACCOUNT_TICKET_BODY = {
@@ -1609,11 +1625,11 @@ def test_account_delete_and_provision_ticket_dry_runs_need_no_credentials(
         lambda _: pytest.fail("dry runs must not load credentials"),
     )
 
-    assert service.delete_account("accounts/1234") == {
+    assert accounts.delete_account("accounts/1234") == {
         "dryRun": True,
         "request": {"name": "accounts/1234"},
     }
-    assert service.provision_account_ticket(PROVISION_ACCOUNT_TICKET_BODY) == {
+    assert accounts.provision_account_ticket(PROVISION_ACCOUNT_TICKET_BODY) == {
         "dryRun": True,
         "request": PROVISION_ACCOUNT_TICKET_BODY,
     }
@@ -1638,11 +1654,11 @@ def test_account_delete_and_provision_ticket_apply_once_without_retry(
     )
     monkeypatch.setattr(mutations, "_make_properties_client", lambda _: client)
 
-    assert service.delete_account("accounts/1234", apply=True) == {}
-    assert service.provision_account_ticket(
+    assert accounts.delete_account("accounts/1234", apply=True) == {}
+    assert accounts.provision_account_ticket(
         PROVISION_ACCOUNT_TICKET_BODY, apply=True
     ) == {"accountTicketId": "ticket-123"}
-    assert scopes == [service.ANALYTICS_EDIT_SCOPE, service.ANALYTICS_EDIT_SCOPE]
+    assert scopes == [reads.ANALYTICS_EDIT_SCOPE, reads.ANALYTICS_EDIT_SCOPE]
     assert client.calls[0][0] == "delete_account"
     assert client.calls[0][1] == types.DeleteAccountRequest(name="accounts/1234")
     assert client.calls[1][0] == "provision_account_ticket"
@@ -1680,7 +1696,7 @@ def test_acknowledge_user_data_collection_dry_run_needs_no_credentials(
         "service_account_credentials",
         lambda _: pytest.fail("dry runs must not load credentials"),
     )
-    assert service.acknowledge_user_data_collection(
+    assert properties.acknowledge_user_data_collection(
         "properties/1234", ACKNOWLEDGE_USER_DATA_COLLECTION_BODY
     ) == {
         "dryRun": True,
@@ -1710,12 +1726,12 @@ def test_acknowledge_user_data_collection_apply_once_without_retry(
     monkeypatch.setattr(mutations, "_make_properties_client", lambda _: client)
 
     assert (
-        service.acknowledge_user_data_collection(
+        properties.acknowledge_user_data_collection(
             "properties/1234", ACKNOWLEDGE_USER_DATA_COLLECTION_BODY, apply=True
         )
         == {}
     )
-    assert scopes == [service.ANALYTICS_EDIT_SCOPE]
+    assert scopes == [reads.ANALYTICS_EDIT_SCOPE]
     assert client.calls == [
         (
             "acknowledge_user_data_collection",
@@ -1724,7 +1740,7 @@ def test_acknowledge_user_data_collection_apply_once_without_retry(
                 acknowledgement=USER_DATA_COLLECTION_ACKNOWLEDGEMENT,
             ),
             None,
-            service.PROPERTY_READ_TIMEOUT_SECONDS,
+            reads.PROPERTY_READ_TIMEOUT_SECONDS,
         )
     ]
 
@@ -1758,7 +1774,7 @@ def test_update_account_dry_run_needs_no_credentials(
         "service_account_credentials",
         lambda _: pytest.fail("dry runs must not load credentials"),
     )
-    assert service.update_account(
+    assert accounts.update_account(
         "accounts/1234", {"displayName": "Example"}, "displayName"
     ) == {
         "dryRun": True,
@@ -1783,12 +1799,12 @@ def test_update_account_uses_one_edit_scoped_non_retried_call(
     )
     monkeypatch.setattr(mutations, "_make_properties_client", lambda _: client)
 
-    result = service.update_account(
+    result = accounts.update_account(
         "accounts/1234", {"displayName": "Example"}, "displayName", apply=True
     )
 
     assert result == {"name": "accounts/1234", "displayName": "Example"}
-    assert scopes == [service.ANALYTICS_EDIT_SCOPE]
+    assert scopes == [reads.ANALYTICS_EDIT_SCOPE]
     method, request, retry, timeout = client.calls[0]
     assert method == "update_account"
     assert request == types.UpdateAccountRequest(
@@ -1796,4 +1812,4 @@ def test_update_account_uses_one_edit_scoped_non_retried_call(
         update_mask="displayName",
     )
     assert retry is None
-    assert timeout == service.PROPERTY_READ_TIMEOUT_SECONDS
+    assert timeout == reads.PROPERTY_READ_TIMEOUT_SECONDS

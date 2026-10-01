@@ -6,7 +6,7 @@ never constructs a Google client, reads credentials, or makes a network call.
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from dataclasses import dataclass
 from dataclasses import field as dataclass_field
 from importlib.metadata import version
@@ -168,10 +168,3 @@ def resolve_schema_target(
     """Resolve an exact registered CLI leaf path; no dynamic SDK lookup occurs."""
     path = tuple(part for part in command.split(" ") if part)
     return targets.get(path)
-
-
-def target_paths(
-    targets: Mapping[tuple[str, ...], ProtobufSchemaTarget],
-) -> Sequence[tuple[str, ...]]:
-    """Expose registered mappings for catalog/registration contract tests."""
-    return tuple(targets)

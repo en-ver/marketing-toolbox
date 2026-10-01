@@ -483,7 +483,8 @@ def test_minimal_record_status_is_offline_and_refresh_stays_in_memory(
         credentials._granted_scopes = [scope]
 
     monkeypatch.setattr(UserCredentials, "refresh", refresh_in_memory)
-    loaded = oauth.load_native_credentials("ga4datactl", "read", scope)
+    loaded = oauth.load_native_credentials_if_present("ga4datactl", "read", scope)
+    assert loaded is not None
     assert refreshed == [True]
     assert loaded.token == "refreshed-access-token"
     assert backend.records[(oauth.OAUTH_SERVICE, "ga4datactl:read")] == original
@@ -646,13 +647,13 @@ def test_marker_rejects_unsafe_parent_permissions_and_foreign_ownership(
 
     path.parent.chmod(0o722)
     with pytest.raises(oauth.OAuthAuthenticationError, match="marker is invalid"):
-        oauth.native_marker_exists("ga4datactl", "read")
+        oauth._validate_marker(path)
 
     path.parent.chmod(0o700)
     owner = os.geteuid()
     monkeypatch.setattr(oauth.os, "geteuid", lambda: owner + 1)
     with pytest.raises(oauth.OAuthAuthenticationError, match="marker is invalid"):
-        oauth.native_marker_exists("ga4datactl", "read")
+        oauth._validate_marker(path)
 
 
 def test_marker_rejects_symlinks_and_non_directory_parents(
@@ -666,16 +667,16 @@ def test_marker_rejects_symlinks_and_non_directory_parents(
     monkeypatch.setattr(oauth, "marker_path", lambda *_args: path)
 
     with pytest.raises(oauth.OAuthAuthenticationError, match="marker is invalid"):
-        oauth.native_marker_exists("ga4datactl", "read")
+        oauth._validate_marker(path)
 
     path.unlink()
     path.parent.rmdir()
     path.parent.write_text("not a directory")
     with pytest.raises(oauth.OAuthAuthenticationError, match="marker is invalid"):
-        oauth.native_marker_exists("ga4datactl", "read")
+        oauth._validate_marker(path)
 
 
-def test_validate_native_record_requires_a_marker_before_keyring_access(
+def test_native_record_status_requires_a_marker_before_keyring_access(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     monkeypatch.setattr(
@@ -689,10 +690,9 @@ def test_validate_native_record_requires_a_marker_before_keyring_access(
         lambda: pytest.fail("an absent marker must not initialize keyring"),
     )
 
-    with pytest.raises(oauth.OAuthAuthenticationError, match="marker is missing"):
-        oauth.validate_native_record(
-            "ga4datactl", "read", oauth.SCOPE_CATALOG["ga4datactl"]["read"]
-        )
+    assert not oauth.native_record_status(
+        "ga4datactl", "read", oauth.SCOPE_CATALOG["ga4datactl"]["read"]
+    )
 
 
 def test_forget_retains_marker_when_secret_deletion_is_uncertain(
@@ -1038,9 +1038,9 @@ def test_refresh_runs_after_the_native_snapshot_lock_is_released(
         credentials._granted_scopes = [scope]
 
     monkeypatch.setattr(UserCredentials, "refresh", refresh)
-    assert (
-        oauth.load_native_credentials("ga4datactl", "read", scope).token == "refreshed"
-    )
+    loaded = oauth.load_native_credentials_if_present("ga4datactl", "read", scope)
+    assert loaded is not None
+    assert loaded.token == "refreshed"
 
 
 def test_revoke_requires_explicit_acknowledgement_and_reports_blast_radius(
@@ -1117,7 +1117,7 @@ def test_interrupted_initial_store_retains_marker_and_blocks_adc(
             _stored_user_credentials(oauth.SCOPE_CATALOG["ga4datactl"]["read"]),
         )
 
-    assert oauth.native_marker_exists("ga4datactl", "read")
+    assert oauth._validate_marker(path)
     monkeypatch.setattr(
         auth,
         "load_native_credentials_if_present",
@@ -1178,7 +1178,7 @@ def test_inconsistent_record_and_marker_is_preserved_for_forget_recovery(
             _stored_user_credentials(oauth.SCOPE_CATALOG["ga4datactl"]["read"]),
         )
 
-    assert oauth.native_marker_exists("ga4datactl", "read")
+    assert oauth._validate_marker(path)
     assert backend.records[(oauth.OAUTH_SERVICE, "ga4datactl:read")] == "unmarked-value"
 
 
@@ -1198,7 +1198,7 @@ def test_marked_missing_secret_is_not_overwritten_by_login(
             _stored_user_credentials(oauth.SCOPE_CATALOG["ga4datactl"]["read"]),
         )
 
-    assert oauth.native_marker_exists("ga4datactl", "read")
+    assert oauth._validate_marker(path)
     assert backend.records == {}
 
 
@@ -1245,7 +1245,7 @@ def test_missing_config_is_absent_without_keyring_or_directory_mutation(
     )
     monkeypatch.setattr(auth.google.auth, "default", lambda **_kwargs: (ambient, None))
 
-    assert not oauth.native_marker_exists("ga4datactl", "read")
+    assert not oauth._validate_marker(path)
     assert (
         auth.resolve_credentials(
             [oauth.SCOPE_CATALOG["ga4datactl"]["read"]],
@@ -1304,7 +1304,7 @@ def test_missing_marker_under_an_existing_unsafe_ancestor_is_rejected(
     monkeypatch.setattr(oauth, "marker_path", lambda *_args: path)
 
     with pytest.raises(oauth.OAuthAuthenticationError, match="marker is invalid"):
-        oauth.native_marker_exists("ga4datactl", "read")
+        oauth._validate_marker(path)
 
 
 @pytest.mark.skipif(os.name != "posix", reason="POSIX fsync ordering")
@@ -1399,7 +1399,7 @@ def test_marker_hierarchy_rejects_unsafe_ancestors_and_app_symlinks(
     monkeypatch.setattr(oauth, "marker_path", lambda *_args: path)
 
     with pytest.raises(oauth.OAuthAuthenticationError, match="marker is invalid"):
-        oauth.native_marker_exists("ga4datactl", "read")
+        oauth._validate_marker(path)
 
     app_root.chmod(0o700)
     for child in (app_root / "oauth" / "ga4datactl", app_root / "oauth"):
@@ -1410,7 +1410,7 @@ def test_marker_hierarchy_rejects_unsafe_ancestors_and_app_symlinks(
     app_root.symlink_to(target, target_is_directory=True)
 
     with pytest.raises(oauth.OAuthAuthenticationError, match="marker is invalid"):
-        oauth.native_marker_exists("ga4datactl", "read")
+        oauth._validate_marker(path)
 
 
 @pytest.mark.skipif(os.name != "posix", reason="POSIX marker checks")
@@ -1451,7 +1451,7 @@ def test_marker_creates_private_components_under_permissive_umask_and_allows_red
     finally:
         os.umask(previous_umask)
 
-    assert oauth.native_marker_exists("ga4datactl", "read")
+    assert oauth._validate_marker(path)
     for directory in (
         target_base / "marketing-toolbox",
         target_base / "marketing-toolbox" / "oauth",
@@ -1475,7 +1475,7 @@ def test_marker_accepts_macos_var_to_private_redirect(
 
     oauth._write_marker(path)
 
-    assert oauth.native_marker_exists("ga4datactl", "read")
+    assert oauth._validate_marker(path)
 
 
 @pytest.mark.skipif(os.name != "posix", reason="POSIX fsync ordering")

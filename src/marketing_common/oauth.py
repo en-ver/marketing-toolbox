@@ -180,12 +180,9 @@ def preflight_keyring() -> None:
 
 
 def _marker_components(path: Path) -> tuple[Path, Path, Path, Path]:
-    try:
-        tool_directory = path.parent
-        oauth_directory = tool_directory.parent
-        app_root = oauth_directory.parent
-    except IndexError as exc:
-        raise OAuthAuthenticationError("Native credential marker is invalid.") from exc
+    tool_directory = path.parent
+    oauth_directory = tool_directory.parent
+    app_root = oauth_directory.parent
     return app_root.parent, app_root, oauth_directory, tool_directory
 
 
@@ -287,14 +284,6 @@ def _validate_marker(path: Path) -> bool:
 
 def _native_marker_exists_unlocked(tool: ToolName, access: str) -> bool:
     return _validate_marker(marker_path(tool, access))
-
-
-def native_marker_exists(tool: ToolName, access: str) -> bool:
-    """Return a coherent marker presence snapshot without keyring access if absent."""
-    if not _native_marker_exists_unlocked(tool, access):
-        return False
-    with _native_oauth_lock():
-        return _native_marker_exists_unlocked(tool, access)
 
 
 def _canonical_oauth_lock_path() -> Path:
@@ -696,13 +685,6 @@ def _read_native_record_unlocked(
     return serialized, _credentials_from_record(serialized, scope)
 
 
-def validate_native_record(tool: ToolName, access: str, scope: str) -> UserCredentials:
-    """Validate a marked record without refreshing or contacting Google."""
-    with _native_oauth_lock():
-        _, credentials = _read_native_record_unlocked(tool, access, scope)
-        return credentials
-
-
 def native_record_status(tool: ToolName, access: str, scope: str) -> bool:
     """Validate a present marker/keyring record as one local snapshot."""
     if not _native_marker_exists_unlocked(tool, access):
@@ -736,13 +718,6 @@ def _refresh_native_credentials(
                 "Native credential no longer grants the required scope."
             )
     return credentials
-
-
-def load_native_credentials(tool: ToolName, access: str, scope: str) -> Credentials:
-    """Load the marked credential, refreshing only its in-memory access token."""
-    with _native_oauth_lock():
-        _, credentials = _read_native_record_unlocked(tool, access, scope)
-    return _refresh_native_credentials(credentials, scope)
 
 
 def load_native_credentials_if_present(

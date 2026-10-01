@@ -26,57 +26,6 @@ class CredentialConfigurationError(ValueError):
     """Raised when an explicitly selected credential source is invalid."""
 
 
-def service_account_credentials(
-    scopes: Sequence[str], *, env: Mapping[str, str] | None = None
-) -> service_account.Credentials:
-    """Build only service-account credentials from the two explicit sources.
-
-    This compatibility function deliberately does not select native OAuth or
-    ambient ADC; callers needing generic Google credentials use
-    :func:`resolve_credentials`.
-    """
-    values = os.environ if env is None else env
-    if SERVICE_ACCOUNT_JSON_ENV in values:
-        serialized = values[SERVICE_ACCOUNT_JSON_ENV]
-        try:
-            info = json.loads(serialized)
-        except json.JSONDecodeError as exc:
-            raise CredentialConfigurationError(
-                f"{SERVICE_ACCOUNT_JSON_ENV} must contain a JSON service-account document."
-            ) from exc
-        if not isinstance(info, dict):
-            raise CredentialConfigurationError(
-                f"{SERVICE_ACCOUNT_JSON_ENV} must contain a JSON object."
-            )
-        try:
-            return cast(
-                service_account.Credentials,
-                service_account.Credentials.from_service_account_info(  # type: ignore[no-untyped-call]
-                    info, scopes=scopes
-                ),
-            )
-        except (TypeError, ValueError) as exc:
-            raise CredentialConfigurationError(
-                f"{SERVICE_ACCOUNT_JSON_ENV} is not a valid service-account document."
-            ) from exc
-    if APPLICATION_CREDENTIALS_ENV in values:
-        try:
-            return cast(
-                service_account.Credentials,
-                service_account.Credentials.from_service_account_file(  # type: ignore[no-untyped-call]
-                    values[APPLICATION_CREDENTIALS_ENV], scopes=scopes
-                ),
-            )
-        except (OSError, TypeError, ValueError) as exc:
-            raise CredentialConfigurationError(
-                f"{APPLICATION_CREDENTIALS_ENV} must name a valid readable service-account document."
-            ) from exc
-    raise CredentialConfigurationError(
-        "Missing required runtime credential: set GOOGLE_SERVICE_ACCOUNT_JSON "
-        "or GOOGLE_APPLICATION_CREDENTIALS."
-    )
-
-
 def resolve_credentials(
     scopes: Sequence[str], *, tool: ToolName, env: Mapping[str, str] | None = None
 ) -> Credentials:

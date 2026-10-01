@@ -56,8 +56,10 @@ requires acknowledgement because its grant is project-wide and conditionally
 cleans up only an unchanged local record after remote success. Resource access
 is still controlled separately by Analytics, Tag Manager, and IAM permissions.
 
-`ga4datactl/service.py` and `ga4adminctl/service.py` are compatibility facades
-for their existing APIs. GTM has no corresponding service facade. GTM reads retain
+The supported surface is the latest installed CLI: its help output and documented
+JSON contracts. `cli.py` composes command groups; commands call their canonical
+operation owners directly, and operations use foundation and shared helpers. No Python
+forwarding facade or import-compatibility layer is maintained. GTM reads retain
 Discovery's default `httplib2` transport; mutations use a GTM-owned Requests adapter
 through Discovery's public `http=` seam, with at most one GTM API dispatch, redirects
 disabled, and a 60-second connect/read timeout. Credential refresh may make separately

@@ -198,8 +198,3 @@ def register_workspace_entity_mutation_commands(
             return _mutation_adapter(f"delete_{singular}")(path)
 
         run_command(command=command, operation=operation)
-
-
-def register_tag_mutation_commands(tags_app: typer.Typer) -> None:
-    """Add the four catalogued ordinary tag workspace mutations."""
-    register_workspace_entity_mutation_commands(tags_app, entity="tags")

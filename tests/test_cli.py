@@ -20,6 +20,9 @@ from ga4adminctl.cli import app as ga4_admin_app
 from ga4adminctl.cli import main as ga4_admin_main
 from ga4adminctl.commands import properties as admin_properties
 from ga4adminctl.commands.sdk import _SCHEMA_TARGETS as admin_schema_targets
+from ga4adminctl.foundation.validation import (
+    RequestValidationError as AdminRequestValidationError,
+)
 from ga4adminctl.operations import reads as admin_read_operations
 from ga4adminctl.operations.accounts import ACCOUNT_PATCH_WRITABLE_FIELDS
 from ga4adminctl.operations.properties import PROPERTY_PATCH_WRITABLE_FIELDS
@@ -33,14 +36,13 @@ from ga4adminctl.operations.resources import (
 from ga4adminctl.operations.secrets import (
     MEASUREMENT_PROTOCOL_SECRET_PATCH_WRITABLE_FIELDS,
 )
-from ga4adminctl.service import (
-    CredentialConfigurationError as AdminCredentialConfigurationError,
-)
-from ga4adminctl.service import RequestValidationError as AdminRequestValidationError
 from ga4datactl.cli import app as ga4_data_app
 from ga4datactl.cli import main as ga4_data_main
 from ga4datactl.commands import audience_exports, metadata, reports
 from ga4datactl.commands.sdk import _SCHEMA_TARGETS as data_schema_targets
+from ga4datactl.foundation.validation import (
+    RequestValidationError as DataRequestValidationError,
+)
 from ga4datactl.operations import audience_exports as audience_export_operations
 from ga4datactl.operations import reports as report_operations
 from ga4datactl.schemas import (
@@ -51,7 +53,6 @@ from ga4datactl.schemas import (
     RUN_REALTIME_REPORT_BODY_SCHEMA,
     RUN_REPORT_BODY_SCHEMA,
 )
-from ga4datactl.service import RequestValidationError as DataRequestValidationError
 from gtmctl.cli import app as gtm_app
 from gtmctl.cli import main as gtm_main
 from gtmctl.commands.sdk import (
@@ -59,11 +60,10 @@ from gtmctl.commands.sdk import (
     _registered_body_paths,
     _target_for_path,
 )
-from marketing_common.cli import (
-    exit_not_implemented,
-    exit_with_diagnostic,
-    write_success,
+from marketing_common.auth import (
+    CredentialConfigurationError as AdminCredentialConfigurationError,
 )
+from marketing_common.cli import exit_with_diagnostic, write_success
 from marketing_common.discovery import (
     discovery_method_parameters,
     load_local_discovery_document,
@@ -169,22 +169,6 @@ def test_json_envelope_primitives_preserve_stdout_stderr_and_exit_code(
         '"category": "retryable", "message": "Try again.", '
         '"googleStatus": 429}\n'
     )
-
-
-def test_unimplemented_diagnostic_uses_the_shared_error_envelope(
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    with pytest.raises(typer.Exit) as raised:
-        exit_not_implemented("gtmctl sdk schema")
-
-    assert raised.value.exit_code == 2
-    assert json.loads(capsys.readouterr().err) == {
-        "schemaVersion": "marketing-toolbox/v1",
-        "command": "gtmctl sdk schema",
-        "exitCode": 2,
-        "category": "invalid_request",
-        "message": "SDK-backed implementation is not available yet.",
-    }
 
 
 def test_ga4_admin_credential_configuration_error_is_an_authentication_diagnostic(

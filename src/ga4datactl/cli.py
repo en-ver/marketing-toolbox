@@ -8,38 +8,7 @@ import typer
 
 from ga4datactl import __version__
 from ga4datactl.commands import audience_exports, auth, metadata, reports, sdk
-from ga4datactl.service import (
-    batch_run_pivot_reports,
-    batch_run_reports,
-    check_compatibility,
-    create_audience_export,
-    get_audience_export,
-    get_metadata,
-    list_audience_exports,
-    query_audience_export,
-    run_pivot_report,
-    run_realtime_report,
-    run_report,
-)
 from marketing_common.cli import make_version_callback, root_help, run_typer_application
-
-# Static operation re-exports preserve established direct imports from this root.
-__all__ = [
-    "app",
-    "batch_run_pivot_reports",
-    "batch_run_reports",
-    "check_compatibility",
-    "create_audience_export",
-    "get_audience_export",
-    "get_metadata",
-    "list_audience_exports",
-    "main",
-    "query_audience_export",
-    "root_callback",
-    "run_pivot_report",
-    "run_realtime_report",
-    "run_report",
-]
 
 app = typer.Typer(
     name="ga4datactl",

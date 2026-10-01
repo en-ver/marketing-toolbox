@@ -93,16 +93,6 @@ def exit_with_diagnostic(
     raise typer.Exit(code=exit_code)
 
 
-def exit_not_implemented(command: str) -> None:
-    """Write a standard unsupported-command diagnostic and exit with code 2."""
-    exit_with_diagnostic(
-        exit_code=2,
-        category="invalid_request",
-        message="SDK-backed implementation is not available yet.",
-        command=command,
-    )
-
-
 def make_version_callback(
     command: str, version: str
 ) -> Callable[[bool | None], bool | None]:
