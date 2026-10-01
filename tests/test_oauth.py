@@ -28,18 +28,16 @@ from marketing_common import auth, oauth
 def _isolate_canonical_oauth_lock(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    monkeypatch.setattr(
-        oauth,
-        "_canonical_oauth_lock_path",
-        lambda: (
-            tmp_path
-            / "canonical"
-            / "marketing-toolbox"
-            / "oauth"
-            / "_locks"
-            / "marketing-toolbox.oauth.lock"
-        ),
+    canonical_base = tmp_path / "canonical"
+    canonical_base.mkdir()
+    lock_path = (
+        canonical_base
+        / "marketing-toolbox"
+        / "oauth"
+        / "_locks"
+        / "marketing-toolbox.oauth.lock"
     )
+    monkeypatch.setattr(oauth, "_canonical_oauth_lock_path", lambda: lock_path)
 
 
 class _MemoryBackend:
@@ -491,6 +489,13 @@ def test_minimal_record_status_is_offline_and_refresh_stays_in_memory(
     assert backend.records[(oauth.OAUTH_SERVICE, "ga4datactl:read")] == original
 
 
+@pytest.mark.skipif(os.name != "nt", reason="requires Windows Local AppData")
+def test_windows_canonical_local_app_data_exists() -> None:
+    from marketing_common import _win32_marker
+
+    assert _win32_marker.canonical_local_app_data().is_dir()
+
+
 def test_windows_blob_size_limit_has_no_bom_or_terminator(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -694,7 +699,12 @@ def test_forget_retains_marker_when_secret_deletion_is_uncertain(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     class FailingDeleteBackend(_MemoryBackend):
+        def __init__(self) -> None:
+            super().__init__()
+            self.delete_calls: list[tuple[str, str]] = []
+
         def delete_password(self, service: str, username: str) -> None:
+            self.delete_calls.append((service, username))
             raise RuntimeError("locked")
 
     backend_type = type(
@@ -715,8 +725,11 @@ def test_forget_retains_marker_when_secret_deletion_is_uncertain(
     backend.records[(oauth.OAUTH_SERVICE, "ga4datactl:read")] = "value"
     monkeypatch.setattr(oauth, "marker_path", lambda *_args: path)
 
-    with pytest.raises(oauth.OAuthAuthenticationError, match="unavailable"):
+    with pytest.raises(oauth.OAuthAuthenticationError) as exc_info:
         oauth.forget_native_credentials("ga4datactl", "read")
+
+    assert str(exc_info.value) == "Secure credential storage is unavailable."
+    assert backend.delete_calls == [(oauth.OAUTH_SERVICE, "ga4datactl:read")]
     assert path.exists()
 
 
@@ -774,18 +787,29 @@ def test_keyring_initialization_failure_is_a_sanitized_cli_authentication_error(
         "import_module",
         lambda _name: SimpleNamespace(Keyring=_MemoryBackend),
     )
-    monkeypatch.setattr(
-        oauth.keyring,
-        "get_keyring",
-        lambda: (_ for _ in ()).throw(RuntimeError("configured backend failed")),
-    )
+    initialization_calls: list[tuple[tuple[object, ...], dict[str, object]]] = []
+
+    def fail_keyring_initialization(*args: object, **kwargs: object) -> _MemoryBackend:
+        initialization_calls.append((args, kwargs))
+        raise RuntimeError("configured backend failed")
+
+    monkeypatch.setattr(oauth.keyring, "get_keyring", fail_keyring_initialization)
 
     result = CliRunner().invoke(data_app, ["auth", "status", "--access", "read"])
 
     assert result.exit_code == 4
     diagnostic = json.loads(result.stderr)
-    assert diagnostic["category"] == "authentication"
-    assert "configured backend failed" not in diagnostic["message"]
+    assert diagnostic == {
+        "schemaVersion": "marketing-toolbox/v1",
+        "command": "ga4datactl auth status",
+        "exitCode": 4,
+        "category": "authentication",
+        "message": (
+            "An approved encrypted OS keyring is unavailable; configure Keychain, "
+            "Windows Credential Locker, or Secret Service, or use externally managed ADC."
+        ),
+    }
+    assert initialization_calls == [((), {})]
 
 
 def test_auth_commands_are_registered_and_preserve_json_output(
