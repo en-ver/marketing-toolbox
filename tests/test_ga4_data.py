@@ -128,6 +128,95 @@ def test_validate_run_report_request_rejects_invalid_fixtures(
         )
 
 
+@pytest.mark.parametrize(
+    ("body", "trusted_context", "sentinels"),
+    [
+        (
+            {"returnPropertyQuota": "TYPE_VALUE_SENTINEL"},
+            ("returnPropertyQuota", "boolean"),
+            ("TYPE_VALUE_SENTINEL",),
+        ),
+        (
+            {"UNKNOWN_FIELD_SENTINEL": "UNKNOWN_VALUE_SENTINEL"},
+            ("unsupported field",),
+            ("UNKNOWN_FIELD_SENTINEL", "UNKNOWN_VALUE_SENTINEL"),
+        ),
+        (
+            {
+                "requests": [
+                    {
+                        "metrics": [
+                            {
+                                "name": "eventCount",
+                                "NESTED_FIELD_SENTINEL": "NESTED_VALUE_SENTINEL",
+                            }
+                        ]
+                    }
+                ]
+            },
+            ("unsupported field",),
+            ("NESTED_FIELD_SENTINEL", "NESTED_VALUE_SENTINEL"),
+        ),
+    ],
+)
+def test_schema_validation_discloses_only_controlled_context(
+    body: dict[str, Any], trusted_context: tuple[str, ...], sentinels: tuple[str, ...]
+) -> None:
+    validator = (
+        data_validation.BATCH_RUN_REPORTS_BODY_VALIDATOR
+        if "requests" in body
+        else data_validation.RUN_REPORT_BODY_VALIDATOR
+    )
+
+    with pytest.raises(data_validation.RequestValidationError) as raised:
+        data_validation._validate_schema(body, validator)
+
+    message = str(raised.value)
+    for context in trusted_context:
+        assert context in message
+    for sentinel in sentinels:
+        assert sentinel not in message
+    if "requests" in body:
+        assert "0" not in message
+
+
+def test_schema_validation_precedes_credential_lookup(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        reports,
+        "service_account_credentials",
+        lambda _: pytest.fail("schema errors must not load credentials"),
+    )
+
+    with pytest.raises(data_validation.RequestValidationError) as raised:
+        reports.run_report(
+            "properties/1234", {"returnPropertyQuota": "TYPE_VALUE_SENTINEL"}
+        )
+
+    assert "TYPE_VALUE_SENTINEL" not in str(raised.value)
+
+
+def test_pivot_validation_does_not_echo_custom_field_names() -> None:
+    undeclared = _pivot_request()
+    undeclared["pivots"][0]["fieldNames"] = ["UNDECLARED_PIVOT_SENTINEL"]
+    duplicate = _pivot_request(dimension={"name": "DUPLICATE_PIVOT_SENTINEL"})
+    duplicate["pivots"] = [
+        {"fieldNames": ["DUPLICATE_PIVOT_SENTINEL"], "limit": "1"},
+        {"fieldNames": ["DUPLICATE_PIVOT_SENTINEL"], "limit": "1"},
+    ]
+
+    with pytest.raises(data_validation.RequestValidationError) as undeclared_error:
+        data_validation.validate_run_pivot_report_request("properties/1234", undeclared)
+    with pytest.raises(data_validation.RequestValidationError) as duplicate_error:
+        data_validation.validate_run_pivot_report_request("properties/1234", duplicate)
+
+    assert "declared dimension or dateRange" in str(undeclared_error.value)
+    assert "UNDECLARED_PIVOT_SENTINEL" not in str(undeclared_error.value)
+    assert "cannot appear in more than one pivot" in str(duplicate_error.value)
+    assert "DUPLICATE_PIVOT_SENTINEL" not in str(duplicate_error.value)
+
+
 def test_run_report_uses_official_request_shape_and_preserves_response(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

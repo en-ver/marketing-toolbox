@@ -48,16 +48,82 @@ CREATE_AUDIENCE_EXPORT_BODY_VALIDATOR = Draft202012Validator(
 )
 
 
-def _validate_schema(body: Mapping[str, Any], validator: Draft202012Validator) -> None:
-    """Raise a normalized validation error for the first schema violation."""
-    error = next(validator.iter_errors(body), None)
-    if error is None:
-        return
-    location = ".".join(str(part) for part in error.absolute_path)
-    suffix = f" at {location}" if location else ""
-    raise RequestValidationError(
-        f"--body violates the request schema{suffix}: {error.message}"
+_JSON_SCHEMA_TYPE_NAMES = frozenset(
+    {"array", "boolean", "integer", "null", "number", "object", "string"}
+)
+
+
+def _schema_property_location(error: Any) -> str | None:
+    """Return a display location composed only of static schema property names."""
+    schema_path = tuple(error.absolute_schema_path)
+    properties = [
+        schema_path[index + 1]
+        for index, part in enumerate(schema_path[:-1])
+        if part == "properties" and isinstance(schema_path[index + 1], str)
+    ]
+    return ".".join(properties) if properties else None
+
+
+def _schema_type_label(error: Any) -> str | None:
+    """Return only allowlisted type names declared by the static schema."""
+    validator_value = error.validator_value
+    types = (
+        (validator_value,)
+        if isinstance(validator_value, str)
+        else validator_value
+        if isinstance(validator_value, (list, tuple))
+        else ()
     )
+    if not types or not all(
+        isinstance(schema_type, str) and schema_type in _JSON_SCHEMA_TYPE_NAMES
+        for schema_type in types
+    ):
+        return None
+    return " or ".join(types)
+
+
+def _format_schema_error(error: Any) -> str:
+    """Format a schema error without incorporating request data or parser prose."""
+    location = _schema_property_location(error)
+    suffix = f" at {location}" if location else ""
+
+    if error.validator == "additionalProperties":
+        return "--body violates the request schema: unsupported field."
+    if error.validator == "required":
+        return "--body violates the request schema: missing required field."
+    if error.validator == "type":
+        expected_type = _schema_type_label(error)
+        if expected_type is not None:
+            return (
+                f"--body violates the request schema{suffix}: expected {expected_type}."
+            )
+    if error.validator in {"enum", "const"}:
+        return f"--body violates the request schema{suffix}: value is not permitted."
+    if error.validator == "pattern":
+        return (
+            f"--body violates the request schema{suffix}: value has an invalid format."
+        )
+    if error.validator in {
+        "minimum",
+        "maximum",
+        "exclusiveMinimum",
+        "exclusiveMaximum",
+    }:
+        return f"--body violates the request schema{suffix}: value is outside the permitted range."
+    if error.validator in {"minLength", "maxLength"}:
+        return (
+            f"--body violates the request schema{suffix}: value has an invalid length."
+        )
+    if error.validator in {"minItems", "maxItems"}:
+        return f"--body violates the request schema{suffix}: collection has an invalid size."
+    return "--body violates the request schema: unsupported request constraint."
+
+
+def _validate_schema(body: Mapping[str, Any], validator: Draft202012Validator) -> None:
+    """Raise a safe normalized validation error for the first schema violation."""
+    error = next(validator.iter_errors(body), None)
+    if error is not None:
+        raise RequestValidationError(_format_schema_error(error))
 
 
 def _reject_nonstandard_json_constant(constant: str) -> None:
@@ -205,11 +271,11 @@ def validate_run_pivot_report_request(
         for field_name in field_names:
             if field_name != "dateRange" and field_name not in dimensions:
                 raise RequestValidationError(
-                    f"Pivot fieldNames contains undeclared dimension: {field_name}."
+                    "Pivot fieldNames must reference a declared dimension or dateRange."
                 )
             if field_name != "dateRange" and field_name in used_dimensions:
                 raise RequestValidationError(
-                    f"A declared dimension cannot appear in more than one pivot: {field_name}."
+                    "A declared dimension cannot appear in more than one pivot."
                 )
             if field_name != "dateRange":
                 used_dimensions.add(field_name)

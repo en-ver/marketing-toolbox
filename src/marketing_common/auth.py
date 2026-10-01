@@ -15,8 +15,7 @@ from .oauth import (
     OAuthAuthenticationError,
     ToolName,
     access_for_scope,
-    load_native_credentials,
-    native_marker_exists,
+    load_native_credentials_if_present,
 )
 
 SERVICE_ACCOUNT_JSON_ENV = "GOOGLE_SERVICE_ACCOUNT_JSON"
@@ -117,16 +116,15 @@ def resolve_credentials(
                 f"{APPLICATION_CREDENTIALS_ENV} must name a valid readable credential document."
             ) from exc
     access = access_for_scope(tool, requested)
-    try:
-        native_present = access is not None and native_marker_exists(tool, access)
-    except OAuthAuthenticationError as exc:
-        raise CredentialConfigurationError(str(exc)) from exc
-    if native_present:
-        assert access is not None
+    if access is not None:
         try:
-            return load_native_credentials(tool, access, requested[0])
+            native_credentials = load_native_credentials_if_present(
+                tool, access, requested[0]
+            )
         except OAuthAuthenticationError as exc:
             raise CredentialConfigurationError(str(exc)) from exc
+        if native_credentials is not None:
+            return native_credentials
     try:
         credentials, _ = google.auth.default(scopes=requested)
         return credentials

@@ -45,7 +45,7 @@ After `auth status` succeeds, it is safe to delete the downloaded JSON for that 
 
 - Deleting the local downloaded JSON does not change an existing keyring record or Google grant.
 - `auth forget` deletes the selected local record only.
-- `auth revoke --apply --acknowledge-project-wide-revocation` revokes the user's grant across the OAuth project, then removes the selected local record.
+- `auth revoke --apply --acknowledge-project-wide-revocation` revokes the user's grant across the OAuth project, then removes the selected local record only when its serialized value is unchanged. A concurrent replacement is preserved and reported for local cleanup review.
 - Deleting the Cloud OAuth client can invalidate records using that client and is not a logout mechanism.
 
 ## SSH or another remote browser

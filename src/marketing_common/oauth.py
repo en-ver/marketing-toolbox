@@ -8,6 +8,7 @@ broken native record cannot silently change the identity selected by ADC.
 from __future__ import annotations
 
 import contextlib
+import errno
 import importlib
 import json
 import os
@@ -15,6 +16,9 @@ import platform
 import secrets
 import stat
 import sys
+import threading
+import time
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any, Literal, cast
 from urllib.error import URLError
@@ -37,6 +41,9 @@ RECORD_VERSION = 1
 WINDOWS_CREDENTIAL_BLOB_LIMIT = 2560
 CALLBACK_TIMEOUT_SECONDS = 600
 REVOCATION_ENDPOINT = "https://oauth2.googleapis.com/revoke"
+_NATIVE_OAUTH_LOCK_TIMEOUT_SECONDS = 5.0
+_NATIVE_OAUTH_LOCK_POLL_SECONDS = 0.05
+_native_oauth_thread_lock = threading.Lock()
 
 SCOPE_CATALOG: dict[ToolName, dict[str, str]] = {
     "ga4datactl": {"read": "https://www.googleapis.com/auth/analytics.readonly"},
@@ -147,12 +154,17 @@ def _keyring_call(operation: Any, *args: str) -> Any:
         ) from exc
 
 
-def preflight_keyring() -> None:
+def _preflight_keyring_unlocked() -> None:
     """Prove the approved backend can perform a non-secret CRUD round trip."""
     backend = _approved_backend()
     username = f"preflight:{secrets.token_urlsafe(16)}"
     sentinel = secrets.token_urlsafe(24)
-    _keyring_call(backend.set_password, OAUTH_SERVICE, username, sentinel)
+    try:
+        _keyring_call(backend.set_password, OAUTH_SERVICE, username, sentinel)
+    except OAuthAuthenticationError:
+        with contextlib.suppress(OAuthAuthenticationError):
+            _keyring_call(backend.delete_password, OAUTH_SERVICE, username)
+        raise
     try:
         if _keyring_call(backend.get_password, OAUTH_SERVICE, username) != sentinel:
             raise OAuthAuthenticationError(
@@ -160,6 +172,11 @@ def preflight_keyring() -> None:
             )
     finally:
         _keyring_call(backend.delete_password, OAUTH_SERVICE, username)
+
+
+def preflight_keyring() -> None:
+    with _native_oauth_lock():
+        _preflight_keyring_unlocked()
 
 
 def _marker_components(path: Path) -> tuple[Path, Path, Path, Path]:
@@ -268,8 +285,205 @@ def _validate_marker(path: Path) -> bool:
     return True
 
 
-def native_marker_exists(tool: ToolName, access: str) -> bool:
+def _native_marker_exists_unlocked(tool: ToolName, access: str) -> bool:
     return _validate_marker(marker_path(tool, access))
+
+
+def native_marker_exists(tool: ToolName, access: str) -> bool:
+    """Return a coherent marker presence snapshot without keyring access if absent."""
+    if not _native_marker_exists_unlocked(tool, access):
+        return False
+    with _native_oauth_lock():
+        return _native_marker_exists_unlocked(tool, access)
+
+
+def _canonical_oauth_lock_path() -> Path:
+    """Return the stable per-user lock path, independent of marker overrides."""
+    if os.name == "nt":
+        from . import _win32_marker
+
+        return (
+            _win32_marker.canonical_local_app_data()
+            / "marketing-toolbox"
+            / "oauth"
+            / "_locks"
+            / f"{OAUTH_SERVICE}.lock"
+        )
+    try:
+        import pwd
+
+        home = Path(pwd.getpwuid(os.geteuid()).pw_dir)
+    except (ImportError, KeyError, OSError) as exc:
+        raise OAuthAuthenticationError(
+            "Native credential storage coordination is unavailable."
+        ) from exc
+    base = home / (
+        "Library/Application Support" if platform.system() == "Darwin" else ".config"
+    )
+    return base / "marketing-toolbox" / "oauth" / "_locks" / f"{OAUTH_SERVICE}.lock"
+
+
+def _validate_lock_hierarchy(path: Path, *, allow_missing: bool) -> None:
+    """Require the app-owned lock hierarchy to remain private."""
+    _validate_marker_hierarchy(path, allow_missing=allow_missing)
+    if os.name != "posix":
+        return
+    _, app_root, oauth_directory, locks_directory = _marker_components(path)
+    for directory in (app_root, oauth_directory, locks_directory):
+        try:
+            details = directory.lstat()
+        except FileNotFoundError:
+            if allow_missing:
+                return
+            raise
+        if stat.S_IMODE(details.st_mode) != 0o700:
+            raise ValueError("unsafe lock directory")
+
+
+def _validate_lock_file(path: Path, descriptor: int, *, created: bool) -> None:
+    details = os.fstat(descriptor)
+    if not stat.S_ISREG(details.st_mode) or details.st_nlink != 1:
+        raise ValueError("unsafe lock file")
+    if os.name == "posix":
+        if details.st_uid != os.geteuid():
+            raise ValueError("unsafe lock file")
+        if created:
+            os.fchmod(descriptor, 0o600)
+            details = os.fstat(descriptor)
+        if stat.S_IMODE(details.st_mode) != 0o600:
+            raise ValueError("unsafe lock file")
+    elif os.name == "nt":
+        from . import _win32_marker
+
+        if _win32_marker.is_reparse_point(path):
+            raise ValueError("unsafe lock file")
+
+
+def _open_native_oauth_lock_file(path: Path) -> int:
+    """Open the persistent lock file using the marker hierarchy protections."""
+    _validate_lock_hierarchy(path, allow_missing=True)
+    try:
+        _validate_lock_hierarchy(path, allow_missing=False)
+    except FileNotFoundError:
+        _ensure_marker_directory(path)
+        _validate_lock_hierarchy(path, allow_missing=False)
+    flags = os.O_RDWR | os.O_CREAT | os.O_EXCL
+    flags |= getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+    created = False
+    try:
+        descriptor = os.open(path, flags, 0o600)
+        created = True
+    except FileExistsError:
+        descriptor = os.open(
+            path,
+            os.O_RDWR | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0),
+        )
+    try:
+        os.set_inheritable(descriptor, False)
+        _validate_lock_file(path, descriptor, created=created)
+        return descriptor
+    except BaseException:
+        os.close(descriptor)
+        raise
+
+
+def _lock_is_contended(exc: OSError) -> bool:
+    return exc.errno in (errno.EACCES, errno.EAGAIN)
+
+
+def _acquire_os_lock(descriptor: int, timeout_seconds: float) -> None:
+    if os.name == "nt":
+        import msvcrt
+
+        def try_lock() -> None:
+            os.lseek(descriptor, 0, os.SEEK_SET)
+            msvcrt.locking(descriptor, msvcrt.LK_NBLCK, 1)  # type: ignore[attr-defined]
+
+    else:
+        import fcntl
+
+        def try_lock() -> None:
+            fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+
+    deadline = time.monotonic() + timeout_seconds
+    while True:
+        try:
+            try_lock()
+            return
+        except OSError as exc:
+            if not _lock_is_contended(exc):
+                raise
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise OAuthAuthenticationError(
+                    "Native credential storage is busy; retry."
+                ) from exc
+            time.sleep(min(_NATIVE_OAUTH_LOCK_POLL_SECONDS, remaining))
+
+
+def _release_os_lock(descriptor: int) -> None:
+    if os.name == "nt":
+        import msvcrt
+
+        os.lseek(descriptor, 0, os.SEEK_SET)
+        msvcrt.locking(descriptor, msvcrt.LK_UNLCK, 1)  # type: ignore[attr-defined]
+    else:
+        import fcntl
+
+        fcntl.flock(descriptor, fcntl.LOCK_UN)
+
+
+@contextlib.contextmanager
+def _native_oauth_lock() -> Iterator[None]:
+    """Serialize local marker/keyring transactions for the shared service."""
+    try:
+        path = _canonical_oauth_lock_path()
+    except OAuthAuthenticationError:
+        raise
+    except Exception as exc:
+        raise OAuthAuthenticationError(
+            "Native credential storage coordination is unavailable."
+        ) from exc
+
+    thread_wait_started = time.monotonic()
+    if not _native_oauth_thread_lock.acquire(
+        timeout=_NATIVE_OAUTH_LOCK_TIMEOUT_SECONDS
+    ):
+        raise OAuthAuthenticationError("Native credential storage is busy; retry.")
+    os_contention_budget = max(
+        0.0,
+        _NATIVE_OAUTH_LOCK_TIMEOUT_SECONDS - (time.monotonic() - thread_wait_started),
+    )
+    descriptor: int | None = None
+    locked = False
+    try:
+        try:
+            # Opening and validating the persistent lock file is filesystem work,
+            # not lock contention. Only thread and OS lock waits share this budget.
+            descriptor = _open_native_oauth_lock_file(path)
+            _acquire_os_lock(descriptor, os_contention_budget)
+            locked = True
+        except OAuthAuthenticationError:
+            raise
+        except (OSError, ValueError) as exc:
+            raise OAuthAuthenticationError(
+                "Native credential storage coordination is unavailable."
+            ) from exc
+        yield
+    finally:
+        try:
+            if descriptor is not None:
+                try:
+                    if locked:
+                        _release_os_lock(descriptor)
+                finally:
+                    os.close(descriptor)
+        except OSError as exc:
+            raise OAuthAuthenticationError(
+                "Native credential storage coordination is unavailable."
+            ) from exc
+        finally:
+            _native_oauth_thread_lock.release()
 
 
 def _sync_file(file_descriptor: int) -> None:
@@ -296,7 +510,10 @@ def _ensure_marker_directory(path: Path) -> None:
             try:
                 directory.lstat()
             except FileNotFoundError:
-                os.mkdir(directory, mode=0o700)
+                try:
+                    os.mkdir(directory, mode=0o700)
+                except FileExistsError:
+                    pass
                 _validate_app_directory(directory)
         for directory in (app_root, oauth_directory, tool_directory):
             try:
@@ -304,7 +521,10 @@ def _ensure_marker_directory(path: Path) -> None:
             except FileNotFoundError:
                 if directory != app_root:
                     _validate_app_directory(directory.parent)
-                os.mkdir(directory, mode=0o700)
+                try:
+                    os.mkdir(directory, mode=0o700)
+                except FileExistsError:
+                    pass
                 _validate_app_directory(directory)
 
         # Re-sync every entry from the configured base to the tool directory.
@@ -329,7 +549,10 @@ def _ensure_marker_directory(path: Path) -> None:
             parent = directory.parent
             if directory != app_root:
                 _validate_app_directory(parent)
-            os.mkdir(directory, mode=0o700)
+            try:
+                os.mkdir(directory, mode=0o700)
+            except FileExistsError:
+                pass
             _sync_directory(parent)
             _validate_app_directory(directory)
 
@@ -456,9 +679,11 @@ def _validate_windows_blob_size(serialized: str) -> None:
         )
 
 
-def validate_native_record(tool: ToolName, access: str, scope: str) -> UserCredentials:
-    """Validate a marked record without refreshing or contacting Google."""
-    if not _validate_marker(marker_path(tool, access)):
+def _read_native_record_unlocked(
+    tool: ToolName, access: str, scope: str
+) -> tuple[str, UserCredentials]:
+    """Read one marked keyring record while the native lifecycle lock is held."""
+    if not _native_marker_exists_unlocked(tool, access):
         raise OAuthAuthenticationError("Native credential marker is missing.")
     backend = _approved_backend()
     serialized = _keyring_call(
@@ -468,12 +693,31 @@ def validate_native_record(tool: ToolName, access: str, scope: str) -> UserCrede
         raise OAuthAuthenticationError(
             "Native credential is missing from secure storage."
         )
-    return _credentials_from_record(serialized, scope)
+    return serialized, _credentials_from_record(serialized, scope)
 
 
-def load_native_credentials(tool: ToolName, access: str, scope: str) -> Credentials:
-    """Load the marked credential, refreshing only its in-memory access token."""
-    credentials = validate_native_record(tool, access, scope)
+def validate_native_record(tool: ToolName, access: str, scope: str) -> UserCredentials:
+    """Validate a marked record without refreshing or contacting Google."""
+    with _native_oauth_lock():
+        _, credentials = _read_native_record_unlocked(tool, access, scope)
+        return credentials
+
+
+def native_record_status(tool: ToolName, access: str, scope: str) -> bool:
+    """Validate a present marker/keyring record as one local snapshot."""
+    if not _native_marker_exists_unlocked(tool, access):
+        return False
+    with _native_oauth_lock():
+        if not _native_marker_exists_unlocked(tool, access):
+            return False
+        _read_native_record_unlocked(tool, access, scope)
+        return True
+
+
+def _refresh_native_credentials(
+    credentials: UserCredentials, scope: str
+) -> Credentials:
+    """Refresh only after the local record snapshot lock has been released."""
     if credentials.token_state is not TokenState.FRESH:
         original_refresh_token = credentials.refresh_token
         try:
@@ -492,6 +736,26 @@ def load_native_credentials(tool: ToolName, access: str, scope: str) -> Credenti
                 "Native credential no longer grants the required scope."
             )
     return credentials
+
+
+def load_native_credentials(tool: ToolName, access: str, scope: str) -> Credentials:
+    """Load the marked credential, refreshing only its in-memory access token."""
+    with _native_oauth_lock():
+        _, credentials = _read_native_record_unlocked(tool, access, scope)
+    return _refresh_native_credentials(credentials, scope)
+
+
+def load_native_credentials_if_present(
+    tool: ToolName, access: str, scope: str
+) -> Credentials | None:
+    """Atomically load a selected native record or report its safe absence."""
+    if not _native_marker_exists_unlocked(tool, access):
+        return None
+    with _native_oauth_lock():
+        if not _native_marker_exists_unlocked(tool, access):
+            return None
+        _, credentials = _read_native_record_unlocked(tool, access, scope)
+    return _refresh_native_credentials(credentials, scope)
 
 
 def _restore_record(backend: Any, name: str, old: str | None) -> bool:
@@ -526,13 +790,10 @@ def _mark_inconsistent_state(path: Path) -> None:
     )
 
 
-def store_native_credentials(
-    tool: ToolName, access: str, credentials: UserCredentials
+def _store_native_credentials_unlocked(
+    tool: ToolName, access: str, scope: str, serialized: str
 ) -> None:
-    """Store a verified record after durable marker intent is established."""
-    scope = scope_for_access(tool, access)
-    serialized = _record_from_credentials(credentials, scope)
-    _validate_windows_blob_size(serialized)
+    """Store a record and compensate while the native lifecycle lock is held."""
     backend = _approved_backend()
     name = _record_name(tool, access)
     path = marker_path(tool, access)
@@ -579,8 +840,19 @@ def store_native_credentials(
         ) from exc
 
 
-def forget_native_credentials(tool: ToolName, access: str) -> None:
-    """Delete and verify the secret before removing its recovery marker."""
+def store_native_credentials(
+    tool: ToolName, access: str, credentials: UserCredentials
+) -> None:
+    """Store a verified record after durable marker intent is established."""
+    scope = scope_for_access(tool, access)
+    serialized = _record_from_credentials(credentials, scope)
+    _validate_windows_blob_size(serialized)
+    with _native_oauth_lock():
+        _store_native_credentials_unlocked(tool, access, scope, serialized)
+
+
+def _forget_native_credentials_unlocked(tool: ToolName, access: str) -> None:
+    """Delete and verify a marked secret while the lifecycle lock is held."""
     path = marker_path(tool, access)
     if not _validate_marker(path):
         return
@@ -596,9 +868,18 @@ def forget_native_credentials(tool: ToolName, access: str) -> None:
     _delete_marker(path)
 
 
+def forget_native_credentials(tool: ToolName, access: str) -> None:
+    """Delete and verify the secret before removing its recovery marker."""
+    if not _native_marker_exists_unlocked(tool, access):
+        return
+    with _native_oauth_lock():
+        _forget_native_credentials_unlocked(tool, access)
+
+
 def revoke_native_credentials(tool: ToolName, access: str) -> None:
     scope = scope_for_access(tool, access)
-    credentials = validate_native_record(tool, access, scope)
+    with _native_oauth_lock():
+        serialized, credentials = _read_native_record_unlocked(tool, access, scope)
     refresh_token = credentials.refresh_token
     assert refresh_token is not None
     request = UrlRequest(
@@ -616,7 +897,24 @@ def revoke_native_credentials(tool: ToolName, access: str) -> None:
             "Remote revocation failed; local credential was retained."
         ) from exc
     try:
-        forget_native_credentials(tool, access)
+        with _native_oauth_lock():
+            path = marker_path(tool, access)
+            if not _validate_marker(path):
+                return
+            backend = _approved_backend()
+            current = _keyring_call(
+                backend.get_password, OAUTH_SERVICE, _record_name(tool, access)
+            )
+            if current is None:
+                _delete_marker(path)
+                return
+            if current != serialized:
+                raise RemoteRevokedCleanupError(
+                    "Remote grant was revoked, but a concurrent local replacement was preserved; review it before running auth forget."
+                )
+            _forget_native_credentials_unlocked(tool, access)
+    except RemoteRevokedCleanupError:
+        raise
     except OAuthAuthenticationError as exc:
         raise RemoteRevokedCleanupError(
             "Remote grant was revoked, but local cleanup is incomplete; run auth forget."

@@ -10,7 +10,7 @@ import sys
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, Self
 
 import pytest
 import typer
@@ -22,6 +22,24 @@ from ga4datactl.cli import app as data_app
 from ga4datactl.operations import audience_exports
 from gtmctl.cli import app as gtm_app
 from marketing_common import auth, oauth
+
+
+@pytest.fixture(autouse=True)
+def _isolate_canonical_oauth_lock(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(
+        oauth,
+        "_canonical_oauth_lock_path",
+        lambda: (
+            tmp_path
+            / "canonical"
+            / "marketing-toolbox"
+            / "oauth"
+            / "_locks"
+            / "marketing-toolbox.oauth.lock"
+        ),
+    )
 
 
 class _MemoryBackend:
@@ -204,7 +222,7 @@ def test_generic_resolver_empty_explicit_sources_do_not_fall_through(
     )
     monkeypatch.setattr(
         auth,
-        "native_marker_exists",
+        "load_native_credentials_if_present",
         lambda *_args: pytest.fail("native OAuth must not be selected"),
     )
     monkeypatch.setattr(
@@ -226,8 +244,9 @@ def test_generic_resolver_uses_marked_native_before_ambient(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     expected = object()
-    monkeypatch.setattr(auth, "native_marker_exists", lambda *_args: True)
-    monkeypatch.setattr(auth, "load_native_credentials", lambda *_args: expected)
+    monkeypatch.setattr(
+        auth, "load_native_credentials_if_present", lambda *_args: expected
+    )
     monkeypatch.setattr(
         auth.google.auth,
         "default",
@@ -260,6 +279,127 @@ def test_keyring_allowlist_and_sentinel_crud_accept_exact_backend(
     oauth.preflight_keyring()
 
     assert backend.records == {}
+
+
+def test_preflight_commit_then_raise_removes_synthetic_record_before_login(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    class CommitThenRaiseBackend(_MemoryBackend):
+        def __init__(self) -> None:
+            super().__init__()
+            self.set_calls: list[tuple[str, str]] = []
+            self.delete_calls: list[tuple[str, str]] = []
+
+        def set_password(self, service: str, username: str, password: str) -> None:
+            self.set_calls.append((service, username))
+            super().set_password(service, username, password)
+            raise RuntimeError("set failed after commit")
+
+        def delete_password(self, service: str, username: str) -> None:
+            self.delete_calls.append((service, username))
+            super().delete_password(service, username)
+
+    backend = CommitThenRaiseBackend()
+    marker = tmp_path / "markers" / "ga4datactl" / "read.json"
+    user_record = (oauth.OAUTH_SERVICE, "ga4datactl:read")
+    backend.records[user_record] = "existing user credential"
+    monkeypatch.setattr(oauth, "marker_path", lambda *_args: marker)
+    monkeypatch.setattr(oauth, "_approved_backend", lambda: backend)
+    monkeypatch.setattr(
+        oauth.InstalledAppFlow,
+        "from_client_secrets_file",
+        lambda *_args, **_kwargs: pytest.fail("browser authorization must not start"),
+    )
+    monkeypatch.setattr(
+        oauth,
+        "urlopen",
+        lambda *_args, **_kwargs: pytest.fail("network access must not start"),
+    )
+    monkeypatch.setattr(
+        auth.google.auth,
+        "default",
+        lambda **_kwargs: pytest.fail("ADC must not be selected"),
+    )
+
+    with pytest.raises(
+        oauth.OAuthAuthenticationError, match="Secure credential storage is unavailable"
+    ) as exc_info:
+        oauth.login_native_credentials(
+            "ga4datactl",
+            "read",
+            tmp_path / "client.json",
+            open_browser=True,
+            port=None,
+        )
+
+    assert isinstance(exc_info.value.__cause__, RuntimeError)
+    assert str(exc_info.value.__cause__) == "set failed after commit"
+    assert len(backend.set_calls) == 1
+    assert backend.delete_calls == backend.set_calls
+    assert backend.delete_calls[0][0] == oauth.OAUTH_SERVICE
+    assert backend.delete_calls[0][1].startswith("preflight:")
+    assert backend.records == {user_record: "existing user credential"}
+    assert not marker.exists()
+
+
+def test_preflight_failed_set_preserves_original_error_when_cleanup_fails(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    class FailBeforeCommitBackend(_MemoryBackend):
+        def __init__(self) -> None:
+            super().__init__()
+            self.set_calls: list[tuple[str, str]] = []
+            self.delete_calls: list[tuple[str, str]] = []
+
+        def set_password(self, service: str, username: str, _password: str) -> None:
+            self.set_calls.append((service, username))
+            raise RuntimeError("set failed before commit")
+
+        def delete_password(self, service: str, username: str) -> None:
+            self.delete_calls.append((service, username))
+            raise KeyError("synthetic record is absent")
+
+    backend = FailBeforeCommitBackend()
+    marker = tmp_path / "markers" / "ga4datactl" / "read.json"
+    user_record = (oauth.OAUTH_SERVICE, "ga4datactl:read")
+    backend.records[user_record] = "existing user credential"
+    monkeypatch.setattr(oauth, "marker_path", lambda *_args: marker)
+    monkeypatch.setattr(oauth, "_approved_backend", lambda: backend)
+    monkeypatch.setattr(
+        oauth.InstalledAppFlow,
+        "from_client_secrets_file",
+        lambda *_args, **_kwargs: pytest.fail("browser authorization must not start"),
+    )
+    monkeypatch.setattr(
+        oauth,
+        "urlopen",
+        lambda *_args, **_kwargs: pytest.fail("network access must not start"),
+    )
+    monkeypatch.setattr(
+        auth.google.auth,
+        "default",
+        lambda **_kwargs: pytest.fail("ADC must not be selected"),
+    )
+
+    with pytest.raises(
+        oauth.OAuthAuthenticationError, match="Secure credential storage is unavailable"
+    ) as exc_info:
+        oauth.login_native_credentials(
+            "ga4datactl",
+            "read",
+            tmp_path / "client.json",
+            open_browser=True,
+            port=None,
+        )
+
+    assert isinstance(exc_info.value.__cause__, RuntimeError)
+    assert str(exc_info.value.__cause__) == "set failed before commit"
+    assert len(backend.set_calls) == 1
+    assert backend.delete_calls == backend.set_calls
+    assert backend.delete_calls[0][0] == oauth.OAUTH_SERVICE
+    assert backend.delete_calls[0][1].startswith("preflight:")
+    assert backend.records == {user_record: "existing user credential"}
+    assert not marker.exists()
 
 
 def test_minimal_record_round_trip_omits_access_token_and_legacy_is_accepted() -> None:
@@ -696,7 +836,7 @@ def test_auth_commands_reject_unsupported_access_before_actions(
         pytest.fail("unsupported access must be rejected before auth actions")
 
     monkeypatch.setattr("marketing_common.oauth_cli.login_native_credentials", action)
-    monkeypatch.setattr("marketing_common.oauth_cli.native_marker_exists", action)
+    monkeypatch.setattr("marketing_common.oauth_cli.native_record_status", action)
     monkeypatch.setattr("marketing_common.oauth_cli.forget_native_credentials", action)
     monkeypatch.setattr("marketing_common.oauth_cli.revoke_native_credentials", action)
     client = tmp_path / "client.json"
@@ -762,25 +902,121 @@ def test_auth_login_rejects_no_browser_without_port_before_actions(
 
 
 def test_revoke_retains_local_record_on_remote_failure(
-    monkeypatch: pytest.MonkeyPatch,
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    credentials = _stored_user_credentials(oauth.SCOPE_CATALOG["ga4datactl"]["read"])
-    monkeypatch.setattr(oauth, "validate_native_record", lambda *_args: credentials)
+    backend = _MemoryBackend()
+    path = tmp_path / "oauth" / "ga4datactl" / "read.json"
+    scope = oauth.SCOPE_CATALOG["ga4datactl"]["read"]
+    credentials = _stored_user_credentials(scope)
+    monkeypatch.setattr(oauth, "marker_path", lambda *_args: path)
+    monkeypatch.setattr(oauth, "_approved_backend", lambda: backend)
+    oauth._write_marker(path)
+    serialized = oauth._record_from_credentials(credentials, scope)
+    backend.records[(oauth.OAUTH_SERVICE, "ga4datactl:read")] = serialized
     monkeypatch.setattr(
         oauth,
         "urlopen",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("offline")),
-    )
-    monkeypatch.setattr(
-        oauth,
-        "forget_native_credentials",
-        lambda *_args: pytest.fail("must retain local record"),
     )
 
     with pytest.raises(
         oauth.OAuthAuthenticationError, match="local credential was retained"
     ):
         oauth.revoke_native_credentials("ga4datactl", "read")
+
+    assert backend.records[(oauth.OAUTH_SERVICE, "ga4datactl:read")] == serialized
+    assert path.exists()
+
+
+def test_revoke_only_cleans_an_unchanged_local_record(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    backend = _MemoryBackend()
+    path = tmp_path / "oauth" / "ga4datactl" / "read.json"
+    scope = oauth.SCOPE_CATALOG["ga4datactl"]["read"]
+    credentials = _stored_user_credentials(scope)
+    monkeypatch.setattr(oauth, "marker_path", lambda *_args: path)
+    monkeypatch.setattr(oauth, "_approved_backend", lambda: backend)
+    oauth._write_marker(path)
+    backend.records[(oauth.OAUTH_SERVICE, "ga4datactl:read")] = (
+        oauth._record_from_credentials(credentials, scope)
+    )
+
+    class Response:
+        status = 200
+
+        def __enter__(self) -> Self:
+            return self
+
+        def __exit__(self, *_args: object) -> None:
+            return None
+
+    monkeypatch.setattr(oauth, "urlopen", lambda *_args, **_kwargs: Response())
+    oauth.revoke_native_credentials("ga4datactl", "read")
+
+    assert backend.records == {}
+    assert not path.exists()
+
+
+def test_revoke_preserves_a_concurrent_local_replacement(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    backend = _MemoryBackend()
+    path = tmp_path / "oauth" / "ga4datactl" / "read.json"
+    scope = oauth.SCOPE_CATALOG["ga4datactl"]["read"]
+    monkeypatch.setattr(oauth, "marker_path", lambda *_args: path)
+    monkeypatch.setattr(oauth, "_approved_backend", lambda: backend)
+    original = _stored_user_credentials(scope, refresh_token="original")
+    replacement = _stored_user_credentials(scope, refresh_token="replacement")
+    oauth.store_native_credentials("ga4datactl", "read", original)
+
+    class Response:
+        status = 200
+
+        def __enter__(self) -> Self:
+            return self
+
+        def __exit__(self, *_args: object) -> None:
+            return None
+
+    def revoke_remotely(*_args: object, **_kwargs: object) -> Response:
+        oauth.store_native_credentials("ga4datactl", "read", replacement)
+        return Response()
+
+    monkeypatch.setattr(oauth, "urlopen", revoke_remotely)
+    with pytest.raises(
+        oauth.RemoteRevokedCleanupError, match="replacement was preserved"
+    ):
+        oauth.revoke_native_credentials("ga4datactl", "read")
+
+    current = backend.records[(oauth.OAUTH_SERVICE, "ga4datactl:read")]
+    assert oauth._credentials_from_record(current, scope).refresh_token == "replacement"
+    assert path.exists()
+
+
+def test_refresh_runs_after_the_native_snapshot_lock_is_released(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    backend = _MemoryBackend()
+    path = tmp_path / "oauth" / "ga4datactl" / "read.json"
+    scope = oauth.SCOPE_CATALOG["ga4datactl"]["read"]
+    monkeypatch.setattr(oauth, "marker_path", lambda *_args: path)
+    monkeypatch.setattr(oauth, "_approved_backend", lambda: backend)
+    oauth.store_native_credentials(
+        "ga4datactl", "read", _stored_user_credentials(scope)
+    )
+
+    def refresh(credentials: UserCredentials, _request: object) -> None:
+        assert oauth._native_oauth_thread_lock.acquire(blocking=False)
+        oauth._native_oauth_thread_lock.release()
+        credentials.token = "refreshed"
+        credentials.expiry = datetime.now(UTC) + timedelta(hours=1)
+        credentials._granted_scopes = [scope]
+
+    monkeypatch.setattr(UserCredentials, "refresh", refresh)
+    assert (
+        oauth.load_native_credentials("ga4datactl", "read", scope).token == "refreshed"
+    )
 
 
 def test_revoke_requires_explicit_acknowledgement_and_reports_blast_radius(
@@ -860,7 +1096,7 @@ def test_interrupted_initial_store_retains_marker_and_blocks_adc(
     assert oauth.native_marker_exists("ga4datactl", "read")
     monkeypatch.setattr(
         auth,
-        "load_native_credentials",
+        "load_native_credentials_if_present",
         lambda *_args: (_ for _ in ()).throw(
             oauth.OAuthAuthenticationError("marked state requires recovery")
         ),
@@ -1084,6 +1320,8 @@ def test_store_retry_resyncs_partial_directory_creation_before_marker_and_secret
 
     monkeypatch.setattr(oauth, "marker_path", lambda *_args: path)
     monkeypatch.setattr(oauth, "_approved_backend", lambda: backend)
+    with oauth._native_oauth_lock():
+        pass
 
     def sync(directory: Path) -> None:
         nonlocal fail_once

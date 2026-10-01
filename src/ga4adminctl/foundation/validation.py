@@ -133,6 +133,6 @@ def parse_sdk_message(body: Mapping[str, Any], message_type: Any) -> Any:
         ParseDict(dict(body), message_type.pb(message), ignore_unknown_fields=False)
     except (ParseError, TypeError, ValueError) as exc:
         raise RequestValidationError(
-            f"--body cannot be converted to a {message_type.__name__}: {exc}"
+            f"--body cannot be converted to a {message_type.__name__}."
         ) from exc
     return message

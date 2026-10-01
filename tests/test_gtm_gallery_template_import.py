@@ -3,13 +3,16 @@
 from __future__ import annotations
 
 import json
+import socket
 from typing import Any
 
 import pytest
+import urllib3.connectionpool
 from typer.testing import CliRunner
 
 from gtmctl.cli import app
-from gtmctl.operations import mutations
+from gtmctl.operations import mutation_transport, mutations
+from marketing_common import auth
 
 
 class FakeRequest:
@@ -67,6 +70,58 @@ def _args(body: str, *extra: str) -> list[str]:
         body,
         *extra,
     ]
+
+
+def _install_apply_dispatch_barriers(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Make an accidental Gallery apply dispatch fail before external access."""
+
+    def forbidden(*_args: object, **_kwargs: object) -> None:
+        pytest.fail("Gallery validation must not use credentials or external services")
+
+    class BlockedSocket(socket.socket):
+        def connect(self, address: Any) -> None:
+            del address
+            pytest.fail("Gallery validation must not open sockets")
+
+        def connect_ex(self, address: Any) -> int:
+            del address
+            pytest.fail("Gallery validation must not open sockets")
+
+    monkeypatch.setattr(socket, "create_connection", forbidden)
+    monkeypatch.setattr(socket, "getaddrinfo", forbidden)
+    monkeypatch.setattr(socket, "socket", BlockedSocket)
+    monkeypatch.setattr(urllib3.connectionpool.HTTPConnectionPool, "urlopen", forbidden)
+    monkeypatch.setattr(
+        urllib3.connectionpool.HTTPSConnectionPool, "urlopen", forbidden
+    )
+    monkeypatch.setattr(auth.google.auth, "default", forbidden)
+    monkeypatch.setattr(mutations, "service_account_credentials", forbidden)
+    monkeypatch.setattr(mutations, "execute_mutation", forbidden)
+    monkeypatch.setattr(mutations, "make_tag_manager_mutation_service", forbidden)
+    monkeypatch.setattr(mutation_transport, "build", forbidden)
+    monkeypatch.setattr("googleapiclient.discovery.build", forbidden)
+
+
+def test_gallery_import_descriptor_is_the_exact_query_parameter_envelope() -> None:
+    result = CliRunner().invoke(
+        app,
+        [
+            "sdk",
+            "schema",
+            "--command",
+            "accounts containers workspaces templates import-from-gallery",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    body = json.loads(result.stdout)["data"]["request"]["body"]
+    assert body["type"] == "official-query-parameter-envelope"
+    assert {field["name"] for field in body["fields"]} == {
+        "galleryOwner",
+        "gallerySha",
+        "galleryRepository",
+    }
+    assert len(body["fields"]) == 3
 
 
 def test_gallery_import_uses_exact_official_request_and_edit_scope(
@@ -136,3 +191,28 @@ def test_gallery_import_requires_permission_acknowledgement(tmp_path: Any) -> No
 
     assert result.exit_code == 2
     assert "--acknowledge-template-import-permissions" in result.output
+
+
+def test_gallery_import_apply_rejects_unsupported_body_fields_before_dispatch(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Any
+) -> None:
+    _install_apply_dispatch_barriers(monkeypatch)
+
+    result = CliRunner().invoke(
+        app,
+        _args(
+            _body_file(tmp_path, '{"galleryOwner":"owner","unexpected":"value"}'),
+            "--acknowledge-template-import-permissions",
+            "--apply",
+        ),
+    )
+
+    assert result.exit_code == 2
+    assert result.stdout == ""
+    assert json.loads(result.stderr) == {
+        "schemaVersion": "marketing-toolbox/v1",
+        "command": "gtmctl accounts containers workspaces templates import-from-gallery",
+        "exitCode": 2,
+        "category": "invalid_request",
+        "message": "--body contains unsupported Gallery import field(s): unexpected.",
+    }

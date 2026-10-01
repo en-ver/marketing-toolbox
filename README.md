@@ -80,9 +80,9 @@ ga4datactl auth revoke --access read --apply --acknowledge-project-wide-revocati
 and cannot determine whether the Google grant remains valid. It verifies secure
 storage deletion before removing its recovery marker; if cleanup is incomplete,
 rerun `forget` after fixing local storage. `revoke` revokes the user's grant
-across the OAuth project, then removes the selected local record; it is not a
-per-tier remote logout. You can instead revoke access in Google Account
-permissions and run `forget`.
+across the OAuth project, then conditionally removes the selected unchanged
+local record; it is not a per-tier remote logout. You can instead revoke access
+in Google Account permissions and run `forget`.
 
 Native records retain only the refresh material and the selected access-tier
 scope binding in an approved encrypted OS keyring (macOS Keychain, Windows
@@ -99,15 +99,25 @@ can issue refresh tokens that expire after seven days.
 Before changing a native record, the tool durably writes a non-secret marker in
 its private application directory. An interrupted login can therefore leave a
 marked missing or invalid secret; it will fail closed rather than select ADC.
-Run `auth forget` to recover, then log in again. Ordinary storage failures are
-best-effort compensated, but abrupt interruption during a replacement can leave
-either the previous or new valid secret. On POSIX, each storage attempt
+Run `auth forget` to recover, then log in again. Native lifecycle operations
+coordinate through a persistent, non-secret per-user lock file shared by all
+three tools and tiers. Its canonical OS-profile location is intentionally
+independent of configurable marker roots; a busy lock waits up to five seconds
+for acquisition only (not for keyring, filesystem, browser, or network work)
+and then fails safely. An absent selected marker needs neither a lock nor a
+keyring lookup. Unsafe or unwritable canonical profiles fail closed rather than
+falling back to another location. Ordinary storage failures are best-effort
+compensated, but abrupt interruption during a replacement can leave either the
+previous or new valid secret. On POSIX, each storage attempt
 re-syncs configured-base and application directory entries before marker or
 keyring mutation, then syncs marker data and its containing directory. Windows
 uses flushed temporary data and a
 write-through replacement under the OS profile's inherited ACLs; neither
 platform promise covers every filesystem, redirect, storage device, or power
-loss scenario.
+loss scenario. `revoke` performs remote revocation outside the local lock, then
+removes the selected local record only if it is unchanged; a concurrent
+replacement is preserved and reported for review. Coordination is advisory for
+updated cooperating binaries—older or noncooperating binaries do not use it.
 
 For a remote browser over SSH, forward one fixed loopback port before logging
 in on the server:
@@ -135,7 +145,7 @@ required Google Analytics, Tag Manager, and IAM resource permissions separately.
 ## Discover commands and schemas
 
 Use `<tool> --help` for the current commands and options. `sdk schema --command
-"<eligible leaf path>"` prints the locally derived request schema without
+"<eligible leaf path>"` prints the locally derived request descriptor without
 loading credentials or calling Google.
 
 Reads execute normally. Writes require `--apply`; supported dry runs do not

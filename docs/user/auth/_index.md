@@ -45,6 +45,17 @@ Headless Linux commonly has no approved keyring; use externally managed ADC ther
 
 Before changing a native record, the CLI writes a non-secret local marker. A missing or invalid marked record does not fall through to ADC. Recover incomplete or interrupted local storage with `auth forget`, then log in again.
 
+All native marker/keyring lifecycle operations coordinate through one persistent,
+non-secret lock per OS user and shared OAuth service. The lock uses the canonical
+OS profile location, while marker roots remain configurable; changing a marker
+root does not create a different lock. Lock acquisition waits at most five
+seconds for thread or cross-process contention only, not for profile lookup,
+filesystem work, keyring calls, refresh, browser interaction, or network work.
+A safely absent selected marker returns absent without creating the lock file or
+looking up a keyring secret. An unsafe or unwritable canonical profile fails
+closed instead of falling back to environment-selected profile paths. The lock
+is cooperative: older or noncooperating binaries are not coordinated.
+
 ## Record lifecycle
 
 Use the selected tool and tier for each command:
@@ -55,6 +66,14 @@ ga4datactl auth forget --access read
 ga4datactl auth revoke --access read --apply --acknowledge-project-wide-revocation
 ```
 
-`auth status` checks the selected local record without contacting Google. `auth forget` deletes only that local record; it does not revoke Google access. `auth revoke` revokes the user's grant across the OAuth project and then removes the selected local record, so it is not a tier-local remote logout. Alternatively, revoke the grant in Google Account permissions and run `auth forget` locally.
+`auth status` checks the selected local record without contacting Google; a
+present record can create the persistent non-secret coordination file on first
+use. `auth forget` deletes only that local record; it does not revoke Google
+access. `auth revoke` revokes the user's grant across the OAuth project and then
+removes the selected local record only when it is unchanged. If another process
+replaces it while remote revocation is in flight, the replacement is retained
+and the command reports that local cleanup needs review. It is not a tier-local
+remote logout. Alternatively, revoke the grant in Google Account permissions and
+run `auth forget` locally.
 
 For an interactive login, follow [Desktop OAuth setup](desktop-oauth.md).

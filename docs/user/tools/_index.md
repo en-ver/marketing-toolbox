@@ -23,7 +23,7 @@ Help is deliberately different: explicit `--help` writes plain text to stdout an
 | 5 | `conflict` or `failed_precondition` |
 | 6 | `retryable` |
 
-Request bodies are ordinary JSON files or standard input where a leaf documents `--body`. Use placeholder resource identifiers in examples until you replace them with resources you are authorized to access.
+Request bodies are ordinary JSON files or standard input where a leaf documents `--body`. GA4 Data JSON-schema and GA4 Admin SDK-conversion local diagnostics may identify a controlled schema location, expected type, or SDK request type, but never echo submitted values, unknown field names, or parser details. Use placeholder resource identifiers in examples until you replace them with resources you are authorized to access.
 
 ## Request discovery and validation boundaries
 
@@ -35,7 +35,7 @@ Eligibility is intentionally per tool:
 - `ga4adminctl`: explicitly curated request-body, report, and mutation targets are eligible. Patch descriptors additionally expose the command-owned update-mask constraints; reads and bodyless deletes use leaf help.
 - `gtmctl`: a registered leaf with `--body` is eligible only when it also has a bundled official Discovery request descriptor. Reads and bodyless deletes use leaf help.
 
-In 0.5.0, the six GA4 report leaves also offer `--schema`, which prints the structural JSON Schema used by the CLI body validator. It is not a response schema: additional CLI cross-field checks, live property metadata, and Google API semantic validation still apply. On earlier 0.2.0 installations, use the existing `ga4datactl sdk schema` route. Report execution has no offline execution or validate-only command; a report leaf executes against Google after its normal validation.
+In 0.5.1, the six GA4 report leaves also offer `--schema`, which prints the structural JSON Schema used by the CLI body validator. It is not a response schema: additional CLI cross-field checks, live property metadata, and Google API semantic validation still apply. On earlier 0.2.0 installations, use the existing `ga4datactl sdk schema` route. Report execution has no offline execution or validate-only command; a report leaf executes against Google after its normal validation.
 
 Supported mutations require the documented explicit `--dry-run` or `--apply` mode, and some require an acknowledgement. A GA4 dry run performs that command's documented local validation and returns its plan without calling a mutation endpoint. The nine destructive GA4 Admin leaves documented in [GA4 Admin](ga4-admin.md#destructive-admin-mutations) also accept `--confirm-resource`; it may be omitted for a dry run, but when supplied it must exactly match `--name`, and it is required with `--apply`. See that guide for the intentional script-migration behavior, patch constraints, secret handling, and the narrow uncertain-completion policy for non-idempotent Admin creates and provisioning. GA4 audience-export creation submits an apply request once; it does not retry or poll the operation. A GTM dry run is narrower: it checks command-local inputs and emits a no-network plan, but does not validate a body against the Discovery schema, Google API semantics, or any response schema. It can still enforce route syntax, execution mode, acknowledgements, fingerprints, option constraints, and bounded JSON-object parsing. A GTM plan includes `bodySha256` only when the command has a body.
 

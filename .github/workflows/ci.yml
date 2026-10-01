@@ -58,4 +58,4 @@ jobs:
       - name: Install locked development environment
         run: uv sync --locked --all-groups --all-packages
       - name: Run mocked native OAuth tests
-        run: uv run --locked --no-sync pytest tests/test_oauth.py
+        run: uv run --locked --no-sync pytest tests/test_oauth.py tests/test_oauth_locking.py

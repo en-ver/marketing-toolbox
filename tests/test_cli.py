@@ -3,6 +3,7 @@ import re
 import sys
 from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 import pytest
 import typer
@@ -19,6 +20,7 @@ from ga4adminctl.cli import app as ga4_admin_app
 from ga4adminctl.cli import main as ga4_admin_main
 from ga4adminctl.commands import properties as admin_properties
 from ga4adminctl.commands.sdk import _SCHEMA_TARGETS as admin_schema_targets
+from ga4adminctl.operations import reads as admin_read_operations
 from ga4adminctl.operations.accounts import ACCOUNT_PATCH_WRITABLE_FIELDS
 from ga4adminctl.operations.properties import PROPERTY_PATCH_WRITABLE_FIELDS
 from ga4adminctl.operations.resources import (
@@ -61,6 +63,10 @@ from marketing_common.cli import (
     exit_not_implemented,
     exit_with_diagnostic,
     write_success,
+)
+from marketing_common.discovery import (
+    discovery_method_parameters,
+    load_local_discovery_document,
 )
 from marketing_common.introspection import protobuf_body_schema
 from marketing_common.oauth import OAuthAuthenticationError
@@ -340,6 +346,8 @@ def _registered_body_leaf_paths(app: typer.Typer) -> set[tuple[str, ...]]:
 
 
 def test_sdk_schema_maps_every_registered_body_leaf() -> None:
+    assert len(data_schema_targets) == 7
+    assert len(admin_schema_targets) == 22
     assert set(data_schema_targets) == _registered_body_leaf_paths(ga4_data_app)
     assert set(admin_schema_targets) == _registered_body_leaf_paths(ga4_admin_app)
     assert _registered_body_paths(gtm_app) == _registered_body_leaf_paths(gtm_app)
@@ -354,6 +362,26 @@ def _discovery_references(value: object) -> set[str]:
     if isinstance(value, list):
         return set().union(*(_discovery_references(nested) for nested in value))
     return set()
+
+
+def _bundled_gtm_request_properties(method_id: str) -> dict[str, Any] | None:
+    """Read root request properties directly from the bundled official document."""
+    document = load_local_discovery_document("tagmanager", "v2")
+
+    def methods(node: dict[str, Any]) -> list[dict[str, Any]]:
+        found = list(node.get("methods", {}).values())
+        for resource in node.get("resources", {}).values():
+            found.extend(methods(resource))
+        return found
+
+    for method in methods(document):
+        if method.get("id") != method_id:
+            continue
+        request_ref = method.get("request", {}).get("$ref")
+        if request_ref is None:
+            return None
+        return document["schemas"][request_ref].get("properties", {})
+    raise AssertionError(f"Missing bundled GTM Discovery method: {method_id}")
 
 
 def test_every_sdk_schema_target_resolves_with_complete_provenance_and_references() -> (
@@ -374,6 +402,9 @@ def test_every_sdk_schema_target_resolves_with_complete_provenance_and_reference
             assert not fields.intersection(target.body_forbidden_fields)
 
     body_options = _registered_body_options(gtm_app)
+    resource_body_targets = 0
+    gallery_envelope_targets = 0
+    root_field_overlap_targets = 0
     for path, options in body_options.items():
         result = runner.invoke(gtm_app, ["sdk", "schema", "--command", " ".join(path)])
         assert result.exit_code == 0, result.output
@@ -382,14 +413,50 @@ def test_every_sdk_schema_target_resolves_with_complete_provenance_and_reference
         assert payload["cliPath"] == list(path)
         assert payload["officialMethod"] == discovery_target.official_method
         assert payload["source"]["kind"] == "installed-discovery-document"
-        assert payload["request"]["pathOrQueryFields"] == list(
+        request = payload["request"]
+        assert set(request) == {
+            "type",
+            "pathOrQueryFields",
+            "bodyForbiddenFields",
+            "body",
+            "officialParameters",
+        }
+        assert request["pathOrQueryFields"] == list(
             discovery_target.path_or_query_fields
         )
-        assert payload["request"]["bodyForbiddenFields"] == list(
+        assert request["bodyForbiddenFields"] == list(
             discovery_target.body_forbidden_fields
         )
-        body = payload["request"]["body"]
+        assert request["officialParameters"] == discovery_method_parameters(
+            api="tagmanager",
+            api_version="v2",
+            method_id=discovery_target.official_method,
+        )
+        body = request["body"]
         assert _discovery_references(body).issubset(body["definitions"])
+        official_properties = _bundled_gtm_request_properties(
+            discovery_target.official_method
+        )
+        if official_properties is None:
+            gallery_envelope_targets += 1
+            continue
+
+        resource_body_targets += 1
+        assert body["properties"] == official_properties
+        official_overlap = set(official_properties).intersection(
+            request["bodyForbiddenFields"]
+        )
+        assert (
+            set(body["properties"]).intersection(request["bodyForbiddenFields"])
+            == official_overlap
+        )
+        if official_overlap:
+            root_field_overlap_targets += 1
+
+    assert len(body_options) == 34
+    assert resource_body_targets == 33
+    assert gallery_envelope_targets == 1
+    assert root_field_overlap_targets == 17
 
 
 @pytest.mark.parametrize(
@@ -716,7 +783,7 @@ def test_oauth_entrypoints_propagate_authentication_exit_codes(
         raise OAuthAuthenticationError("Secure local credential storage is offline.")
 
     monkeypatch.setattr(
-        "marketing_common.oauth_cli.native_marker_exists", offline_storage
+        "marketing_common.oauth_cli.native_record_status", offline_storage
     )
     monkeypatch.setattr(sys, "argv", [program, "auth", "status", "--access", "read"])
 
@@ -743,7 +810,7 @@ def test_oauth_entrypoints_return_successfully_for_local_status(
     program: str,
 ) -> None:
     monkeypatch.setattr(
-        "marketing_common.oauth_cli.native_marker_exists", lambda *_args: False
+        "marketing_common.oauth_cli.native_record_status", lambda *_args: False
     )
     monkeypatch.setattr(sys, "argv", [program, "auth", "status", "--access", "read"])
 
@@ -896,7 +963,7 @@ def test_ga4_entrypoint_version_remains_an_eager_json_success(
     assert json.loads(captured.out) == {
         "schemaVersion": "marketing-toolbox/v1",
         "command": command,
-        "data": {"version": "0.5.0"},
+        "data": {"version": "0.5.1"},
     }
     assert captured.err == ""
 
@@ -949,7 +1016,7 @@ def test_ga4_entrypoint_parse_errors_remain_json_diagnostics(
         (
             ["ga4datactl", "--version"],
             0,
-            {"version": "0.5.0"},
+            {"version": "0.5.1"},
             None,
         ),
         (
@@ -1282,10 +1349,17 @@ def test_audience_export_query_rejects_out_of_range_offset_without_authenticatio
 
 
 def test_reports_run_rejects_invalid_body_before_credential_lookup(
-    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     body = tmp_path / "invalid.json"
-    body.write_text('{"property": "properties/1234"}', encoding="utf-8")
+    body.write_text(
+        '{"UNKNOWN_FIELD_SENTINEL": "UNKNOWN_VALUE_SENTINEL"}', encoding="utf-8"
+    )
+    monkeypatch.setattr(
+        report_operations,
+        "service_account_credentials",
+        lambda _: pytest.fail("invalid request must not load credentials"),
+    )
 
     result = runner.invoke(
         ga4_data_app,
@@ -1297,6 +1371,71 @@ def test_reports_run_rejects_invalid_body_before_credential_lookup(
     diagnostic = json.loads(result.stderr)
     assert diagnostic["category"] == "invalid_request"
     assert diagnostic["command"] == "ga4datactl reports run"
+    assert "unsupported field" in diagnostic["message"]
+    assert "SENTINEL" not in result.stderr
+
+
+@pytest.mark.parametrize(
+    ("path", "command", "request_type"),
+    [
+        (
+            [
+                "accounts",
+                "access-reports",
+                "run",
+                "--entity",
+                "accounts/1234",
+            ],
+            "ga4adminctl accounts access-reports run",
+            "RunAccessReportRequest",
+        ),
+        (
+            [
+                "accounts",
+                "change-history",
+                "search",
+                "--account",
+                "accounts/1234",
+            ],
+            "ga4adminctl accounts change-history search",
+            "SearchChangeHistoryEventsRequest",
+        ),
+    ],
+)
+def test_admin_access_commands_sanitize_invalid_bodies_before_authentication(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    path: list[str],
+    command: str,
+    request_type: str,
+) -> None:
+    body = tmp_path / "invalid-access.json"
+    body.write_text(
+        '{"ACCESS_FIELD_SENTINEL": "ACCESS_VALUE_SENTINEL"}', encoding="utf-8"
+    )
+    monkeypatch.setattr(
+        admin_read_operations,
+        "service_account_credentials",
+        lambda _: pytest.fail("invalid request must not load credentials"),
+    )
+
+    result = runner.invoke(
+        ga4_admin_app,
+        [
+            *path,
+            "--body",
+            str(body),
+            "--acknowledge-sensitive-data",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert result.stdout == ""
+    diagnostic = json.loads(result.stderr)
+    assert diagnostic["category"] == "invalid_request"
+    assert diagnostic["command"] == command
+    assert request_type in diagnostic["message"]
+    assert "SENTINEL" not in result.stderr
 
 
 def test_ga4_admin_properties_get_writes_standard_raw_response_envelope(
@@ -1422,7 +1561,7 @@ def test_gtm_entrypoint_version_is_eager_and_uses_shared_json_success_envelope(
     assert json.loads(captured.out) == {
         "schemaVersion": "marketing-toolbox/v1",
         "command": "gtmctl",
-        "data": {"version": "0.5.0"},
+        "data": {"version": "0.5.1"},
     }
     assert captured.err == ""
 

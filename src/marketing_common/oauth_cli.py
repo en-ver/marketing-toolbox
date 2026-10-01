@@ -13,11 +13,10 @@ from .oauth import (
     ToolName,
     forget_native_credentials,
     login_native_credentials,
-    native_marker_exists,
+    native_record_status,
     revoke_native_credentials,
     scope_for_access,
     validate_login_request,
-    validate_native_record,
 )
 
 
@@ -99,9 +98,7 @@ def make_auth_app(tool: ToolName, *, access_guidance: str) -> typer.Typer:
         """Report local native credential state without contacting Google."""
         scope = validate_access("status", access)
         try:
-            stored = native_marker_exists(tool, access)
-            if stored:
-                validate_native_record(tool, access, scope)
+            stored = native_record_status(tool, access, scope)
         except OAuthAuthenticationError as exc:
             fail("status", exc)
         write_success(

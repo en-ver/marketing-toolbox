@@ -30,22 +30,31 @@ records retain only refresh material and the selected scope binding in approved
 OS keyrings, with access tokens refreshed only in memory; that local scope
 binding is not proof of a remotely granted scope. A non-secret secure marker is
 written before keyring mutation and prevents unintended ADC fallback; a marked
-missing or invalid secret is recovered with `forget`, not by ADC fallback.
-Ordinary storage failures are best-effort compensated, while interruption during
-a replacement can retain either valid record. On POSIX the marker path's
-app-owned directories are non-symlinked, user-owned, and non-group/other-writable;
-marker writes re-sync configured-base and application directory entries before
-marker or keyring mutation, then syncs marker data and its containing directory;
-deletion syncs that directory. The ancestor walk accepts protected platform
-redirects but does not claim protection from hostile filesystems or extended
-ACLs. Windows rejects reparse points below the application base and uses
-inherited profile ACLs plus flushed write-through replacement; its native ACL and first-use directory
-semantics require Windows validation and do not promise universal power-loss
-durability. Headless systems without an approved keyring use externally managed
-ADC; `forget` is local-only, verifies secret absence before marker removal, and
-does not determine remote grant validity, while `revoke` requires acknowledgement
-because its grant is project-wide. Resource access is still controlled separately
-by Analytics, Tag Manager, and IAM permissions.
+missing or invalid secret is recovered with `forget`, not by ADC fallback. All
+native lifecycle transactions use one persistent, non-secret lock per OS user
+and OAuth service. Its canonical OS-profile path is independent of configurable
+marker roots, so tools and tiers coordinate even when their marker roots differ.
+An absent selected marker is a safe no-lock, no-keyring result; observed markers
+are rechecked under the lock. The shared five-second budget covers only thread
+and OS-lock acquisition, not filesystem, keyring, refresh, browser, or network
+work. Unsafe or unwritable canonical profiles fail closed rather than falling
+back. Ordinary storage failures are best-effort compensated, while interruption
+during a replacement can retain either valid record. On POSIX the lock's
+app-owned hierarchy is private, non-symlinked, and owner-controlled, and its
+persistent file is a single-link mode-0600 regular file; the protected lexical
+and resolved ancestor walk accepts platform redirects. Marker writes re-sync
+configured-base and application directory entries before marker or keyring
+mutation, then syncs marker data and its containing directory; deletion syncs
+that directory. Windows rejects reparse points below its OS-profile anchor and
+uses inherited profile ACLs plus flushed write-through replacement; its native
+ACL and first-use directory semantics require Windows validation and do not
+promise universal power-loss durability. The lock is advisory for upgraded
+cooperating binaries only. Headless systems without an approved keyring use
+externally managed ADC; `forget` is local-only, verifies secret absence before
+marker removal, and does not determine remote grant validity, while `revoke`
+requires acknowledgement because its grant is project-wide and conditionally
+cleans up only an unchanged local record after remote success. Resource access
+is still controlled separately by Analytics, Tag Manager, and IAM permissions.
 
 `ga4datactl/service.py` and `ga4adminctl/service.py` are compatibility facades
 for their existing APIs. GTM has no corresponding service facade. GTM reads retain

@@ -11,7 +11,7 @@ from typer.testing import CliRunner
 
 from ga4adminctl import service
 from ga4adminctl.cli import app
-from ga4adminctl.foundation.validation import RequestValidationError
+from ga4adminctl.foundation.validation import RequestValidationError, parse_sdk_message
 from ga4adminctl.operations import mutations, reads
 from ga4adminctl.operations.accounts import ACCOUNT_PATCH_WRITABLE_FIELDS
 from ga4adminctl.operations.properties import PROPERTY_PATCH_WRITABLE_FIELDS
@@ -212,6 +212,68 @@ def test_representative_validation_precedes_credential_lookup(
     forbid_credentials("invalid input must not load credentials")
     with pytest.raises(service.RequestValidationError):
         operation(*args, **kwargs)
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        {"UNKNOWN_FIELD_SENTINEL": "UNKNOWN_VALUE_SENTINEL"},
+        {"returnEntityQuota": "MALFORMED_VALUE_SENTINEL"},
+        {
+            "dimensions": [
+                {"dimensionName": {"NESTED_FIELD_SENTINEL": "NESTED_VALUE_SENTINEL"}}
+            ]
+        },
+    ],
+)
+def test_parse_sdk_message_discloses_only_request_type(body: dict[str, Any]) -> None:
+    with pytest.raises(RequestValidationError) as raised:
+        parse_sdk_message(body, types.RunAccessReportRequest)
+
+    message = str(raised.value)
+    assert "RunAccessReportRequest" in message
+    for sentinel in (
+        "UNKNOWN_FIELD_SENTINEL",
+        "UNKNOWN_VALUE_SENTINEL",
+        "MALFORMED_VALUE_SENTINEL",
+        "NESTED_FIELD_SENTINEL",
+        "NESTED_VALUE_SENTINEL",
+    ):
+        assert sentinel not in message
+
+
+@pytest.mark.parametrize(
+    ("operation", "args", "kwargs", "request_type"),
+    [
+        (
+            service.run_access_report,
+            ("accounts/123", {"ACCESS_FIELD_SENTINEL": "ACCESS_VALUE_SENTINEL"}),
+            {"entity_pattern": service.ACCOUNT_PATTERN},
+            "RunAccessReportRequest",
+        ),
+        (
+            service.search_change_history_events,
+            ("accounts/123", {"HISTORY_FIELD_SENTINEL": "HISTORY_VALUE_SENTINEL"}),
+            {},
+            "SearchChangeHistoryEventsRequest",
+        ),
+    ],
+)
+def test_access_parsers_are_sanitized_before_credential_lookup(
+    forbid_credentials: Any,
+    operation: Any,
+    args: tuple[Any, ...],
+    kwargs: dict[str, Any],
+    request_type: str,
+) -> None:
+    forbid_credentials("malformed access requests must not load credentials")
+
+    with pytest.raises(RequestValidationError) as raised:
+        operation(*args, **kwargs)
+
+    message = str(raised.value)
+    assert request_type in message
+    assert "SENTINEL" not in message
 
 
 @pytest.mark.parametrize(

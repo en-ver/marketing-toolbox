@@ -3,16 +3,19 @@
 from __future__ import annotations
 
 import json
+import socket
 from pathlib import Path
 from typing import Any
 
 import pytest
+import urllib3.connectionpool
 from typer.testing import CliRunner
 
 from gtmctl.cli import app
 from gtmctl.foundation.body import body_sha256, read_json_object
 from gtmctl.foundation.validation import RequestValidationError
-from gtmctl.operations import mutations
+from gtmctl.operations import mutation_transport, mutations
+from marketing_common import auth
 
 PATH = "accounts/1/containers/2"
 WORKSPACE = f"{PATH}/workspaces/3"
@@ -27,6 +30,36 @@ def _body_file(tmp_path: Path, contents: str = '{"name":"folder"}') -> str:
     body = tmp_path / "body.json"
     body.write_text(contents)
     return str(body)
+
+
+def _install_apply_dispatch_barriers(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Make a wrong adapter dispatch fail before credentials or transport escape."""
+
+    def forbidden(*_args: object, **_kwargs: object) -> None:
+        pytest.fail("representative apply test must not use external services")
+
+    class BlockedSocket(socket.socket):
+        def connect(self, address: Any) -> None:
+            del address
+            pytest.fail("representative apply test must not open sockets")
+
+        def connect_ex(self, address: Any) -> int:
+            del address
+            pytest.fail("representative apply test must not open sockets")
+
+    monkeypatch.setattr(socket, "create_connection", forbidden)
+    monkeypatch.setattr(socket, "getaddrinfo", forbidden)
+    monkeypatch.setattr(socket, "socket", BlockedSocket)
+    monkeypatch.setattr(urllib3.connectionpool.HTTPConnectionPool, "urlopen", forbidden)
+    monkeypatch.setattr(
+        urllib3.connectionpool.HTTPSConnectionPool, "urlopen", forbidden
+    )
+    monkeypatch.setattr(auth.google.auth, "default", forbidden)
+    monkeypatch.setattr(mutations, "service_account_credentials", forbidden)
+    monkeypatch.setattr(mutations, "execute_mutation", forbidden)
+    monkeypatch.setattr(mutations, "make_tag_manager_mutation_service", forbidden)
+    monkeypatch.setattr(mutation_transport, "build", forbidden)
+    monkeypatch.setattr("googleapiclient.discovery.build", forbidden)
 
 
 def test_folder_move_plan_and_apply_keep_optional_body_and_all_entity_lists(
@@ -200,8 +233,15 @@ def test_constant_variable_body_dry_run_and_apply_preserve_exact_request(
 def test_optional_fingerprint_is_omitted_or_forwarded_and_publish_stays_guarded(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    body_path = _body_file(tmp_path, '{"name":"tag"}')
+    tag_path = f"{WORKSPACE}/tags/4"
+    body = {
+        "name": "tag",
+        "path": tag_path,
+        "fingerprint": "body-fingerprint",
+    }
+    body_path = _body_file(tmp_path, json.dumps(body))
     calls: list[tuple[str, dict[str, Any], str | None]] = []
+    _install_apply_dispatch_barriers(monkeypatch)
     monkeypatch.setattr(
         mutations,
         "update_tag",
@@ -209,7 +249,6 @@ def test_optional_fingerprint_is_omitted_or_forwarded_and_publish_stays_guarded(
             1
         ],
     )
-    tag_path = f"{WORKSPACE}/tags/4"
 
     omitted = CliRunner().invoke(
         app,
@@ -245,7 +284,7 @@ def test_optional_fingerprint_is_omitted_or_forwarded_and_publish_stays_guarded(
     )
 
     assert omitted.exit_code == 0
-    assert calls == [(tag_path, {"name": "tag"}, None)]
+    assert calls == [(tag_path, body, None)]
     assert malformed.exit_code == 2
     assert "must be a non-empty" in malformed.output
 

@@ -12,15 +12,12 @@ from google.analytics.admin_v1beta.types import (
     SearchChangeHistoryEventsRequest,
     SearchChangeHistoryEventsResponse,
 )
-from google.protobuf.json_format import (
-    ParseDict,
-    ParseError,
-)
 
 from ga4adminctl.foundation.validation import (
     ACCOUNT_PATTERN,
     MAX_PROPERTY_PAGE_SIZE,
     RequestValidationError,
+    parse_sdk_message,
     validate_resource_name,
 )
 from ga4adminctl.operations import reads
@@ -42,17 +39,8 @@ def run_access_report(
     validate_resource_name(entity, flag="--entity", pattern=entity_pattern)
     if "entity" in body:
         raise RequestValidationError("--body must not contain route field entity.")
-    request = RunAccessReportRequest(entity=entity)
-    try:
-        ParseDict(
-            dict(body),
-            RunAccessReportRequest.pb(request),
-            ignore_unknown_fields=False,
-        )
-    except (ParseError, TypeError, ValueError) as exc:
-        raise RequestValidationError(
-            f"--body cannot be converted to a RunAccessReportRequest: {exc}"
-        ) from exc
+    request = parse_sdk_message(body, RunAccessReportRequest)
+    request.entity = entity
     if len(request.dimensions) > 9:
         raise RequestValidationError(
             "--body permits at most 9 access-report dimensions."
@@ -86,17 +74,8 @@ def search_change_history_events(
     validate_resource_name(account, flag="--account", pattern=ACCOUNT_PATTERN)
     if "account" in body:
         raise RequestValidationError("--body must not contain route field account.")
-    request = SearchChangeHistoryEventsRequest(account=account)
-    try:
-        ParseDict(
-            dict(body),
-            SearchChangeHistoryEventsRequest.pb(request),
-            ignore_unknown_fields=False,
-        )
-    except (ParseError, TypeError, ValueError) as exc:
-        raise RequestValidationError(
-            f"--body cannot be converted to a SearchChangeHistoryEventsRequest: {exc}"
-        ) from exc
+    request = parse_sdk_message(body, SearchChangeHistoryEventsRequest)
+    request.account = account
     if "pageSize" in body and not 1 <= request.page_size <= MAX_PROPERTY_PAGE_SIZE:
         raise RequestValidationError(
             f"--body pageSize must be between 1 and {MAX_PROPERTY_PAGE_SIZE}."
