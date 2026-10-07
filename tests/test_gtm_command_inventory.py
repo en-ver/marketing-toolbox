@@ -9,7 +9,7 @@ from typing import Any, Protocol, cast
 from typer.main import get_command
 
 from gtmctl.cli import app
-from gtmctl.commands.sdk import _registered_body_paths
+from gtmctl.commands.sdk import _registered_body_options
 from gtmctl.operations import mutations
 
 INVENTORY_PATH = Path(__file__).parent / "data/gtmctl/upstream-inventory.json"
@@ -152,7 +152,7 @@ def test_gtm_registered_leaf_commands_match_stable_inventory_targets() -> None:
 
 
 def test_gtm_sdk_schema_body_target_count_is_unchanged() -> None:
-    assert len(_registered_body_paths(app)) == 34
+    assert len(_registered_body_options(app)) == 34
 
 
 def test_gtm_cli_required_options_cover_required_inventory_parameters() -> None:

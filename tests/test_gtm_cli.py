@@ -11,7 +11,7 @@ import urllib3.connectionpool
 from typer.testing import CliRunner
 
 from gtmctl.cli import app
-from gtmctl.operations import reads
+from gtmctl.operations import reads, transport
 
 
 @pytest.fixture(autouse=True)
@@ -48,9 +48,9 @@ def _block_external_transport_and_ambient_credentials(
         urllib3.connectionpool.HTTPSConnectionPool, "urlopen", blocked_urlopen
     )
     monkeypatch.setattr(
-        reads,
-        "service_account_credentials",
-        lambda _scopes: pytest.fail("ambient credential resolution is forbidden"),
+        transport,
+        "credentials_for_access",
+        lambda _access: pytest.fail("ambient credential resolution is forbidden"),
     )
 
 
@@ -93,8 +93,8 @@ def test_invalid_read_inputs_do_not_load_credentials(
     monkeypatch: pytest.MonkeyPatch, args: list[str], message: str
 ) -> None:
     monkeypatch.setattr(
-        reads,
-        "service_account_credentials",
+        transport,
+        "credentials_for_access",
         lambda _: pytest.fail("credentials must not load during local validation"),
     )
 

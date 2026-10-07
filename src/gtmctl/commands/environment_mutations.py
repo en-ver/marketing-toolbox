@@ -6,11 +6,12 @@ from typing import Annotated, Any
 
 import typer
 
-from gtmctl.commands._common import DRY_RUN_HELP, run_command
-from gtmctl.commands.tag_mutations import (
-    _dry_run,
-    _validate_execution_mode,
-    _validate_fingerprint,
+from gtmctl.commands._common import (
+    DRY_RUN_HELP,
+    build_dry_run_plan,
+    run_command,
+    validate_execution_mode,
+    validate_fingerprint,
 )
 from gtmctl.foundation.body import read_json_object
 from gtmctl.foundation.validation import (
@@ -77,10 +78,10 @@ def register_environment_mutation_commands(environments_app: typer.Typer) -> Non
 
         def operation() -> dict[str, Any]:
             validate_environment_parent(parent)
-            _validate_execution_mode(dry_run=dry_run, apply=apply)
+            validate_execution_mode(dry_run=dry_run, apply=apply)
             request_body = read_json_object(body)
             if dry_run:
-                return _dry_run(
+                return build_dry_run_plan(
                     operation="environments.create", target=parent, body=request_body
                 )
             return mutations.create_environment(parent, request_body)
@@ -113,11 +114,11 @@ def register_environment_mutation_commands(environments_app: typer.Typer) -> Non
 
         def operation() -> dict[str, Any]:
             validate_environment_path(path)
-            _validate_execution_mode(dry_run=dry_run, apply=apply)
-            _validate_fingerprint(fingerprint)
+            validate_execution_mode(dry_run=dry_run, apply=apply)
+            validate_fingerprint(fingerprint)
             request_body = read_json_object(body)
             if dry_run:
-                return _dry_run(
+                return build_dry_run_plan(
                     operation="environments.update",
                     target=path,
                     body=request_body,
@@ -151,13 +152,13 @@ def register_environment_mutation_commands(environments_app: typer.Typer) -> Non
 
         def operation() -> dict[str, Any]:
             validate_environment_path(path)
-            _validate_execution_mode(dry_run=dry_run, apply=apply)
+            validate_execution_mode(dry_run=dry_run, apply=apply)
             if not acknowledge_delete:
                 raise RequestValidationError(
                     "--acknowledge-environment-delete is required before deleting an environment."
                 )
             if dry_run:
-                return _dry_run(operation="environments.delete", target=path)
+                return build_dry_run_plan(operation="environments.delete", target=path)
             return mutations.delete_environment(path)
 
         run_command(
@@ -189,14 +190,14 @@ def register_environment_mutation_commands(environments_app: typer.Typer) -> Non
 
         def operation() -> dict[str, Any]:
             validate_environment_path(path)
-            _validate_execution_mode(dry_run=dry_run, apply=apply)
+            validate_execution_mode(dry_run=dry_run, apply=apply)
             if not acknowledge_reauthorize:
                 raise RequestValidationError(
                     "--acknowledge-environment-reauthorize is required before reauthorizing an environment."
                 )
             request_body = read_json_object(body)
             if dry_run:
-                return _dry_run(
+                return build_dry_run_plan(
                     operation="environments.reauthorize", target=path, body=request_body
                 )
             return mutations.reauthorize_environment(path, request_body)

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 import pytest
 from google.analytics.admin_v1beta import types
@@ -12,13 +12,11 @@ from typer.testing import CliRunner
 
 from ga4adminctl.cli import app
 from ga4adminctl.foundation import serialization
-from ga4adminctl.operations import access, mutations, reads, secrets
+from ga4adminctl.operations import access, secrets, transport
 
 
-def _record_credential_request(
-    requested_scopes: list[str], calls: list[list[str]]
-) -> object:
-    calls.append(requested_scopes)
+def _record_credential_request(access: str, calls: list[str]) -> object:
+    calls.append(access)
     return object()
 
 
@@ -56,32 +54,32 @@ def test_sensitive_write_keeps_one_call_and_redacts_secret_value(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     client = OneSensitiveWriteClient()
-    credential_calls: list[list[str]] = []
+    credential_calls: list[str] = []
     monkeypatch.setattr(
-        mutations,
-        "service_account_credentials",
-        lambda scopes: _record_credential_request(scopes, credential_calls),
+        transport,
+        "credentials_for_access",
+        lambda access: _record_credential_request(access, credential_calls),
     )
+    monkeypatch.setattr(transport, "make_client", lambda _: client)
 
     result = secrets.create_measurement_protocol_secret(
         "properties/1234/dataStreams/stream-1",
         {"displayName": "Example secret"},
         apply=True,
-        client_factory=lambda _: cast(reads.PropertiesClient, client),
     )
 
     assert result == {
         "name": "properties/1234/dataStreams/stream-1/measurementProtocolSecrets/secret-1",
         "displayName": "Example secret",
     }
-    assert credential_calls == [[reads.ANALYTICS_EDIT_SCOPE]]
+    assert credential_calls == ["edit"]
     assert len(client.calls) == 1
     method, request, retry, timeout = client.calls[0]
     assert method == "create_measurement_protocol_secret"
     assert request.parent == "properties/1234/dataStreams/stream-1"
     assert request.measurement_protocol_secret.display_name == "Example secret"
     assert retry is None
-    assert timeout == reads.PROPERTY_READ_TIMEOUT_SECONDS
+    assert timeout == transport.ADMIN_RPC_TIMEOUT_SECONDS
 
 
 class SensitiveAccessReadClient:
@@ -99,20 +97,20 @@ def test_sensitive_access_keeps_edit_scope_and_no_retry(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     client = SensitiveAccessReadClient()
-    scopes: list[list[str]] = []
+    accesses: list[str] = []
     monkeypatch.setattr(
-        reads,
-        "service_account_credentials",
-        lambda requested: _record_credential_request(requested, scopes),
+        transport,
+        "credentials_for_access",
+        lambda access: _record_credential_request(access, accesses),
     )
-    monkeypatch.setattr(reads, "_make_properties_client", lambda _: client)
+    monkeypatch.setattr(transport, "make_client", lambda _: client)
 
     assert access.search_change_history_events("accounts/1234", {}) == {}
-    assert scopes == [[reads.ANALYTICS_EDIT_SCOPE]]
+    assert accesses == ["edit"]
     request, retry, timeout = client.calls[0]
     assert request.account == "accounts/1234"
     assert retry is None
-    assert timeout == reads.PROPERTY_READ_TIMEOUT_SECONDS
+    assert timeout == transport.ADMIN_RPC_TIMEOUT_SECONDS
 
 
 class SensitiveSecretReadClient:
@@ -134,8 +132,8 @@ def test_secret_read_redacts_value_after_typed_non_retried_call(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     client = SensitiveSecretReadClient()
-    monkeypatch.setattr(reads, "service_account_credentials", lambda _: object())
-    monkeypatch.setattr(reads, "_make_properties_client", lambda _: client)
+    monkeypatch.setattr(transport, "credentials_for_access", lambda _: object())
+    monkeypatch.setattr(transport, "make_client", lambda _: client)
     name = "properties/1234/dataStreams/stream-1/measurementProtocolSecrets/secret-1"
 
     assert secrets.get_measurement_protocol_secret(name) == {
@@ -145,7 +143,7 @@ def test_secret_read_redacts_value_after_typed_non_retried_call(
     request, retry, timeout = client.calls[0]
     assert request.name == name
     assert retry is None
-    assert timeout == reads.PROPERTY_READ_TIMEOUT_SECONDS
+    assert timeout == transport.ADMIN_RPC_TIMEOUT_SECONDS
 
 
 def test_sensitive_mutation_keeps_acknowledgement_before_mode_and_body(
@@ -201,8 +199,8 @@ def test_secret_create_rejects_sensitive_aliases_before_render_or_auth(
         attempted.append("rpc")
         pytest.fail("sensitive body validation must not dispatch an RPC")
 
-    monkeypatch.setattr(mutations, "service_account_credentials", forbid_credentials)
-    monkeypatch.setattr(mutations, "_write_v1beta", forbid_rpc)
+    monkeypatch.setattr(transport, "credentials_for_access", forbid_credentials)
+    monkeypatch.setattr(transport, "write", forbid_rpc)
 
     result = CliRunner().invoke(
         app,

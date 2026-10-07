@@ -28,15 +28,15 @@ app = typer.Typer(
     no_args_is_help=True,
 )
 
-_SCHEMA_TARGETS: dict[tuple[str, ...], ProtobufSchemaTarget] = {
-    ("reports", "run"): ProtobufSchemaTarget(
+_SCHEMA_TARGET_DECLARATIONS: tuple[ProtobufSchemaTarget, ...] = (
+    ProtobufSchemaTarget(
         cli_path=("reports", "run"),
         official_method="analyticsdata.properties.runReport",
         request_type=RunReportRequest,
         path_or_query_fields=("property",),
         body_forbidden_fields=("property",),
     ),
-    ("reports", "batch-run"): ProtobufSchemaTarget(
+    ProtobufSchemaTarget(
         cli_path=("reports", "batch-run"),
         official_method="analyticsdata.properties.batchRunReports",
         request_type=BatchRunReportsRequest,
@@ -46,21 +46,21 @@ _SCHEMA_TARGETS: dict[tuple[str, ...], ProtobufSchemaTarget] = {
             RunReportRequest.pb().DESCRIPTOR.full_name: frozenset({"property"})
         },
     ),
-    ("reports", "pivot-run"): ProtobufSchemaTarget(
+    ProtobufSchemaTarget(
         cli_path=("reports", "pivot-run"),
         official_method="analyticsdata.properties.runPivotReport",
         request_type=RunPivotReportRequest,
         path_or_query_fields=("property",),
         body_forbidden_fields=("property",),
     ),
-    ("reports", "realtime-run"): ProtobufSchemaTarget(
+    ProtobufSchemaTarget(
         cli_path=("reports", "realtime-run"),
         official_method="analyticsdata.properties.runRealtimeReport",
         request_type=RunRealtimeReportRequest,
         path_or_query_fields=("property",),
         body_forbidden_fields=("property",),
     ),
-    ("reports", "batch-pivot-run"): ProtobufSchemaTarget(
+    ProtobufSchemaTarget(
         cli_path=("reports", "batch-pivot-run"),
         official_method="analyticsdata.properties.batchRunPivotReports",
         request_type=BatchRunPivotReportsRequest,
@@ -70,14 +70,14 @@ _SCHEMA_TARGETS: dict[tuple[str, ...], ProtobufSchemaTarget] = {
             RunPivotReportRequest.pb().DESCRIPTOR.full_name: frozenset({"property"})
         },
     ),
-    ("reports", "compatibility-check"): ProtobufSchemaTarget(
+    ProtobufSchemaTarget(
         cli_path=("reports", "compatibility-check"),
         official_method="analyticsdata.properties.checkCompatibility",
         request_type=CheckCompatibilityRequest,
         path_or_query_fields=("property",),
         body_forbidden_fields=("property",),
     ),
-    ("audience-exports", "create"): ProtobufSchemaTarget(
+    ProtobufSchemaTarget(
         cli_path=("audience-exports", "create"),
         official_method="analyticsdata.properties.audienceExports.create",
         request_type=CreateAudienceExportRequest,
@@ -85,6 +85,10 @@ _SCHEMA_TARGETS: dict[tuple[str, ...], ProtobufSchemaTarget] = {
         path_or_query_fields=("parent",),
         body_forbidden_fields=("parent", "audienceExport"),
     ),
+)
+
+_SCHEMA_TARGETS: dict[tuple[str, ...], ProtobufSchemaTarget] = {
+    target.cli_path: target for target in _SCHEMA_TARGET_DECLARATIONS
 }
 
 

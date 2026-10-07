@@ -73,6 +73,18 @@ def normalize_mutation_google_error(error: HttpError) -> GoogleApiError:
     )
 
 
+def unreadable_mutation_response_error() -> GoogleApiError:
+    """Report unreadable mutation completion without exposing response details."""
+    return GoogleApiError(
+        exit_code=1,
+        category="unexpected",
+        message=(
+            "Google Tag Manager mutation may have completed, but its API response "
+            "could not be read. Inspect the current GTM state before retrying."
+        ),
+    )
+
+
 def normalize_authentication_error(
     error: RefreshError | TransportError,
 ) -> GoogleApiError:

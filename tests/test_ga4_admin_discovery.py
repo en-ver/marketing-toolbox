@@ -19,11 +19,10 @@ from ga4adminctl.foundation.validation import (
 from ga4adminctl.operations import (
     access,
     accounts,
-    mutations,
     properties,
-    reads,
     resources,
     secrets,
+    transport,
 )
 from ga4adminctl.operations.accounts import ACCOUNT_PATCH_WRITABLE_FIELDS
 from ga4adminctl.operations.properties import PROPERTY_PATCH_WRITABLE_FIELDS
@@ -39,8 +38,8 @@ from ga4adminctl.operations.secrets import (
 )
 
 
-def _record_scopes(requested_scopes: list[str], scopes: list[str]) -> object:
-    scopes.extend(requested_scopes)
+def _record_access(access: str, accesses: list[str]) -> object:
+    accesses.append(access)
     return object()
 
 
@@ -68,10 +67,10 @@ class CapturingDiscoveryClient:
 
 class CredentialRecorder:
     def __init__(self) -> None:
-        self.scopes: list[str] = []
+        self.accesses: list[str] = []
 
-    def __call__(self, scopes: list[str]) -> object:
-        self.scopes.extend(scopes)
+    def __call__(self, access: str) -> object:
+        self.accesses.append(access)
         return object()
 
 
@@ -84,10 +83,8 @@ def capturing_client(monkeypatch: pytest.MonkeyPatch) -> Any:
     ) -> tuple[CapturingDiscoveryClient, CredentialRecorder]:
         client = CapturingDiscoveryClient(responses)
         credentials = CredentialRecorder()
-        monkeypatch.setattr(reads, "service_account_credentials", credentials)
-        monkeypatch.setattr(reads, "_make_properties_client", lambda _: client)
-        monkeypatch.setattr(mutations, "service_account_credentials", credentials)
-        monkeypatch.setattr(mutations, "_make_properties_client", lambda _: client)
+        monkeypatch.setattr(transport, "credentials_for_access", credentials)
+        monkeypatch.setattr(transport, "make_client", lambda _: client)
         return client, credentials
 
     return install
@@ -98,12 +95,16 @@ def forbid_credentials(monkeypatch: pytest.MonkeyPatch) -> Any:
     """Fail a test if validation or dry-run code reaches credential lookup."""
 
     def forbid(message: str) -> None:
-        for owner in (reads, mutations):
-            monkeypatch.setattr(
-                owner,
-                "service_account_credentials",
-                lambda _: pytest.fail(message),
-            )
+        monkeypatch.setattr(
+            transport,
+            "credentials_for_access",
+            lambda _: pytest.fail(message),
+        )
+        monkeypatch.setattr(
+            transport,
+            "make_client",
+            lambda _: pytest.fail(message),
+        )
 
     return forbid
 
@@ -430,13 +431,13 @@ def test_v1beta_discovery_operations_use_one_readonly_sdk_call_and_raw_page(
         else operation(*args)
     )
 
-    assert credentials.scopes == [reads.ANALYTICS_READONLY_SCOPE]
+    assert credentials.accesses == ["read"]
     assert len(client.calls) == 1
     actual_method, request, retry, timeout = client.calls[0]
     assert actual_method == method
     assert isinstance(request, request_type)
     assert retry is None
-    assert timeout == reads.PROPERTY_READ_TIMEOUT_SECONDS
+    assert timeout == transport.ADMIN_RPC_TIMEOUT_SECONDS
     assert result.get("nextPageToken", "next") == "next"
 
 
@@ -901,8 +902,8 @@ def test_create_destructive_lifecycle_dry_runs_are_offline_and_exact(
     case: dict[str, Any],
 ) -> None:
     monkeypatch.setattr(
-        mutations,
-        "service_account_credentials",
+        transport,
+        "credentials_for_access",
         lambda _: pytest.fail("dry runs must not load credentials"),
     )
 
@@ -928,13 +929,13 @@ def test_create_destructive_lifecycle_apply_uses_exact_non_retried_requests(
             case["destructive_sdk_method"]: case["destructive_response"],
         }
     )
-    scopes: list[str] = []
+    accesses: list[str] = []
     monkeypatch.setattr(
-        mutations,
-        "service_account_credentials",
-        lambda value: _record_scopes(value, scopes),
+        transport,
+        "credentials_for_access",
+        lambda value: _record_access(value, accesses),
     )
-    monkeypatch.setattr(mutations, "_make_properties_client", lambda _: client)
+    monkeypatch.setattr(transport, "make_client", lambda _: client)
 
     create_result = case["create_operation"](*case["create_args"], apply=True)
     destructive_result = case["destructive_operation"](
@@ -943,10 +944,7 @@ def test_create_destructive_lifecycle_apply_uses_exact_non_retried_requests(
 
     assert create_result == case["create_result"]
     assert destructive_result == case["destructive_result"]
-    assert scopes == [
-        "https://www.googleapis.com/auth/analytics.edit",
-        "https://www.googleapis.com/auth/analytics.edit",
-    ]
+    assert accesses == ["edit", "edit"]
     assert client.calls == [
         (
             case["create_sdk_method"],
@@ -971,8 +969,8 @@ def test_update_property_dry_run_needs_no_credentials(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        mutations,
-        "service_account_credentials",
+        transport,
+        "credentials_for_access",
         lambda _: pytest.fail("dry runs must not load credentials"),
     )
 
@@ -993,8 +991,8 @@ def test_property_patch_runtime_uses_the_shared_writable_field_allowlist(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        mutations,
-        "service_account_credentials",
+        transport,
+        "credentials_for_access",
         lambda _: pytest.fail("dry runs must not load credentials"),
     )
 
@@ -1130,8 +1128,8 @@ def test_non_property_patch_runtime_uses_owner_writable_field_allowlists(
     expected_fields: tuple[str, ...],
 ) -> None:
     monkeypatch.setattr(
-        mutations,
-        "service_account_credentials",
+        transport,
+        "credentials_for_access",
         lambda _: pytest.fail("dry runs must not load credentials"),
     )
 
@@ -1235,8 +1233,8 @@ def test_child_patch_rejects_nested_body_mask_mismatches_before_authentication(
     args: tuple[Any, ...],
 ) -> None:
     monkeypatch.setattr(
-        mutations,
-        "service_account_credentials",
+        transport,
+        "credentials_for_access",
         lambda _: pytest.fail("invalid nested body fields must not load credentials"),
     )
 
@@ -1271,8 +1269,8 @@ def test_child_patch_nested_aliases_keep_raw_dry_runs_and_normalize_apply_mask(
     }
 
     client = CapturingDiscoveryClient({"update_key_event": types.KeyEvent(name=name)})
-    monkeypatch.setattr(mutations, "service_account_credentials", lambda _: object())
-    monkeypatch.setattr(mutations, "_make_properties_client", lambda _: client)
+    monkeypatch.setattr(transport, "credentials_for_access", lambda _: object())
+    monkeypatch.setattr(transport, "make_client", lambda _: client)
 
     resources.update_key_event(name, body, "defaultValue.numericValue", apply=True)
 
@@ -1294,20 +1292,20 @@ def test_update_property_uses_one_edit_scoped_non_retried_call(
             )
         }
     )
-    scopes: list[str] = []
+    accesses: list[str] = []
     monkeypatch.setattr(
-        mutations,
-        "service_account_credentials",
-        lambda value: _record_scopes(value, scopes),
+        transport,
+        "credentials_for_access",
+        lambda value: _record_access(value, accesses),
     )
-    monkeypatch.setattr(mutations, "_make_properties_client", lambda _: client)
+    monkeypatch.setattr(transport, "make_client", lambda _: client)
 
     result = properties.update_property(
         "properties/1234", {"displayName": "Example"}, "displayName", apply=True
     )
 
     assert result == {"name": "properties/1234", "displayName": "Example"}
-    assert scopes == [reads.ANALYTICS_EDIT_SCOPE]
+    assert accesses == ["edit"]
     method, request, retry, timeout = client.calls[0]
     assert method == "update_property"
     assert request == types.UpdatePropertyRequest(
@@ -1315,7 +1313,7 @@ def test_update_property_uses_one_edit_scoped_non_retried_call(
         update_mask="displayName",
     )
     assert retry is None
-    assert timeout == reads.PROPERTY_READ_TIMEOUT_SECONDS
+    assert timeout == transport.ADMIN_RPC_TIMEOUT_SECONDS
 
 
 @pytest.mark.parametrize(
@@ -1333,13 +1331,13 @@ def test_access_reports_use_one_readonly_sdk_call_and_route_entity(
     client = CapturingDiscoveryClient(
         {"run_access_report": types.RunAccessReportResponse()}
     )
-    scopes: list[str] = []
+    accesses: list[str] = []
     monkeypatch.setattr(
-        reads,
-        "service_account_credentials",
-        lambda value: _record_scopes(value, scopes),
+        transport,
+        "credentials_for_access",
+        lambda value: _record_access(value, accesses),
     )
-    monkeypatch.setattr(reads, "_make_properties_client", lambda _: client)
+    monkeypatch.setattr(transport, "make_client", lambda _: client)
 
     result = access.run_access_report(
         entity,
@@ -1348,7 +1346,7 @@ def test_access_reports_use_one_readonly_sdk_call_and_route_entity(
     )
 
     assert result == {}
-    assert scopes == [reads.ANALYTICS_READONLY_SCOPE]
+    assert accesses == ["read"]
     assert len(client.calls) == 1
     method, request, retry, timeout = client.calls[0]
     assert method == "run_access_report"
@@ -1357,7 +1355,7 @@ def test_access_reports_use_one_readonly_sdk_call_and_route_entity(
         dimensions=[types.AccessDimension(dimension_name="userEmail")],
     )
     assert retry is None
-    assert timeout == reads.PROPERTY_READ_TIMEOUT_SECONDS
+    assert timeout == transport.ADMIN_RPC_TIMEOUT_SECONDS
 
 
 def test_change_history_search_uses_one_edit_scoped_sdk_call_and_route_account(
@@ -1370,20 +1368,20 @@ def test_change_history_search_uses_one_edit_scoped_sdk_call_and_route_account(
             )
         }
     )
-    scopes: list[str] = []
+    accesses: list[str] = []
     monkeypatch.setattr(
-        reads,
-        "service_account_credentials",
-        lambda value: _record_scopes(value, scopes),
+        transport,
+        "credentials_for_access",
+        lambda value: _record_access(value, accesses),
     )
-    monkeypatch.setattr(reads, "_make_properties_client", lambda _: client)
+    monkeypatch.setattr(transport, "make_client", lambda _: client)
 
     result = access.search_change_history_events(
         "accounts/1234", {"pageSize": 25, "actorEmail": ["user@example.com"]}
     )
 
     assert result == {"nextPageToken": "next"}
-    assert scopes == [reads.ANALYTICS_EDIT_SCOPE]
+    assert accesses == ["edit"]
     assert len(client.calls) == 1
     method, request, retry, timeout = client.calls[0]
     assert method == "search_change_history_events"
@@ -1391,7 +1389,87 @@ def test_change_history_search_uses_one_edit_scoped_sdk_call_and_route_account(
         account="accounts/1234", page_size=25, actor_email=["user@example.com"]
     )
     assert retry is None
-    assert timeout == reads.PROPERTY_READ_TIMEOUT_SECONDS
+    assert timeout == transport.ADMIN_RPC_TIMEOUT_SECONDS
+
+
+@pytest.mark.parametrize("alias", ["pageSize", "page_size"])
+@pytest.mark.parametrize("page_size", [-1, 0, 201, None])
+def test_change_history_page_size_alias_bounds_precede_authentication(
+    forbid_credentials: Any, alias: str, page_size: int | None
+) -> None:
+    forbid_credentials("invalid history page size must not reach transport")
+    with pytest.raises(RequestValidationError) as raised:
+        access.search_change_history_events("accounts/1234", {alias: page_size})
+    assert str(raised.value) == "--body pageSize must be between 1 and 200."
+
+
+@pytest.mark.parametrize(
+    ("body", "parsed_page_size"),
+    [
+        ({}, 0),
+        ({"pageSize": 1}, 1),
+        ({"pageSize": 200}, 200),
+        ({"page_size": 1}, 1),
+        ({"page_size": 200}, 200),
+        ({"pageSize": 201, "page_size": 1}, 1),
+        ({"page_size": 201, "pageSize": 1}, 1),
+        ({"pageSize": 1, "page_size": 201}, 201),
+        ({"page_size": 1, "pageSize": 201}, 201),
+        ({"pageSize": 1, "page_size": None}, 0),
+        ({"page_size": 1, "pageSize": None}, 0),
+    ],
+)
+def test_change_history_page_size_preserves_official_parser_and_rpc_fidelity(
+    monkeypatch: pytest.MonkeyPatch,
+    forbid_credentials: Any,
+    body: dict[str, Any],
+    parsed_page_size: int,
+) -> None:
+    expected = parse_sdk_message(body, types.SearchChangeHistoryEventsRequest)
+    assert expected.page_size == parsed_page_size
+    expected.account = "accounts/1234"
+    if body and not 1 <= parsed_page_size <= 200:
+        forbid_credentials("invalid parsed history page size must not reach transport")
+        with pytest.raises(RequestValidationError) as raised:
+            access.search_change_history_events("accounts/1234", body)
+        assert str(raised.value) == "--body pageSize must be between 1 and 200."
+        return
+
+    credentials = object()
+    accesses: list[str] = []
+    client_credentials: list[object] = []
+    client = CapturingDiscoveryClient(
+        {
+            "search_change_history_events": OnePagePager(
+                types.SearchChangeHistoryEventsResponse(next_page_token="next")
+            )
+        }
+    )
+
+    def load_credentials(tier: str) -> object:
+        accesses.append(tier)
+        return credentials
+
+    def make_client(actual_credentials: object) -> CapturingDiscoveryClient:
+        client_credentials.append(actual_credentials)
+        return client
+
+    monkeypatch.setattr(transport, "credentials_for_access", load_credentials)
+    monkeypatch.setattr(transport, "make_client", make_client)
+
+    result = access.search_change_history_events("accounts/1234", body)
+
+    assert accesses == ["edit"]
+    assert len(client_credentials) == 1
+    assert client_credentials[0] is credentials
+    assert len(client.calls) == 1
+    method, request, retry, timeout = client.calls[0]
+    assert method == "search_change_history_events"
+    assert isinstance(request, types.SearchChangeHistoryEventsRequest)
+    assert request == expected
+    assert retry is None
+    assert timeout == 20.0
+    assert result == {"nextPageToken": "next"}
 
 
 def test_change_history_search_command_is_exposed_in_help() -> None:
@@ -1513,8 +1591,8 @@ def test_measurement_protocol_secret_create_dry_run_is_offline_and_secret_free(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        mutations,
-        "service_account_credentials",
+        transport,
+        "credentials_for_access",
         lambda _: pytest.fail("dry runs must not load credentials"),
     )
     assert secrets.create_measurement_protocol_secret(
@@ -1581,23 +1659,23 @@ def test_measurement_protocol_secret_actions_use_one_edit_scoped_non_retried_cal
         else types.MeasurementProtocolSecret(display_name="Example")
     )
     client = CapturingDiscoveryClient({method: response})
-    scopes: list[str] = []
+    accesses: list[str] = []
     monkeypatch.setattr(
-        mutations,
-        "service_account_credentials",
-        lambda value: _record_scopes(value, scopes),
+        transport,
+        "credentials_for_access",
+        lambda value: _record_access(value, accesses),
     )
-    monkeypatch.setattr(mutations, "_make_properties_client", lambda _: client)
+    monkeypatch.setattr(transport, "make_client", lambda _: client)
 
     operation(*args, apply=True)
 
-    assert scopes == [reads.ANALYTICS_EDIT_SCOPE]
+    assert accesses == ["edit"]
     assert len(client.calls) == 1
     actual_method, actual_request, retry, timeout = client.calls[0]
     assert actual_method == method
     assert actual_request == expected_request
     assert retry is None
-    assert timeout == reads.PROPERTY_READ_TIMEOUT_SECONDS
+    assert timeout == transport.ADMIN_RPC_TIMEOUT_SECONDS
 
 
 PROVISION_ACCOUNT_TICKET_BODY = {
@@ -1620,8 +1698,8 @@ def test_account_delete_and_provision_ticket_dry_runs_need_no_credentials(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        mutations,
-        "service_account_credentials",
+        transport,
+        "credentials_for_access",
         lambda _: pytest.fail("dry runs must not load credentials"),
     )
 
@@ -1646,19 +1724,19 @@ def test_account_delete_and_provision_ticket_apply_once_without_retry(
             ),
         }
     )
-    scopes: list[str] = []
+    accesses: list[str] = []
     monkeypatch.setattr(
-        mutations,
-        "service_account_credentials",
-        lambda value: _record_scopes(value, scopes),
+        transport,
+        "credentials_for_access",
+        lambda value: _record_access(value, accesses),
     )
-    monkeypatch.setattr(mutations, "_make_properties_client", lambda _: client)
+    monkeypatch.setattr(transport, "make_client", lambda _: client)
 
     assert accounts.delete_account("accounts/1234", apply=True) == {}
     assert accounts.provision_account_ticket(
         PROVISION_ACCOUNT_TICKET_BODY, apply=True
     ) == {"accountTicketId": "ticket-123"}
-    assert scopes == [reads.ANALYTICS_EDIT_SCOPE, reads.ANALYTICS_EDIT_SCOPE]
+    assert accesses == ["edit", "edit"]
     assert client.calls[0][0] == "delete_account"
     assert client.calls[0][1] == types.DeleteAccountRequest(name="accounts/1234")
     assert client.calls[1][0] == "provision_account_ticket"
@@ -1692,8 +1770,8 @@ def test_acknowledge_user_data_collection_dry_run_needs_no_credentials(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        mutations,
-        "service_account_credentials",
+        transport,
+        "credentials_for_access",
         lambda _: pytest.fail("dry runs must not load credentials"),
     )
     assert properties.acknowledge_user_data_collection(
@@ -1717,13 +1795,13 @@ def test_acknowledge_user_data_collection_apply_once_without_retry(
             )
         }
     )
-    scopes: list[str] = []
+    accesses: list[str] = []
     monkeypatch.setattr(
-        mutations,
-        "service_account_credentials",
-        lambda value: _record_scopes(value, scopes),
+        transport,
+        "credentials_for_access",
+        lambda value: _record_access(value, accesses),
     )
-    monkeypatch.setattr(mutations, "_make_properties_client", lambda _: client)
+    monkeypatch.setattr(transport, "make_client", lambda _: client)
 
     assert (
         properties.acknowledge_user_data_collection(
@@ -1731,7 +1809,7 @@ def test_acknowledge_user_data_collection_apply_once_without_retry(
         )
         == {}
     )
-    assert scopes == [reads.ANALYTICS_EDIT_SCOPE]
+    assert accesses == ["edit"]
     assert client.calls == [
         (
             "acknowledge_user_data_collection",
@@ -1740,7 +1818,7 @@ def test_acknowledge_user_data_collection_apply_once_without_retry(
                 acknowledgement=USER_DATA_COLLECTION_ACKNOWLEDGEMENT,
             ),
             None,
-            reads.PROPERTY_READ_TIMEOUT_SECONDS,
+            transport.ADMIN_RPC_TIMEOUT_SECONDS,
         )
     ]
 
@@ -1770,8 +1848,8 @@ def test_update_account_dry_run_needs_no_credentials(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        mutations,
-        "service_account_credentials",
+        transport,
+        "credentials_for_access",
         lambda _: pytest.fail("dry runs must not load credentials"),
     )
     assert accounts.update_account(
@@ -1791,20 +1869,20 @@ def test_update_account_uses_one_edit_scoped_non_retried_call(
     client = CapturingDiscoveryClient(
         {"update_account": types.Account(name="accounts/1234", display_name="Example")}
     )
-    scopes: list[str] = []
+    accesses: list[str] = []
     monkeypatch.setattr(
-        mutations,
-        "service_account_credentials",
-        lambda value: _record_scopes(value, scopes),
+        transport,
+        "credentials_for_access",
+        lambda value: _record_access(value, accesses),
     )
-    monkeypatch.setattr(mutations, "_make_properties_client", lambda _: client)
+    monkeypatch.setattr(transport, "make_client", lambda _: client)
 
     result = accounts.update_account(
         "accounts/1234", {"displayName": "Example"}, "displayName", apply=True
     )
 
     assert result == {"name": "accounts/1234", "displayName": "Example"}
-    assert scopes == [reads.ANALYTICS_EDIT_SCOPE]
+    assert accesses == ["edit"]
     method, request, retry, timeout = client.calls[0]
     assert method == "update_account"
     assert request == types.UpdateAccountRequest(
@@ -1812,4 +1890,4 @@ def test_update_account_uses_one_edit_scoped_non_retried_call(
         update_mask="displayName",
     )
     assert retry is None
-    assert timeout == reads.PROPERTY_READ_TIMEOUT_SECONDS
+    assert timeout == transport.ADMIN_RPC_TIMEOUT_SECONDS

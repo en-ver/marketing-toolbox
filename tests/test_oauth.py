@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import re
@@ -19,7 +20,7 @@ from typer.testing import CliRunner
 
 from ga4adminctl.cli import app as admin_app
 from ga4datactl.cli import app as data_app
-from ga4datactl.operations import audience_exports
+from ga4datactl.operations import transport as data_transport
 from gtmctl.cli import app as gtm_app
 from marketing_common import auth, oauth
 
@@ -83,12 +84,28 @@ def _stored_user_credentials(
 
 
 def test_scope_catalog_and_audience_export_use_readonly_access() -> None:
-    assert oauth.SCOPE_CATALOG["ga4datactl"] == {
-        "read": "https://www.googleapis.com/auth/analytics.readonly"
+    assert oauth.SCOPE_CATALOG == {
+        "ga4datactl": {
+            "read": "https://www.googleapis.com/auth/analytics.readonly",
+        },
+        "ga4adminctl": {
+            "read": "https://www.googleapis.com/auth/analytics.readonly",
+            "edit": "https://www.googleapis.com/auth/analytics.edit",
+        },
+        "gtmctl": {
+            "read": "https://www.googleapis.com/auth/tagmanager.readonly",
+            "users": "https://www.googleapis.com/auth/tagmanager.manage.users",
+            "accounts": "https://www.googleapis.com/auth/tagmanager.manage.accounts",
+            "containers": "https://www.googleapis.com/auth/tagmanager.edit.containers",
+            "versions": "https://www.googleapis.com/auth/tagmanager.edit.containerversions",
+            "publish": "https://www.googleapis.com/auth/tagmanager.publish",
+            "delete": "https://www.googleapis.com/auth/tagmanager.delete.containers",
+        },
     }
-    assert audience_exports.ANALYTICS_SCOPE == audience_exports.ANALYTICS_READONLY_SCOPE
-    assert oauth.SCOPE_CATALOG["ga4adminctl"]["edit"].endswith("analytics.edit")
-    assert oauth.SCOPE_CATALOG["gtmctl"]["publish"].endswith("tagmanager.publish")
+    assert (
+        data_transport.scope_for_access("ga4datactl", "read")
+        == oauth.SCOPE_CATALOG["ga4datactl"]["read"]
+    )
 
 
 @pytest.mark.parametrize(
@@ -676,13 +693,18 @@ def test_marker_rejects_symlinks_and_non_directory_parents(
         oauth._validate_marker(path)
 
 
-def test_native_record_status_requires_a_marker_before_keyring_access(
+def test_native_record_status_requires_a_marker_before_lock_or_keyring_access(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     monkeypatch.setattr(
         oauth,
         "marker_path",
         lambda *_args: tmp_path / "oauth" / "ga4datactl" / "read.json",
+    )
+    monkeypatch.setattr(
+        oauth,
+        "_native_oauth_lock",
+        lambda: pytest.fail("an absent marker must not acquire the native lock"),
     )
     monkeypatch.setattr(
         oauth,
@@ -693,6 +715,50 @@ def test_native_record_status_requires_a_marker_before_keyring_access(
     assert not oauth.native_record_status(
         "ga4datactl", "read", oauth.SCOPE_CATALOG["ga4datactl"]["read"]
     )
+
+
+@pytest.mark.parametrize(
+    ("operation", "expected"),
+    [("status", False), ("load", None)],
+)
+def test_optional_native_record_reader_rechecks_marker_after_lock_acquisition(
+    monkeypatch: pytest.MonkeyPatch, operation: str, expected: object
+) -> None:
+    marker_checks: list[tuple[str, str]] = []
+    marker_states = iter((True, False))
+    lock_events: list[str] = []
+
+    def marker_present(tool: str, access: str) -> bool:
+        marker_checks.append((tool, access))
+        return next(marker_states)
+
+    @contextlib.contextmanager
+    def lock():
+        lock_events.append("enter")
+        try:
+            yield
+        finally:
+            lock_events.append("exit")
+
+    monkeypatch.setattr(
+        oauth, "_validated_native_marker_present_unlocked", marker_present
+    )
+    monkeypatch.setattr(oauth, "_native_oauth_lock", lock)
+    monkeypatch.setattr(
+        oauth,
+        "_read_native_record_unlocked",
+        lambda *_args: pytest.fail("a removed marker must not read secure storage"),
+    )
+
+    scope = oauth.SCOPE_CATALOG["ga4datactl"]["read"]
+    if operation == "status":
+        result = oauth.native_record_status("ga4datactl", "read", scope)
+    else:
+        result = oauth.load_native_credentials_if_present("ga4datactl", "read", scope)
+
+    assert result is expected
+    assert marker_checks == [("ga4datactl", "read"), ("ga4datactl", "read")]
+    assert lock_events == ["enter", "exit"]
 
 
 def test_forget_retains_marker_when_secret_deletion_is_uncertain(
@@ -851,6 +917,24 @@ def test_auth_commands_are_registered_and_preserve_json_output(
     assert failed.exit_code == 4
     assert json.loads(failed.stderr)["category"] == "authentication"
 
+    monkeypatch.setattr(
+        "marketing_common.oauth_cli.login_native_credentials",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            oauth.OAuthRequestError("invalid login request")
+        ),
+    )
+    invalid = runner.invoke(
+        data_app, ["auth", "login", "--client-secrets", str(client), "--access", "read"]
+    )
+    assert invalid.exit_code == 2
+    assert json.loads(invalid.stderr) == {
+        "schemaVersion": "marketing-toolbox/v1",
+        "command": "ga4datactl auth login",
+        "exitCode": 2,
+        "category": "invalid_request",
+        "message": "invalid login request",
+    }
+
 
 @pytest.mark.parametrize("subcommand", ["login", "status", "forget", "revoke"])
 def test_auth_commands_reject_unsupported_access_before_actions(
@@ -859,7 +943,13 @@ def test_auth_commands_reject_unsupported_access_before_actions(
     def action(*_args: object, **_kwargs: object) -> None:
         pytest.fail("unsupported access must be rejected before auth actions")
 
-    monkeypatch.setattr("marketing_common.oauth_cli.login_native_credentials", action)
+    monkeypatch.setattr(
+        oauth,
+        "preflight_keyring",
+        lambda: pytest.fail(
+            "unsupported access must be rejected before authentication"
+        ),
+    )
     monkeypatch.setattr("marketing_common.oauth_cli.native_record_status", action)
     monkeypatch.setattr("marketing_common.oauth_cli.forget_native_credentials", action)
     monkeypatch.setattr("marketing_common.oauth_cli.revoke_native_credentials", action)
@@ -896,12 +986,17 @@ def test_forget_reports_local_only_without_claiming_remote_grant(
     }
 
 
-def test_auth_login_rejects_no_browser_without_port_before_actions(
+def test_auth_login_delegates_invalid_options_to_owner(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
+    called: dict[str, Any] = {}
+
+    def reject_invalid_options(*args: object, **kwargs: object) -> None:
+        called.update(args=args, kwargs=kwargs)
+        raise oauth.OAuthRequestError("--port is required with --no-open-browser.")
+
     monkeypatch.setattr(
-        "marketing_common.oauth_cli.login_native_credentials",
-        lambda *_args, **_kwargs: pytest.fail("invalid options must not start login"),
+        "marketing_common.oauth_cli.login_native_credentials", reject_invalid_options
     )
     client = tmp_path / "client.json"
     client.write_text("{}")
@@ -919,10 +1014,18 @@ def test_auth_login_rejects_no_browser_without_port_before_actions(
         ],
     )
 
+    assert called == {
+        "args": ("ga4datactl", "read", client),
+        "kwargs": {"open_browser": False, "port": None},
+    }
     assert result.exit_code == 2
-    diagnostic = json.loads(result.stderr)
-    assert diagnostic["category"] == "invalid_request"
-    assert diagnostic["message"] == "--port is required with --no-open-browser."
+    assert json.loads(result.stderr) == {
+        "schemaVersion": "marketing-toolbox/v1",
+        "command": "ga4datactl auth login",
+        "exitCode": 2,
+        "category": "invalid_request",
+        "message": "--port is required with --no-open-browser.",
+    }
 
 
 def test_revoke_retains_local_record_on_remote_failure(

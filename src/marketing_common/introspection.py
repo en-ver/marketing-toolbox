@@ -33,6 +33,7 @@ class ProtobufSchemaTarget:
     descriptor_field_exclusions: Mapping[str, frozenset[str]] = dataclass_field(
         default_factory=dict
     )
+    request_cli_constraints: Mapping[str, Any] | None = None
 
 
 _EMPTY_DESCRIPTOR_FIELD_EXCLUSIONS: Mapping[str, frozenset[str]] = MappingProxyType({})
@@ -138,6 +139,18 @@ def protobuf_schema_response(
     api_version: str,
 ) -> dict[str, Any]:
     """Build source-provenance response data for one registered CLI leaf."""
+    request: dict[str, Any] = {
+        "type": target.request_type.pb().DESCRIPTOR.full_name,
+        "pathOrQueryFields": list(target.path_or_query_fields),
+        "bodyForbiddenFields": list(target.body_forbidden_fields),
+        "body": protobuf_body_schema(
+            target.body_type or target.request_type,
+            excluded_json_names=frozenset(target.body_forbidden_fields),
+            descriptor_field_exclusions=target.descriptor_field_exclusions,
+        ),
+    }
+    if target.request_cli_constraints is not None:
+        request["cliConstraints"] = dict(target.request_cli_constraints)
     return {
         "cliPath": list(target.cli_path),
         "officialMethod": target.official_method,
@@ -147,16 +160,7 @@ def protobuf_schema_response(
             "packageVersion": version(package),
             "apiVersion": api_version,
         },
-        "request": {
-            "type": target.request_type.pb().DESCRIPTOR.full_name,
-            "pathOrQueryFields": list(target.path_or_query_fields),
-            "bodyForbiddenFields": list(target.body_forbidden_fields),
-            "body": protobuf_body_schema(
-                target.body_type or target.request_type,
-                excluded_json_names=frozenset(target.body_forbidden_fields),
-                descriptor_field_exclusions=target.descriptor_field_exclusions,
-            ),
-        },
+        "request": request,
     }
 
 

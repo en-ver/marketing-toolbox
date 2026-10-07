@@ -2,22 +2,30 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any
 
 import pytest
+from httplib2 import Response
 from typer.testing import CliRunner
 
 from gtmctl.cli import app
-from gtmctl.operations import mutations
+from gtmctl.operations import mutations, transport
 
 
 class FakeRequest:
     def __init__(self, response: dict[str, Any]) -> None:
         self.response = response
         self.calls: list[int] = []
+        self.callbacks: list[Callable[[Response], None]] = []
+
+    def add_response_callback(self, callback: Callable[[Response], None]) -> None:
+        self.callbacks.append(callback)
 
     def execute(self, *, num_retries: int = 0) -> dict[str, Any]:
         self.calls.append(num_retries)
+        for callback in self.callbacks:
+            callback(Response({"status": "200"}))
         return self.response
 
 
@@ -49,18 +57,15 @@ class FakeEnvironmentResource:
 @pytest.fixture
 def fake_service(
     monkeypatch: pytest.MonkeyPatch,
-) -> tuple[FakeEnvironmentResource, list[list[str]]]:
+) -> tuple[FakeEnvironmentResource, list[str]]:
     service = FakeEnvironmentResource({"environmentId": "4"})
-    scopes: list[list[str]] = []
+    accesses: list[str] = []
     monkeypatch.setattr(
-        mutations,
-        "service_account_credentials",
-        lambda requested_scopes: (
-            scopes.__iadd__([requested_scopes]),
-            object(),
-        )[1],
+        transport,
+        "credentials_for_access",
+        lambda value: (accesses.append(value), object())[1],
     )
-    return service, scopes
+    return service, accesses
 
 
 @pytest.mark.parametrize(
@@ -98,17 +103,17 @@ def fake_service(
     ],
 )
 def test_environment_mutations_use_one_official_edit_request(
-    fake_service: tuple[FakeEnvironmentResource, list[list[str]]],
+    fake_service: tuple[FakeEnvironmentResource, list[str]],
     operation: Any,
     args: tuple[Any, ...],
     expected: tuple[str, dict[str, Any]],
 ) -> None:
-    service, scopes = fake_service
+    service, accesses = fake_service
 
     assert operation(*args, service_factory=lambda _: service) == service.response
     assert service.calls == [expected]
     assert [request.calls for request in service.requests] == [[0]]
-    assert scopes == [[mutations.TAG_MANAGER_EDIT_SCOPE]]
+    assert accesses == ["containers"]
 
 
 def _body_file(tmp_path: Any) -> str:

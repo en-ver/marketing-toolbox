@@ -3,22 +3,30 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from typing import Any
 
 import pytest
+from httplib2 import Response
 from typer.testing import CliRunner
 
 from gtmctl.cli import app
-from gtmctl.operations import mutations
+from gtmctl.operations import mutations, transport
 
 
 class FakeRequest:
     def __init__(self, response: dict[str, Any]) -> None:
         self.response = response
         self.retries: list[int] = []
+        self.callbacks: list[Callable[[Response], None]] = []
+
+    def add_response_callback(self, callback: Callable[[Response], None]) -> None:
+        self.callbacks.append(callback)
 
     def execute(self, *, num_retries: int = 0) -> dict[str, Any]:
         self.retries.append(num_retries)
+        for callback in self.callbacks:
+            callback(Response({"status": "200"}))
         return self.response
 
 
@@ -44,18 +52,15 @@ class FakeVersionResource:
         return request
 
 
-def test_publish_maps_official_parameters_scope_and_no_retry(
+def test_publish_maps_official_parameters_access_tier_and_no_retry(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     service = FakeVersionResource({"containerVersion": {"containerVersionId": "4"}})
-    scopes: list[list[str]] = []
+    accesses: list[str] = []
     monkeypatch.setattr(
-        mutations,
-        "service_account_credentials",
-        lambda requested_scopes: (
-            scopes.__iadd__([requested_scopes]),
-            object(),
-        )[1],
+        transport,
+        "credentials_for_access",
+        lambda value: (accesses.append(value), object())[1],
     )
 
     response = mutations.publish_version(
@@ -75,15 +80,15 @@ def test_publish_maps_official_parameters_scope_and_no_retry(
         )
     ]
     assert [request.retries for request in service.requests] == [[0]]
-    assert scopes == [[mutations.TAG_MANAGER_PUBLISH_SCOPE]]
+    assert accesses == ["publish"]
 
 
 def test_publish_dry_run_is_deterministic_and_never_loads_credentials(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        mutations,
-        "service_account_credentials",
+        transport,
+        "credentials_for_access",
         lambda _: pytest.fail("dry run must not load credentials"),
     )
     args = [
@@ -184,8 +189,8 @@ def test_publish_validates_canonical_path_before_credentials(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        mutations,
-        "service_account_credentials",
+        transport,
+        "credentials_for_access",
         lambda _: pytest.fail("credentials must not load before route validation"),
     )
 

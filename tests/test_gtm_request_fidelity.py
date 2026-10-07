@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 import socket
+from collections.abc import Callable
+from functools import partial
 from pathlib import Path
 from typing import Any
 
@@ -12,9 +14,10 @@ import urllib3.connectionpool
 from typer.testing import CliRunner
 
 from gtmctl.cli import app
+from gtmctl.foundation import validation
 from gtmctl.foundation.body import body_sha256, read_json_object
 from gtmctl.foundation.validation import RequestValidationError
-from gtmctl.operations import mutation_transport, mutations
+from gtmctl.operations import mutations, transport
 from marketing_common import auth
 
 PATH = "accounts/1/containers/2"
@@ -55,10 +58,10 @@ def _install_apply_dispatch_barriers(monkeypatch: pytest.MonkeyPatch) -> None:
         urllib3.connectionpool.HTTPSConnectionPool, "urlopen", forbidden
     )
     monkeypatch.setattr(auth.google.auth, "default", forbidden)
-    monkeypatch.setattr(mutations, "service_account_credentials", forbidden)
+    monkeypatch.setattr(transport, "credentials_for_access", forbidden)
     monkeypatch.setattr(mutations, "execute_mutation", forbidden)
-    monkeypatch.setattr(mutations, "make_tag_manager_mutation_service", forbidden)
-    monkeypatch.setattr(mutation_transport, "build", forbidden)
+    monkeypatch.setattr(transport, "make_mutation_service", forbidden)
+    monkeypatch.setattr(transport, "build", forbidden)
     monkeypatch.setattr("googleapiclient.discovery.build", forbidden)
 
 
@@ -372,3 +375,174 @@ def test_numeric_json_overflow_fails_before_dry_run_or_mutation(
     assert "valid JSON" in result.output
     assert "dry-run" not in result.output
     assert calls == []
+
+
+_PATH_VALIDATORS = [
+    pytest.param(
+        validation.validate_account_path, "accounts/1", "--path", id="account"
+    ),
+    pytest.param(
+        validation.validate_account_parent,
+        "accounts/1",
+        "--parent",
+        id="account-parent",
+    ),
+    pytest.param(
+        validation.validate_user_permission_path,
+        "accounts/1/user_permissions/2",
+        "--path",
+        id="user-permission",
+    ),
+    pytest.param(validation.validate_container_path, PATH, "--path", id="container"),
+    pytest.param(
+        validation.validate_container_parent, PATH, "--parent", id="container-parent"
+    ),
+    pytest.param(
+        validation.validate_workspace_path, WORKSPACE, "--path", id="workspace"
+    ),
+    pytest.param(
+        validation.validate_workspace_parent, PATH, "--parent", id="workspace-parent"
+    ),
+    pytest.param(
+        validation.validate_environment_path,
+        f"{PATH}/environments/3",
+        "--path",
+        id="environment",
+    ),
+    pytest.param(
+        validation.validate_environment_parent,
+        PATH,
+        "--parent",
+        id="environment-parent",
+    ),
+    pytest.param(
+        validation.validate_version_path, f"{PATH}/versions/3", "--path", id="version"
+    ),
+    pytest.param(
+        validation.validate_workspace_entity_parent,
+        WORKSPACE,
+        "--parent",
+        id="entity-parent",
+    ),
+    pytest.param(
+        validation.validate_workspace_folder_path, FOLDER, "--path", id="folder"
+    ),
+    pytest.param(
+        validation.validate_built_in_variables_path,
+        f"{WORKSPACE}/built_in_variables",
+        "--path",
+        id="built-in-variables",
+    ),
+    *[
+        pytest.param(
+            partial(validation.validate_workspace_entity_path, entity=entity),
+            f"{WORKSPACE}/{entity}/4",
+            "--path",
+            id=entity,
+        )
+        for entity in (
+            "tags",
+            "variables",
+            "triggers",
+            "clients",
+            "folders",
+            "zones",
+            "transformations",
+            "templates",
+            "gtag_config",
+        )
+    ],
+]
+
+
+@pytest.mark.parametrize(("validator", "path", "flag"), _PATH_VALIDATORS)
+def test_all_gtm_path_families_protect_every_identifier_and_preserve_shapes(
+    validator: Callable[[str], None], path: str, flag: str
+) -> None:
+    validator(path)
+    segments = path.split("/")
+    for index in range(1, len(segments), 2):
+        safe = segments.copy()
+        safe[index] = "opaque_α-~...latest.42"
+        validator("/".join(safe))
+        for identifier in ("unsafe#fragment", ""):
+            unsafe = segments.copy()
+            unsafe[index] = identifier
+            with pytest.raises(RequestValidationError) as raised:
+                validator("/".join(unsafe))
+            assert str(raised.value) == f"{flag} must be a canonical GTM resource path."
+    for malformed in (path + "/", path.replace("accounts/", "containers/", 1)):
+        with pytest.raises(RequestValidationError) as raised:
+            validator(malformed)
+        assert str(raised.value) == f"{flag} must be a canonical GTM resource path."
+
+
+@pytest.mark.parametrize(
+    "identifier",
+    [
+        *[f"a{character}b" for character in ":/?#[]@!$&'()*+,;=%\\"],
+        ".",
+        "..",
+        "%2e",
+        "%2f",
+        "%23",
+        "%41",
+        "%",
+        "%zz",
+        "%2",
+        "%252e",
+        " a",
+        "a ",
+        "a\tb",
+        "a\nb",
+        "a\rb",
+        "a\u00a0b",
+        "a\u2003b",
+        "a\x00b",
+        "a\x1fb",
+        "a\x7fb",
+        "a\x80b",
+        "a\x9fb",
+        chr(0xD800),
+        chr(0xDFFF),
+    ],
+)
+def test_gtm_identifier_hazards_are_rejected_without_decoding(identifier: str) -> None:
+    # Cover terminal and ancestor hazards without a full family Cartesian product.
+    for validator, path in (
+        (
+            partial(validation.validate_workspace_entity_path, entity="tags"),
+            f"{WORKSPACE}/tags/{identifier}",
+        ),
+        (
+            validation.validate_workspace_path,
+            f"accounts/1/containers/{identifier}/workspaces/3",
+        ),
+    ):
+        with pytest.raises(RequestValidationError) as raised:
+            validator(path)
+        assert str(raised.value) == "--path must be a canonical GTM resource path."
+
+
+@pytest.mark.parametrize(
+    "identifier",
+    [
+        "abc",
+        "123",
+        "_",
+        "-",
+        "~",
+        "a.b",
+        "...",
+        "latest",
+        "é",
+        "e\u0301",
+        "東京",
+        "a\u200bb",
+    ],
+)
+def test_gtm_safe_opaque_identifiers_remain_accepted(identifier: str) -> None:
+    validation.validate_version_path(f"{PATH}/versions/{identifier}")
+    validation.validate_workspace_path(
+        f"accounts/{identifier}/containers/2/workspaces/3"
+    )

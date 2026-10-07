@@ -282,7 +282,7 @@ def _validate_marker(path: Path) -> bool:
     return True
 
 
-def _native_marker_exists_unlocked(tool: ToolName, access: str) -> bool:
+def _validated_native_marker_present_unlocked(tool: ToolName, access: str) -> bool:
     return _validate_marker(marker_path(tool, access))
 
 
@@ -672,7 +672,7 @@ def _read_native_record_unlocked(
     tool: ToolName, access: str, scope: str
 ) -> tuple[str, UserCredentials]:
     """Read one marked keyring record while the native lifecycle lock is held."""
-    if not _native_marker_exists_unlocked(tool, access):
+    if not _validated_native_marker_present_unlocked(tool, access):
         raise OAuthAuthenticationError("Native credential marker is missing.")
     backend = _approved_backend()
     serialized = _keyring_call(
@@ -685,15 +685,22 @@ def _read_native_record_unlocked(
     return serialized, _credentials_from_record(serialized, scope)
 
 
+def _read_optional_native_record(
+    tool: ToolName, access: str, scope: str
+) -> UserCredentials | None:
+    """Read a strict local snapshot only while its validated marker remains present."""
+    if not _validated_native_marker_present_unlocked(tool, access):
+        return None
+    with _native_oauth_lock():
+        if not _validated_native_marker_present_unlocked(tool, access):
+            return None
+        _, credentials = _read_native_record_unlocked(tool, access, scope)
+        return credentials
+
+
 def native_record_status(tool: ToolName, access: str, scope: str) -> bool:
     """Validate a present marker/keyring record as one local snapshot."""
-    if not _native_marker_exists_unlocked(tool, access):
-        return False
-    with _native_oauth_lock():
-        if not _native_marker_exists_unlocked(tool, access):
-            return False
-        _read_native_record_unlocked(tool, access, scope)
-        return True
+    return _read_optional_native_record(tool, access, scope) is not None
 
 
 def _refresh_native_credentials(
@@ -724,12 +731,9 @@ def load_native_credentials_if_present(
     tool: ToolName, access: str, scope: str
 ) -> Credentials | None:
     """Atomically load a selected native record or report its safe absence."""
-    if not _native_marker_exists_unlocked(tool, access):
+    credentials = _read_optional_native_record(tool, access, scope)
+    if credentials is None:
         return None
-    with _native_oauth_lock():
-        if not _native_marker_exists_unlocked(tool, access):
-            return None
-        _, credentials = _read_native_record_unlocked(tool, access, scope)
     return _refresh_native_credentials(credentials, scope)
 
 
@@ -845,7 +849,7 @@ def _forget_native_credentials_unlocked(tool: ToolName, access: str) -> None:
 
 def forget_native_credentials(tool: ToolName, access: str) -> None:
     """Delete and verify the secret before removing its recovery marker."""
-    if not _native_marker_exists_unlocked(tool, access):
+    if not _validated_native_marker_present_unlocked(tool, access):
         return
     with _native_oauth_lock():
         _forget_native_credentials_unlocked(tool, access)

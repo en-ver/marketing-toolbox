@@ -6,17 +6,18 @@ from typing import Annotated
 
 import typer
 
-from gtmctl.commands._common import DRY_RUN_HELP, run_command
+from gtmctl.commands._common import (
+    DRY_RUN_HELP,
+    build_dry_run_plan,
+    run_command,
+    validate_execution_mode,
+    validate_fingerprint,
+)
 from gtmctl.commands.core_mutations import (
     register_container_core_mutation_commands,
     register_workspace_core_mutation_commands,
 )
 from gtmctl.commands.environment_mutations import register_environment_mutation_commands
-from gtmctl.commands.tag_mutations import (
-    _dry_run,
-    _validate_execution_mode,
-    _validate_fingerprint,
-)
 from gtmctl.commands.version_mutations import register_version_mutation_commands
 from gtmctl.commands.workspace_discovery import register_workspace_discovery_commands
 from gtmctl.commands.workspace_operations import register_workspace_action_commands
@@ -126,15 +127,15 @@ def accounts_update(
 
     def operation() -> dict[str, object]:
         validate_account_path(path)
-        _validate_execution_mode(dry_run=dry_run, apply=apply)
-        _validate_fingerprint(fingerprint)
+        validate_execution_mode(dry_run=dry_run, apply=apply)
+        validate_fingerprint(fingerprint)
         if not acknowledge_account_update:
             raise RequestValidationError(
                 "--acknowledge-account-update is required before updating an account."
             )
         request_body = read_json_object(body)
         if dry_run:
-            return _dry_run(
+            return build_dry_run_plan(
                 operation="accounts.update",
                 target=path,
                 body=request_body,
@@ -228,11 +229,11 @@ def user_permissions_create(
 
     def operation() -> dict[str, object]:
         validate_account_parent(parent)
-        _validate_execution_mode(dry_run=dry_run, apply=apply)
+        validate_execution_mode(dry_run=dry_run, apply=apply)
         _require_permission_acknowledgement(acknowledge_permission_change)
         request_body = read_json_object(body)
         if dry_run:
-            return _dry_run(
+            return build_dry_run_plan(
                 operation="user-permissions.create", target=parent, body=request_body
             )
         return mutations.create_user_permission(parent, request_body)
@@ -264,11 +265,11 @@ def user_permissions_update(
 
     def operation() -> dict[str, object]:
         validate_user_permission_path(path)
-        _validate_execution_mode(dry_run=dry_run, apply=apply)
+        validate_execution_mode(dry_run=dry_run, apply=apply)
         _require_permission_acknowledgement(acknowledge_permission_change)
         request_body = read_json_object(body)
         if dry_run:
-            return _dry_run(
+            return build_dry_run_plan(
                 operation="user-permissions.update", target=path, body=request_body
             )
         return mutations.update_user_permission(path, request_body)
@@ -304,14 +305,14 @@ def user_permissions_delete(
 
     def operation() -> dict[str, object]:
         validate_user_permission_path(path)
-        _validate_execution_mode(dry_run=dry_run, apply=apply)
+        validate_execution_mode(dry_run=dry_run, apply=apply)
         _require_permission_acknowledgement(acknowledge_permission_change)
         if not acknowledge_user_permission_delete:
             raise RequestValidationError(
                 "--acknowledge-user-permission-delete is required before deleting an account user permission."
             )
         if dry_run:
-            return _dry_run(operation="user-permissions.delete", target=path)
+            return build_dry_run_plan(operation="user-permissions.delete", target=path)
         return mutations.delete_user_permission(path)
 
     run_command(command="gtmctl accounts user-permissions delete", operation=operation)

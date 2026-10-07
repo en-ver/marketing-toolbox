@@ -5,8 +5,14 @@ from typing import Annotated, Any, cast
 
 import typer
 
-from gtmctl.commands._common import DRY_RUN_HELP, run_command
-from gtmctl.foundation.body import body_sha256, read_json_object
+from gtmctl.commands._common import (
+    DRY_RUN_HELP,
+    build_dry_run_plan,
+    run_command,
+    validate_execution_mode,
+    validate_fingerprint,
+)
+from gtmctl.foundation.body import read_json_object
 from gtmctl.foundation.validation import (
     RequestValidationError,
     validate_workspace_entity_parent,
@@ -15,44 +21,9 @@ from gtmctl.foundation.validation import (
 from gtmctl.operations import mutations
 
 
-def _validate_execution_mode(*, dry_run: bool, apply: bool) -> None:
-    if dry_run == apply:
-        raise RequestValidationError("Specify exactly one of --dry-run or --apply.")
-
-
-def _validate_fingerprint(fingerprint: str | None) -> None:
-    if fingerprint is not None and (
-        not fingerprint or fingerprint.strip() != fingerprint
-    ):
-        raise RequestValidationError(
-            "--fingerprint must be a non-empty value without surrounding whitespace."
-        )
-
-
 def _mutation_adapter(name: str) -> Callable[..., dict[str, Any]]:
     """Resolve one explicitly named local mutation adapter."""
     return cast(Callable[..., dict[str, Any]], getattr(mutations, name))
-
-
-def _dry_run(
-    *,
-    operation: str,
-    target: str,
-    body: dict[str, Any] | None = None,
-    fingerprint: str | None = None,
-) -> dict[str, Any]:
-    """Produce a deterministic plan without exposing the request body."""
-    plan: dict[str, Any] = {
-        "applied": False,
-        "mode": "dry-run",
-        "operation": operation,
-        "target": target,
-    }
-    if fingerprint is not None:
-        plan["fingerprint"] = fingerprint
-    if body is not None:
-        plan["bodySha256"] = body_sha256(body)
-    return plan
 
 
 def register_workspace_entity_mutation_commands(
@@ -85,10 +56,10 @@ def register_workspace_entity_mutation_commands(
 
         def operation() -> dict[str, Any]:
             validate_workspace_entity_parent(parent)
-            _validate_execution_mode(dry_run=dry_run, apply=apply)
+            validate_execution_mode(dry_run=dry_run, apply=apply)
             request_body = read_json_object(body)
             if dry_run:
-                return _dry_run(
+                return build_dry_run_plan(
                     operation=f"{entity}.create", target=parent, body=request_body
                 )
             return _mutation_adapter(f"create_{singular}")(parent, request_body)
@@ -117,11 +88,11 @@ def register_workspace_entity_mutation_commands(
 
         def operation() -> dict[str, Any]:
             validate_workspace_entity_path(path, entity)
-            _validate_execution_mode(dry_run=dry_run, apply=apply)
-            _validate_fingerprint(fingerprint)
+            validate_execution_mode(dry_run=dry_run, apply=apply)
+            validate_fingerprint(fingerprint)
             request_body = read_json_object(body)
             if dry_run:
-                return _dry_run(
+                return build_dry_run_plan(
                     operation=f"{entity}.update",
                     target=path,
                     body=request_body,
@@ -156,10 +127,10 @@ def register_workspace_entity_mutation_commands(
 
             def operation() -> dict[str, Any]:
                 validate_workspace_entity_path(path, entity)
-                _validate_execution_mode(dry_run=dry_run, apply=apply)
-                _validate_fingerprint(fingerprint)
+                validate_execution_mode(dry_run=dry_run, apply=apply)
+                validate_fingerprint(fingerprint)
                 if dry_run:
-                    return _dry_run(
+                    return build_dry_run_plan(
                         operation=f"{entity}.revert",
                         target=path,
                         fingerprint=fingerprint,
@@ -188,13 +159,13 @@ def register_workspace_entity_mutation_commands(
 
         def operation() -> dict[str, Any]:
             validate_workspace_entity_path(path, entity)
-            _validate_execution_mode(dry_run=dry_run, apply=apply)
+            validate_execution_mode(dry_run=dry_run, apply=apply)
             if not acknowledge_delete:
                 raise RequestValidationError(
                     f"--acknowledge-{cli_name.rstrip('s')}-delete is required before deleting a {cli_name.rstrip('s')}."
                 )
             if dry_run:
-                return _dry_run(operation=f"{entity}.delete", target=path)
+                return build_dry_run_plan(operation=f"{entity}.delete", target=path)
             return _mutation_adapter(f"delete_{singular}")(path)
 
         run_command(command=command, operation=operation)

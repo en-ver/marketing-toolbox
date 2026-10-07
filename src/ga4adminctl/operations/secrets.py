@@ -32,9 +32,8 @@ from ga4adminctl.foundation.validation import (
     validate_page_request,
     validate_resource_name,
 )
-from ga4adminctl.operations import mutations, reads, resources
+from ga4adminctl.operations import resources, transport
 
-PropertiesClientFactory = reads.PropertiesClientFactory
 MEASUREMENT_PROTOCOL_SECRET_PATCH_WRITABLE_FIELDS = ("displayName",)
 _update_child = resources._update_child
 
@@ -45,7 +44,7 @@ def get_measurement_protocol_secret(name: str) -> dict[str, Any]:
         name, flag="--name", pattern=MEASUREMENT_PROTOCOL_SECRET_PATTERN
     )
     return _remove_secret_values(
-        reads._read_v1beta(
+        transport.read(
             GetMeasurementProtocolSecretRequest(name=name),
             "get_measurement_protocol_secret",
             MeasurementProtocolSecret,
@@ -60,7 +59,7 @@ def list_measurement_protocol_secrets(
     validate_resource_name(parent, flag="--data-stream", pattern=DATA_STREAM_PATTERN)
     validate_page_request(page_size, page_token)
     return _remove_secret_values(
-        reads._list_v1beta(
+        transport.list_page(
             ListMeasurementProtocolSecretsRequest(
                 parent=parent, page_size=page_size, page_token=page_token
             ),
@@ -75,7 +74,6 @@ def create_measurement_protocol_secret(
     body: Mapping[str, Any],
     *,
     apply: bool = False,
-    client_factory: PropertiesClientFactory | None = None,
 ) -> dict[str, Any]:
     """Plan or create sensitive secret metadata without exposing secretValue."""
     validate_resource_name(
@@ -88,13 +86,12 @@ def create_measurement_protocol_secret(
             "dryRun": True,
             "request": {"parent": data_stream, "measurementProtocolSecret": dict(body)},
         }
-    return mutations._write_v1beta(
+    return transport.write(
         CreateMeasurementProtocolSecretRequest(
             parent=data_stream, measurement_protocol_secret=secret
         ),
         "create_measurement_protocol_secret",
         _secret_metadata_response,
-        client_factory=client_factory,
     )
 
 
@@ -104,7 +101,6 @@ def update_measurement_protocol_secret(
     update_mask: str,
     *,
     apply: bool = False,
-    client_factory: PropertiesClientFactory | None = None,
 ) -> dict[str, Any]:
     """Plan or update sensitive secret metadata without exposing secretValue."""
     return _remove_secret_values(
@@ -120,17 +116,13 @@ def update_measurement_protocol_secret(
             request_json_field="measurementProtocolSecret",
             method="update_measurement_protocol_secret",
             apply=apply,
-            client_factory=client_factory,
             name_pattern=MEASUREMENT_PROTOCOL_SECRET_PATTERN,
         )
     )
 
 
 def delete_measurement_protocol_secret(
-    name: str,
-    *,
-    apply: bool = False,
-    client_factory: PropertiesClientFactory | None = None,
+    name: str, *, apply: bool = False
 ) -> dict[str, Any]:
     """Plan or irreversibly delete a secret; never retry the dispatch."""
     validate_resource_name(
@@ -138,9 +130,8 @@ def delete_measurement_protocol_secret(
     )
     if not apply:
         return {"dryRun": True, "request": {"name": name}}
-    return mutations._write_v1beta(
+    return transport.write(
         DeleteMeasurementProtocolSecretRequest(name=name),
         "delete_measurement_protocol_secret",
         _empty_response,
-        client_factory=client_factory,
     )

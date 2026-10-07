@@ -6,8 +6,12 @@ from typing import Annotated, Any
 
 import typer
 
-from gtmctl.commands._common import DRY_RUN_HELP, run_command
-from gtmctl.commands.tag_mutations import _dry_run, _validate_execution_mode
+from gtmctl.commands._common import (
+    DRY_RUN_HELP,
+    build_dry_run_plan,
+    run_command,
+    validate_execution_mode,
+)
 from gtmctl.foundation.validation import (
     RequestValidationError,
     validate_built_in_variables_path,
@@ -86,9 +90,9 @@ def register_built_in_variable_mutation_commands(entity_app: typer.Typer) -> Non
         def operation() -> dict[str, Any]:
             validate_workspace_path(parent)
             _validate_variable_types(variable_type, _CREATE_VARIABLE_TYPES)
-            _validate_execution_mode(dry_run=dry_run, apply=apply)
+            validate_execution_mode(dry_run=dry_run, apply=apply)
             if dry_run:
-                return _dry_run(
+                return build_dry_run_plan(
                     operation="built-in-variables.create", target=parent
                 ) | {"type": variable_type}
             return mutations.create_built_in_variable(parent, variable_type)
@@ -132,15 +136,15 @@ def register_built_in_variable_mutation_commands(entity_app: typer.Typer) -> Non
         def operation() -> dict[str, Any]:
             validate_built_in_variables_path(path)
             _validate_variable_types(variable_type, _DELETE_VARIABLE_TYPES)
-            _validate_execution_mode(dry_run=dry_run, apply=apply)
+            validate_execution_mode(dry_run=dry_run, apply=apply)
             if not acknowledge_delete:
                 raise RequestValidationError(
                     "--acknowledge-built-in-variable-delete is required before disabling a built-in variable."
                 )
             if dry_run:
-                return _dry_run(operation="built-in-variables.delete", target=path) | {
-                    "type": variable_type
-                }
+                return build_dry_run_plan(
+                    operation="built-in-variables.delete", target=path
+                ) | {"type": variable_type}
             return mutations.delete_built_in_variable(path, variable_type)
 
         run_command(
@@ -169,11 +173,11 @@ def register_built_in_variable_mutation_commands(entity_app: typer.Typer) -> Non
         def operation() -> dict[str, Any]:
             validate_workspace_path(path)
             _validate_variable_types(variable_type, _REVERT_VARIABLE_TYPES)
-            _validate_execution_mode(dry_run=dry_run, apply=apply)
+            validate_execution_mode(dry_run=dry_run, apply=apply)
             if dry_run:
-                return _dry_run(operation="built-in-variables.revert", target=path) | {
-                    "type": variable_type
-                }
+                return build_dry_run_plan(
+                    operation="built-in-variables.revert", target=path
+                ) | {"type": variable_type}
             return mutations.revert_built_in_variable(path, variable_type)
 
         run_command(

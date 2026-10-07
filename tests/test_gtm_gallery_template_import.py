@@ -4,23 +4,31 @@ from __future__ import annotations
 
 import json
 import socket
+from collections.abc import Callable
 from typing import Any
 
 import pytest
 import urllib3.connectionpool
+from httplib2 import Response
 from typer.testing import CliRunner
 
 from gtmctl.cli import app
-from gtmctl.operations import mutation_transport, mutations
+from gtmctl.operations import mutations, transport
 from marketing_common import auth
 
 
 class FakeRequest:
     def __init__(self) -> None:
         self.retries: list[int] = []
+        self.callbacks: list[Callable[[Response], None]] = []
+
+    def add_response_callback(self, callback: Callable[[Response], None]) -> None:
+        self.callbacks.append(callback)
 
     def execute(self, *, num_retries: int = 0) -> dict[str, str]:
         self.retries.append(num_retries)
+        for callback in self.callbacks:
+            callback(Response({"status": "200"}))
         return {"templateId": "4"}
 
 
@@ -95,10 +103,10 @@ def _install_apply_dispatch_barriers(monkeypatch: pytest.MonkeyPatch) -> None:
         urllib3.connectionpool.HTTPSConnectionPool, "urlopen", forbidden
     )
     monkeypatch.setattr(auth.google.auth, "default", forbidden)
-    monkeypatch.setattr(mutations, "service_account_credentials", forbidden)
+    monkeypatch.setattr(transport, "credentials_for_access", forbidden)
     monkeypatch.setattr(mutations, "execute_mutation", forbidden)
-    monkeypatch.setattr(mutations, "make_tag_manager_mutation_service", forbidden)
-    monkeypatch.setattr(mutation_transport, "build", forbidden)
+    monkeypatch.setattr(transport, "make_mutation_service", forbidden)
+    monkeypatch.setattr(transport, "build", forbidden)
     monkeypatch.setattr("googleapiclient.discovery.build", forbidden)
 
 
@@ -124,18 +132,15 @@ def test_gallery_import_descriptor_is_the_exact_query_parameter_envelope() -> No
     assert len(body["fields"]) == 3
 
 
-def test_gallery_import_uses_exact_official_request_and_edit_scope(
+def test_gallery_import_uses_exact_official_request_and_containers_access_tier(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     service = FakeTemplatesResource()
-    scopes: list[list[str]] = []
+    accesses: list[str] = []
     monkeypatch.setattr(
-        mutations,
-        "service_account_credentials",
-        lambda requested_scopes: (
-            scopes.__iadd__([requested_scopes]),
-            object(),
-        )[1],
+        transport,
+        "credentials_for_access",
+        lambda value: (accesses.append(value), object())[1],
     )
 
     assert mutations.import_template_from_gallery(
@@ -159,15 +164,15 @@ def test_gallery_import_uses_exact_official_request_and_edit_scope(
         )
     ]
     assert [request.retries for request in service.requests] == [[0]]
-    assert scopes == [[mutations.TAG_MANAGER_EDIT_SCOPE]]
+    assert accesses == ["containers"]
 
 
 def test_gallery_import_dry_run_is_deterministic_redacted_and_local(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Any
 ) -> None:
     monkeypatch.setattr(
-        mutations,
-        "service_account_credentials",
+        transport,
+        "credentials_for_access",
         lambda _: pytest.fail("dry run must not load credentials"),
     )
     body = _body_file(tmp_path)

@@ -2,22 +2,31 @@
 
 from __future__ import annotations
 
+import json
+from collections.abc import Callable
 from typing import Any
 
 import pytest
+from httplib2 import Response
 from typer.testing import CliRunner
 
 from gtmctl.cli import app
-from gtmctl.operations import mutations
+from gtmctl.operations import mutations, transport
 
 
 class FakeRequest:
     def __init__(self, response: dict[str, Any]) -> None:
         self.response = response
         self.retries: list[int] = []
+        self.callbacks: list[Callable[[Response], None]] = []
+
+    def add_response_callback(self, callback: Callable[[Response], None]) -> None:
+        self.callbacks.append(callback)
 
     def execute(self, *, num_retries: int = 0) -> dict[str, Any]:
         self.retries.append(num_retries)
+        for callback in self.callbacks:
+            callback(Response({"status": "200"}))
         return self.response
 
 
@@ -112,25 +121,22 @@ def test_core_mutations_map_one_official_edit_request(
     expected: tuple[str, dict[str, Any]],
 ) -> None:
     service = FakeCoreResource({"name": "response"})
-    scopes: list[list[str]] = []
+    accesses: list[str] = []
     monkeypatch.setattr(
-        mutations,
-        "service_account_credentials",
-        lambda requested_scopes: (
-            scopes.__iadd__([requested_scopes]),
-            object(),
-        )[1],
+        transport,
+        "credentials_for_access",
+        lambda value: (accesses.append(value), object())[1],
     )
 
     assert operation(*args, service_factory=lambda _: service) == service.response
     assert service.calls == [expected]
     assert [request.retries for request in service.requests] == [[0]]
-    expected_scope = (
-        mutations.TAG_MANAGER_DELETE_CONTAINERS_SCOPE
+    expected_access = (
+        "delete"
         if operation in {mutations.delete_container, mutations.delete_workspace}
-        else mutations.TAG_MANAGER_EDIT_SCOPE
+        else "containers"
     )
-    assert scopes == [[expected_scope]]
+    assert accesses == [expected_access]
 
 
 def _body_file(tmp_path: Any) -> str:
@@ -184,3 +190,46 @@ def test_core_update_apply_maps_path_body_and_fingerprint(
 
     assert result.exit_code == 0
     assert calls == [expected_call]
+
+
+@pytest.mark.parametrize("mode", ["--apply", "--dry-run"])
+def test_workspace_delete_fragment_target_fails_before_auth_service_or_dispatch(
+    monkeypatch: pytest.MonkeyPatch, mode: str
+) -> None:
+    calls: list[str] = []
+
+    def forbidden(stage: str) -> Callable[..., Any]:
+        def fail(*_args: Any, **_kwargs: Any) -> Any:
+            calls.append(stage)
+            pytest.fail(f"invalid workspace target reached {stage}")
+
+        return fail
+
+    monkeypatch.setattr(transport, "credentials_for_access", forbidden("credentials"))
+    monkeypatch.setattr(transport, "make_mutation_service", forbidden("service"))
+    monkeypatch.setattr(mutations, "execute_mutation", forbidden("dispatch"))
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "accounts",
+            "containers",
+            "workspaces",
+            "delete",
+            "--path",
+            "accounts/1/containers/2#/workspaces/3",
+            "--acknowledge-workspace-delete",
+            mode,
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert result.stdout == ""
+    assert json.loads(result.stderr) == {
+        "schemaVersion": "marketing-toolbox/v1",
+        "command": "gtmctl accounts containers workspaces delete",
+        "exitCode": 2,
+        "category": "invalid_request",
+        "message": "--path must be a canonical GTM resource path.",
+    }
+    assert calls == []

@@ -1,11 +1,12 @@
 import json
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from io import StringIO
 from pathlib import Path
 from typing import Any, cast
 
 import pytest
 from google.analytics.data_v1beta.types import (
+    AudienceExport,
     BatchRunPivotReportsRequest,
     BatchRunPivotReportsResponse,
     BatchRunReportsRequest,
@@ -13,7 +14,11 @@ from google.analytics.data_v1beta.types import (
     CheckCompatibilityRequest,
     CheckCompatibilityResponse,
     CreateAudienceExportRequest,
+    GetAudienceExportRequest,
+    GetMetadataRequest,
     ListAudienceExportsResponse,
+    Metadata,
+    MetricType,
     QueryAudienceExportResponse,
     RunPivotReportRequest,
     RunPivotReportResponse,
@@ -26,7 +31,7 @@ from google.api_core import exceptions
 
 from ga4datactl.foundation import errors as data_errors
 from ga4datactl.foundation import validation as data_validation
-from ga4datactl.operations import audience_exports, reports
+from ga4datactl.operations import audience_exports, metadata, reports, transport
 
 TESTS_DIR = Path(__file__).parent
 FIXTURES = TESTS_DIR / "fixtures/ga4datactl/reports-run"
@@ -138,8 +143,8 @@ def test_schema_validation_precedes_credential_lookup(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        reports,
-        "service_account_credentials",
+        transport,
+        "credentials_for_access",
         lambda _: pytest.fail("schema errors must not load credentials"),
     )
 
@@ -149,6 +154,160 @@ def test_schema_validation_precedes_credential_lookup(
         )
 
     assert "TYPE_VALUE_SENTINEL" not in str(raised.value)
+
+
+@pytest.mark.parametrize("through_report", [False, True])
+def test_schema_recursion_during_lazy_iteration_is_sanitized_before_authentication(
+    monkeypatch: pytest.MonkeyPatch, through_report: bool
+) -> None:
+    phases: list[str] = []
+
+    def iter_errors(_validator: Any, _body: Any) -> Iterator[Any]:
+        phases.append("created")
+
+        def exhausted() -> Iterator[Any]:
+            phases.append("advanced")
+            raise RecursionError("LAZY_RECURSION_SECRET_SENTINEL")
+            yield  # pragma: no cover
+
+        return exhausted()
+
+    monkeypatch.setattr(
+        type(data_validation.RUN_REPORT_BODY_VALIDATOR), "iter_errors", iter_errors
+    )
+    monkeypatch.setattr(
+        transport,
+        "credentials_for_access",
+        lambda _: pytest.fail("schema exhaustion must not load credentials"),
+    )
+    monkeypatch.setattr(
+        transport,
+        "make_client",
+        lambda _: pytest.fail("schema exhaustion must not construct a client"),
+    )
+
+    with pytest.raises(data_validation.RequestValidationError) as raised:
+        if through_report:
+            reports.run_report("properties/1234", {"metrics": [{"name": "eventCount"}]})
+        else:
+            data_validation._validate_schema(
+                {"metrics": [{"name": "eventCount"}]},
+                data_validation.RUN_REPORT_BODY_VALIDATOR,
+            )
+
+    assert phases == ["created", "advanced"]
+    assert str(raised.value) == "--body exceeds the supported request nesting depth."
+    assert "LAZY_RECURSION_SECRET_SENTINEL" not in str(raised.value)
+
+
+def test_metadata_get_preserves_request_credentials_retry_and_protobuf_json(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    credentials = object()
+    accesses: list[str] = []
+    client_credentials: list[object] = []
+    calls: list[tuple[GetMetadataRequest, Any]] = []
+    response = Metadata(
+        name="properties/1234/metadata",
+        dimensions=[{"api_name": "country", "ui_name": "Country"}],
+        metrics=[{"api_name": "eventCount", "type_": MetricType.TYPE_INTEGER}],
+    )
+
+    class Client:
+        def get_metadata(self, request: GetMetadataRequest, *, retry: Any) -> Metadata:
+            calls.append((request, retry))
+            return response
+
+    client = Client()
+
+    def load_credentials(tier: str) -> object:
+        accesses.append(tier)
+        return credentials
+
+    def make_client(actual_credentials: object) -> Client:
+        client_credentials.append(actual_credentials)
+        return client
+
+    monkeypatch.setattr(transport, "credentials_for_access", load_credentials)
+    monkeypatch.setattr(transport, "make_client", make_client)
+
+    result = metadata.get_metadata("properties/1234")
+
+    assert accesses == ["read"]
+    assert len(client_credentials) == 1
+    assert client_credentials[0] is credentials
+    assert len(calls) == 1
+    request, retry = calls[0]
+    assert isinstance(request, GetMetadataRequest)
+    assert request == GetMetadataRequest(name="properties/1234/metadata")
+    assert retry is metadata.RUN_REPORT_RETRY
+    assert result == {
+        "name": "properties/1234/metadata",
+        "dimensions": [{"apiName": "country", "uiName": "Country"}],
+        "metrics": [{"apiName": "eventCount", "type": "TYPE_INTEGER"}],
+    }
+
+
+def test_audience_export_get_preserves_request_credentials_retry_and_protobuf_json(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    credentials = object()
+    accesses: list[str] = []
+    client_credentials: list[object] = []
+    calls: list[tuple[GetAudienceExportRequest, Any]] = []
+    response = AudienceExport(
+        name="properties/1234/audienceExports/export-1",
+        audience="properties/1234/audiences/audience-1",
+        audience_display_name="Example audience",
+        dimensions=[{"dimension_name": "deviceId"}],
+        state=AudienceExport.State.ACTIVE,
+        creation_quota_tokens_charged=5,
+        row_count=7,
+    )
+
+    class Client:
+        def get_audience_export(
+            self, request: GetAudienceExportRequest, *, retry: Any
+        ) -> AudienceExport:
+            calls.append((request, retry))
+            return response
+
+    client = Client()
+
+    def load_credentials(tier: str) -> object:
+        accesses.append(tier)
+        return credentials
+
+    def make_client(actual_credentials: object) -> Client:
+        client_credentials.append(actual_credentials)
+        return client
+
+    monkeypatch.setattr(transport, "credentials_for_access", load_credentials)
+    monkeypatch.setattr(transport, "make_client", make_client)
+
+    result = audience_exports.get_audience_export(
+        "properties/1234", "properties/1234/audienceExports/export-1"
+    )
+
+    assert accesses == ["read"]
+    assert len(client_credentials) == 1
+    assert client_credentials[0] is credentials
+    assert len(calls) == 1
+    request, retry = calls[0]
+    assert isinstance(request, GetAudienceExportRequest)
+    assert request == GetAudienceExportRequest(
+        name="properties/1234/audienceExports/export-1"
+    )
+    assert retry is audience_exports.RUN_REPORT_RETRY
+    assert result == {
+        "name": "properties/1234/audienceExports/export-1",
+        "audience": "properties/1234/audiences/audience-1",
+        "audienceDisplayName": "Example audience",
+        "dimensions": [{"dimensionName": "deviceId"}],
+        "state": "ACTIVE",
+        "creationQuotaTokensCharged": 5,
+        "rowCount": 7,
+    }
 
 
 def test_pivot_validation_does_not_echo_custom_field_names() -> None:
@@ -185,12 +344,11 @@ def test_run_report_uses_official_request_shape_and_preserves_response(
             }
         )
     )
-    monkeypatch.setattr(reports, "service_account_credentials", lambda _: object())
+    monkeypatch.setattr(transport, "credentials_for_access", lambda _: object())
+    monkeypatch.setattr(transport, "make_client", lambda _: captured)
 
     response = reports.run_report(
-        "properties/1234",
-        load_fixture("valid-basic-request.json"),
-        client_factory=lambda _: captured,
+        "properties/1234", load_fixture("valid-basic-request.json")
     )
 
     assert captured.request.property == "properties/1234"
@@ -285,16 +443,11 @@ def test_query_audience_export_uses_one_bounded_official_request(
             }
         )
     )
-    monkeypatch.setattr(
-        audience_exports, "service_account_credentials", lambda _: object()
-    )
+    monkeypatch.setattr(transport, "credentials_for_access", lambda _: object())
+    monkeypatch.setattr(transport, "make_client", lambda _: captured)
 
     response = audience_exports.query_audience_export(
-        "properties/1234",
-        "properties/1234/audienceExports/export-1",
-        10,
-        5,
-        client_factory=lambda _: captured,
+        "properties/1234", "properties/1234/audienceExports/export-1", 10, 5
     )
 
     assert captured.calls == 1
@@ -308,47 +461,6 @@ def test_query_audience_export_uses_one_bounded_official_request(
     }
 
 
-def test_query_audience_export_constructs_the_official_request_before_auth(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    ordered_calls: list[tuple[str, object]] = []
-    original_request = audience_exports.QueryAudienceExportRequest
-    client = CapturingQueryAudienceExportClient(QueryAudienceExportResponse())
-
-    def construct_request(**kwargs: object) -> Any:
-        ordered_calls.append(("request", kwargs))
-        return original_request(**kwargs)
-
-    monkeypatch.setattr(
-        audience_exports, "QueryAudienceExportRequest", construct_request
-    )
-    monkeypatch.setattr(
-        audience_exports,
-        "service_account_credentials",
-        lambda _: ordered_calls.append(("credentials", None)) or object(),
-    )
-
-    audience_exports.query_audience_export(
-        "properties/1234",
-        "properties/1234/audienceExports/export-1",
-        10,
-        5,
-        client_factory=lambda _: client,
-    )
-
-    assert ordered_calls == [
-        (
-            "request",
-            {
-                "name": "properties/1234/audienceExports/export-1",
-                "limit": 10,
-                "offset": 5,
-            },
-        ),
-        ("credentials", None),
-    ]
-
-
 @pytest.mark.parametrize(
     ("name", "limit", "offset", "message"),
     [
@@ -358,12 +470,29 @@ def test_query_audience_export_constructs_the_official_request_before_auth(
     ],
 )
 def test_query_audience_export_rejects_unbounded_or_cross_property_requests(
-    name: str, limit: int, offset: int, message: str
+    monkeypatch: pytest.MonkeyPatch,
+    name: str,
+    limit: int,
+    offset: int,
+    message: str,
 ) -> None:
+    monkeypatch.setattr(
+        transport,
+        "credentials_for_access",
+        lambda _: pytest.fail(
+            "invalid audience-export requests must not load credentials"
+        ),
+    )
+    monkeypatch.setattr(
+        transport,
+        "make_client",
+        lambda _: pytest.fail(
+            "invalid audience-export requests must not create clients"
+        ),
+    )
+
     with pytest.raises(data_validation.RequestValidationError, match=message):
-        data_validation.validate_query_audience_export_request(
-            "properties/1234", name, limit, offset
-        )
+        audience_exports.query_audience_export("properties/1234", name, limit, offset)
 
 
 def test_list_audience_exports_uses_one_explicit_page_without_iteration(
@@ -382,12 +511,11 @@ def test_list_audience_exports_uses_one_explicit_page_without_iteration(
             }
         )
     )
-    monkeypatch.setattr(
-        audience_exports, "service_account_credentials", lambda _: object()
-    )
+    monkeypatch.setattr(transport, "credentials_for_access", lambda _: object())
+    monkeypatch.setattr(transport, "make_client", lambda _: captured)
 
     response = audience_exports.list_audience_exports(
-        "properties/1234", 25, "prior-token", client_factory=lambda _: captured
+        "properties/1234", 25, "prior-token"
     )
 
     assert captured.calls == 1
@@ -428,18 +556,19 @@ def test_create_audience_export_dry_run_never_loads_credentials_or_calls_sdk(
             encoding="utf-8"
         )
     )
-    client = CapturingCreateAudienceExportClient()
     monkeypatch.setattr(
-        audience_exports,
-        "service_account_credentials",
+        transport,
+        "credentials_for_access",
         lambda _: pytest.fail("dry run must not load credentials"),
     )
-
-    response = audience_exports.create_audience_export(
-        "properties/1234", body, client_factory=lambda _: client
+    monkeypatch.setattr(
+        transport,
+        "make_client",
+        lambda _: pytest.fail("dry run must not create a client"),
     )
 
-    assert client.calls == 0
+    response = audience_exports.create_audience_export("properties/1234", body)
+
     assert response == {
         "dryRun": True,
         "request": {
@@ -458,12 +587,11 @@ def test_create_audience_export_apply_uses_official_request_without_polling(
         )
     )
     client = CapturingCreateAudienceExportClient()
-    monkeypatch.setattr(
-        audience_exports, "service_account_credentials", lambda _: object()
-    )
+    monkeypatch.setattr(transport, "credentials_for_access", lambda _: object())
+    monkeypatch.setattr(transport, "make_client", lambda _: client)
 
     response = audience_exports.create_audience_export(
-        "properties/1234", body, apply=True, client_factory=lambda _: client
+        "properties/1234", body, apply=True
     )
 
     assert client.calls == 1
@@ -492,9 +620,14 @@ def test_create_audience_export_apply_parses_before_credential_lookup(
         ),
     )
     monkeypatch.setattr(
-        audience_exports,
-        "service_account_credentials",
+        transport,
+        "credentials_for_access",
         lambda _: pytest.fail("credentials must not be loaded before parsing"),
+    )
+    monkeypatch.setattr(
+        transport,
+        "make_client",
+        lambda _: pytest.fail("clients must not be created before parsing"),
     )
 
     with pytest.raises(data_validation.RequestValidationError, match="invalid request"):
@@ -540,14 +673,11 @@ def test_create_audience_export_normalizes_failures_without_retries(
         raise error
 
     client.create_audience_export = fail_once
-    monkeypatch.setattr(
-        audience_exports, "service_account_credentials", lambda _: object()
-    )
+    monkeypatch.setattr(transport, "credentials_for_access", lambda _: object())
+    monkeypatch.setattr(transport, "make_client", lambda _: client)
 
     with pytest.raises(data_errors.GoogleApiError) as raised:
-        audience_exports.create_audience_export(
-            "properties/1234", body, apply=True, client_factory=lambda _: client
-        )
+        audience_exports.create_audience_export("properties/1234", body, apply=True)
 
     normalized = raised.value
     assert client.calls == 1
@@ -661,9 +791,14 @@ def test_query_audience_export_offset_stays_in_the_official_int64_range(
         return
 
     monkeypatch.setattr(
-        audience_exports,
-        "service_account_credentials",
+        transport,
+        "credentials_for_access",
         lambda _: pytest.fail("invalid offsets must not load credentials"),
+    )
+    monkeypatch.setattr(
+        transport,
+        "make_client",
+        lambda _: pytest.fail("invalid offsets must not create clients"),
     )
     with pytest.raises(data_validation.RequestValidationError, match="--offset"):
         audience_exports.query_audience_export(*args)
@@ -736,15 +871,16 @@ def test_report_adapters_preserve_valid_requests_responses_and_retry(
 ) -> None:
     credentials = object()
     client = CapturingReportAdapterClient(response)
-    monkeypatch.setattr(reports, "service_account_credentials", lambda _: credentials)
-
-    result = operation(
-        "properties/1234",
-        body,
-        client_factory=lambda supplied: (
+    monkeypatch.setattr(transport, "credentials_for_access", lambda _: credentials)
+    monkeypatch.setattr(
+        transport,
+        "make_client",
+        lambda supplied: (
             client if supplied is credentials else pytest.fail("wrong credentials")
         ),
     )
+
+    result = operation("properties/1234", body)
 
     assert client.calls == 1
     assert type(client.request) is request_type
@@ -828,18 +964,17 @@ def test_report_adapters_parse_protobuf_before_credentials_and_clients(
 ) -> None:
     validator("properties/1234", body)
     monkeypatch.setattr(
-        reports,
-        "service_account_credentials",
+        transport,
+        "credentials_for_access",
         lambda _: pytest.fail("protobuf errors must not load credentials"),
+    )
+    monkeypatch.setattr(
+        transport,
+        "make_client",
+        lambda _: pytest.fail("protobuf errors must not create clients"),
     )
 
     with pytest.raises(
         data_validation.RequestValidationError, match="cannot be converted"
     ):
-        operation(
-            "properties/1234",
-            body,
-            client_factory=lambda _: pytest.fail(
-                "protobuf errors must not create clients"
-            ),
-        )
+        operation("properties/1234", body)

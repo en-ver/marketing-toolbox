@@ -12,7 +12,7 @@ import urllib3.connectionpool
 from typer.testing import CliRunner
 
 from gtmctl.cli import app
-from gtmctl.operations import mutations, reads
+from gtmctl.operations import mutations, reads, transport
 
 _WORKSPACE = "accounts/1/containers/2/workspaces/3"
 
@@ -94,14 +94,9 @@ def _block_external_transport_and_ambient_credentials(
         urllib3.connectionpool.HTTPSConnectionPool, "urlopen", blocked_urlopen
     )
     monkeypatch.setattr(
-        reads,
-        "service_account_credentials",
-        lambda _scopes: pytest.fail("ambient credential resolution is forbidden"),
-    )
-    monkeypatch.setattr(
-        mutations,
-        "service_account_credentials",
-        lambda _scopes: pytest.fail("ambient credential resolution is forbidden"),
+        transport,
+        "credentials_for_access",
+        lambda _access: pytest.fail("ambient credential resolution is forbidden"),
     )
 
 

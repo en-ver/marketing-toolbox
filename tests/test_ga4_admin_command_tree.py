@@ -11,7 +11,7 @@ from typer.main import get_command
 from typer.testing import CliRunner
 
 from ga4adminctl.cli import app
-from ga4adminctl.operations import mutations
+from ga4adminctl.operations import transport
 
 
 def _leaf_commands(
@@ -171,7 +171,7 @@ def test_destructive_confirmation_is_required_for_apply_and_exact_in_both_modes(
         dispatched.append(method_name)
         return {}
 
-    monkeypatch.setattr(mutations, "_write_v1beta", no_network)
+    monkeypatch.setattr(transport, "write", no_network)
     runner = CliRunner()
     arguments = [*path, "--name", name, *extra_options]
 
@@ -245,11 +245,11 @@ def test_confirmation_failure_precedes_name_validation_and_authentication(
     def forbid_credentials(_: object) -> object:
         pytest.fail("invalid confirmation must not load credentials")
 
-    def forbid_client_factory(_: object) -> object:
+    def forbid_client(_: object) -> object:
         pytest.fail("invalid confirmation must not create a client or dispatch an RPC")
 
-    monkeypatch.setattr(mutations, "service_account_credentials", forbid_credentials)
-    monkeypatch.setattr(mutations, "_make_properties_client", forbid_client_factory)
+    monkeypatch.setattr(transport, "credentials_for_access", forbid_credentials)
+    monkeypatch.setattr(transport, "make_client", forbid_client)
 
     result = CliRunner().invoke(
         app,
@@ -359,11 +359,11 @@ def test_exact_confirmation_still_validates_resource_name_before_authentication(
     def forbid_credentials(_: object) -> object:
         pytest.fail("invalid names must not load credentials")
 
-    def forbid_client_factory(_: object) -> object:
+    def forbid_client(_: object) -> object:
         pytest.fail("invalid names must not create a client or dispatch an RPC")
 
-    monkeypatch.setattr(mutations, "service_account_credentials", forbid_credentials)
-    monkeypatch.setattr(mutations, "_make_properties_client", forbid_client_factory)
+    monkeypatch.setattr(transport, "credentials_for_access", forbid_credentials)
+    monkeypatch.setattr(transport, "make_client", forbid_client)
     name = "accounts/not/a/canonical/name"
 
     result = CliRunner().invoke(

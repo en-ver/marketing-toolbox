@@ -6,6 +6,7 @@ import json
 from collections.abc import Callable
 from typing import Any, Protocol
 
+import httplib2  # type: ignore[import-untyped]
 from google.auth.credentials import Credentials
 from google.auth.exceptions import RefreshError, TransportError
 from googleapiclient.discovery import Resource
@@ -16,33 +17,17 @@ from gtmctl.foundation.errors import (
     normalize_authentication_error,
     normalize_mutation_google_error,
     normalize_mutation_transport_error,
+    unreadable_mutation_response_error,
 )
-from gtmctl.operations.mutation_transport import make_tag_manager_mutation_service
-from marketing_common.auth import CredentialConfigurationError, resolve_credentials
-
-
-def service_account_credentials(scopes: list[str]) -> Credentials:
-    """Compatibility injection seam backed by generic credential resolution."""
-    return resolve_credentials(scopes, tool="gtmctl")
-
-
-TAG_MANAGER_EDIT_SCOPE = "https://www.googleapis.com/auth/tagmanager.edit.containers"
-TAG_MANAGER_EDIT_CONTAINER_VERSIONS_SCOPE = (
-    "https://www.googleapis.com/auth/tagmanager.edit.containerversions"
-)
-TAG_MANAGER_PUBLISH_SCOPE = "https://www.googleapis.com/auth/tagmanager.publish"
-TAG_MANAGER_MANAGE_ACCOUNTS_SCOPE = (
-    "https://www.googleapis.com/auth/tagmanager.manage.accounts"
-)
-TAG_MANAGER_MANAGE_USERS_SCOPE = (
-    "https://www.googleapis.com/auth/tagmanager.manage.users"
-)
-TAG_MANAGER_DELETE_CONTAINERS_SCOPE = (
-    "https://www.googleapis.com/auth/tagmanager.delete.containers"
-)
+from gtmctl.operations import transport
+from marketing_common.auth import CredentialConfigurationError
 
 
 class Request(Protocol):
+    def add_response_callback(
+        self, callback: Callable[[httplib2.Response], None]
+    ) -> None: ...
+
     def execute(
         self, *, num_retries: int = 0
     ) -> dict[str, Any] | list[Any] | str | bytes | None: ...
@@ -51,23 +36,40 @@ class Request(Protocol):
 ServiceFactory = Callable[[Credentials], Resource]
 
 
+def _execute_request(
+    request: Request,
+) -> dict[str, Any] | list[Any] | str | bytes | None:
+    """Identify SDK decoding failures only after a successful response receipt."""
+    successful_response = False
+
+    def record_response(response: httplib2.Response) -> None:
+        nonlocal successful_response
+        successful_response = 200 <= response.status < 300
+
+    request.add_response_callback(record_response)
+    try:
+        return request.execute(num_retries=0)
+    except UnicodeDecodeError as exc:
+        if successful_response:
+            raise unreadable_mutation_response_error() from exc
+        raise
+
+
 def execute_mutation(
     command: str,
     request_factory: Callable[[Resource], Request],
     *,
-    scope: str = TAG_MANAGER_EDIT_SCOPE,
+    access: str = "containers",
     service_factory: ServiceFactory | None = None,
 ) -> dict[str, Any]:
     """Execute exactly one GTM write request without automatic retry."""
     try:
-        credentials = service_account_credentials([scope])
+        credentials = transport.credentials_for_access(access)
         if service_factory is None:
-            with make_tag_manager_mutation_service(credentials) as service:
-                response = request_factory(service).execute(num_retries=0)
+            with transport.make_mutation_service(credentials) as service:
+                response = _execute_request(request_factory(service))
         else:
-            response = request_factory(service_factory(credentials)).execute(
-                num_retries=0
-            )
+            response = _execute_request(request_factory(service_factory(credentials)))
     except CredentialConfigurationError:
         raise
     except (RefreshError, TransportError) as exc:
@@ -81,10 +83,10 @@ def execute_mutation(
     if isinstance(response, str | bytes):
         try:
             response = json.loads(response)
-        except (TypeError, ValueError) as exc:
-            raise TypeError(f"{command} returned an invalid API response.") from exc
+        except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+            raise unreadable_mutation_response_error() from exc
     if not isinstance(response, dict):
-        raise TypeError(f"{command} returned a non-object API response.")
+        raise unreadable_mutation_response_error()
     return response
 
 
@@ -146,7 +148,7 @@ def update_account(
         lambda service: service.accounts().update(
             **_with_optional_fingerprint(fingerprint, path=path, body=body)
         ),
-        scope=TAG_MANAGER_MANAGE_ACCOUNTS_SCOPE,
+        access="accounts",
         service_factory=service_factory,
     )
 
@@ -160,7 +162,7 @@ def create_user_permission(
     return execute_mutation(
         "accounts user-permissions create",
         lambda service: _user_permissions(service).create(parent=parent, body=body),
-        scope=TAG_MANAGER_MANAGE_USERS_SCOPE,
+        access="users",
         service_factory=service_factory,
     )
 
@@ -174,7 +176,7 @@ def update_user_permission(
     return execute_mutation(
         "accounts user-permissions update",
         lambda service: _user_permissions(service).update(path=path, body=body),
-        scope=TAG_MANAGER_MANAGE_USERS_SCOPE,
+        access="users",
         service_factory=service_factory,
     )
 
@@ -185,7 +187,7 @@ def delete_user_permission(
     return execute_mutation(
         "accounts user-permissions delete",
         lambda service: _user_permissions(service).delete(path=path),
-        scope=TAG_MANAGER_MANAGE_USERS_SCOPE,
+        access="users",
         service_factory=service_factory,
     )
 
@@ -229,7 +231,7 @@ def delete_container(
     return execute_mutation(
         "accounts containers delete",
         lambda service: _containers(service).delete(path=path),
-        scope=TAG_MANAGER_DELETE_CONTAINERS_SCOPE,
+        access="delete",
         service_factory=service_factory,
     )
 
@@ -269,7 +271,7 @@ def delete_workspace(
     return execute_mutation(
         "accounts containers workspaces delete",
         lambda service: _workspaces(service).delete(path=path),
-        scope=TAG_MANAGER_DELETE_CONTAINERS_SCOPE,
+        access="delete",
         service_factory=service_factory,
     )
 
@@ -321,11 +323,11 @@ def reauthorize_environment(
     *,
     service_factory: ServiceFactory | None = None,
 ) -> dict[str, Any]:
-    """Reauthorize an environment with the catalogued publish scope."""
+    """Reauthorize an environment with the catalogued publish access tier."""
     return execute_mutation(
         "accounts containers environments reauthorize",
         lambda service: _environments(service).reauthorize(path=path, body=body),
-        scope=TAG_MANAGER_PUBLISH_SCOPE,
+        access="publish",
         service_factory=service_factory,
     )
 
@@ -342,7 +344,7 @@ def update_version(
         lambda service: _versions(service).update(
             **_with_optional_fingerprint(fingerprint, path=path, body=body)
         ),
-        scope=TAG_MANAGER_EDIT_CONTAINER_VERSIONS_SCOPE,
+        access="versions",
         service_factory=service_factory,
     )
 
@@ -355,7 +357,7 @@ def delete_version(
     return execute_mutation(
         "accounts containers versions delete",
         lambda service: _versions(service).delete(path=path),
-        scope=TAG_MANAGER_EDIT_CONTAINER_VERSIONS_SCOPE,
+        access="versions",
         service_factory=service_factory,
     )
 
@@ -366,13 +368,13 @@ def publish_version(
     *,
     service_factory: ServiceFactory | None = None,
 ) -> dict[str, Any]:
-    """Publish one container version using the dedicated publish scope."""
+    """Publish one container version using the dedicated publish access tier."""
     return execute_mutation(
         "accounts containers versions publish",
         lambda service: _versions(service).publish(
             **_with_optional_fingerprint(fingerprint, path=path)
         ),
-        scope=TAG_MANAGER_PUBLISH_SCOPE,
+        access="publish",
         service_factory=service_factory,
     )
 
@@ -385,6 +387,7 @@ def set_latest_version(
     return execute_mutation(
         "accounts containers versions set-latest",
         lambda service: _versions(service).set_latest(path=path),
+        access="containers",
         service_factory=service_factory,
     )
 
@@ -397,7 +400,7 @@ def undelete_version(
     return execute_mutation(
         "accounts containers versions undelete",
         lambda service: _versions(service).undelete(path=path),
-        scope=TAG_MANAGER_EDIT_CONTAINER_VERSIONS_SCOPE,
+        access="versions",
         service_factory=service_factory,
     )
 
@@ -952,7 +955,7 @@ def quick_preview_workspace(
     return execute_mutation(
         "accounts containers workspaces quick-preview",
         lambda service: _workspaces(service).quick_preview(path=path),
-        scope=TAG_MANAGER_EDIT_CONTAINER_VERSIONS_SCOPE,
+        access="versions",
         service_factory=service_factory,
     )
 
@@ -998,7 +1001,7 @@ def create_workspace_version(
     return execute_mutation(
         "accounts containers workspaces create-version",
         lambda service: _workspaces(service).create_version(path=path, body=body),
-        scope=TAG_MANAGER_EDIT_CONTAINER_VERSIONS_SCOPE,
+        access="versions",
         service_factory=service_factory,
     )
 

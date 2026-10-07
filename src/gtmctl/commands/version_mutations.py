@@ -6,11 +6,12 @@ from typing import Annotated, Any
 
 import typer
 
-from gtmctl.commands._common import DRY_RUN_HELP, run_command
-from gtmctl.commands.tag_mutations import (
-    _dry_run,
-    _validate_execution_mode,
-    _validate_fingerprint,
+from gtmctl.commands._common import (
+    DRY_RUN_HELP,
+    build_dry_run_plan,
+    run_command,
+    validate_execution_mode,
+    validate_fingerprint,
 )
 from gtmctl.foundation.body import read_json_object
 from gtmctl.foundation.validation import (
@@ -84,11 +85,11 @@ def register_version_mutation_commands(versions_app: typer.Typer) -> None:
 
         def operation() -> dict[str, Any]:
             validate_version_path(path)
-            _validate_execution_mode(dry_run=dry_run, apply=apply)
-            _validate_fingerprint(fingerprint)
+            validate_execution_mode(dry_run=dry_run, apply=apply)
+            validate_fingerprint(fingerprint)
             request_body = read_json_object(body)
             if dry_run:
-                return _dry_run(
+                return build_dry_run_plan(
                     operation="versions.update",
                     target=path,
                     body=request_body,
@@ -121,13 +122,13 @@ def register_version_mutation_commands(versions_app: typer.Typer) -> None:
 
         def operation() -> dict[str, Any]:
             validate_version_path(path)
-            _validate_execution_mode(dry_run=dry_run, apply=apply)
+            validate_execution_mode(dry_run=dry_run, apply=apply)
             if not acknowledge_delete:
                 raise RequestValidationError(
                     "--acknowledge-version-delete is required before deleting a version."
                 )
             if dry_run:
-                return _dry_run(operation="versions.delete", target=path)
+                return build_dry_run_plan(operation="versions.delete", target=path)
             return mutations.delete_version(path)
 
         run_command(
@@ -161,14 +162,14 @@ def register_version_mutation_commands(versions_app: typer.Typer) -> None:
 
         def operation() -> dict[str, Any]:
             validate_version_path(path)
-            _validate_execution_mode(dry_run=dry_run, apply=apply)
-            _validate_fingerprint(fingerprint)
+            validate_execution_mode(dry_run=dry_run, apply=apply)
+            validate_fingerprint(fingerprint)
             if not acknowledge_publish:
                 raise RequestValidationError(
                     "--acknowledge-publish is required before publishing a version."
                 )
             if dry_run:
-                plan = _dry_run(
+                plan = build_dry_run_plan(
                     operation="versions.publish", target=path, fingerprint=fingerprint
                 )
                 plan["versionPublished"] = False
@@ -193,9 +194,9 @@ def register_version_mutation_commands(versions_app: typer.Typer) -> None:
 
         def operation() -> dict[str, Any]:
             validate_version_path(path)
-            _validate_execution_mode(dry_run=dry_run, apply=apply)
+            validate_execution_mode(dry_run=dry_run, apply=apply)
             if dry_run:
-                return _dry_run(operation="versions.set-latest", target=path)
+                return build_dry_run_plan(operation="versions.set-latest", target=path)
             return mutations.set_latest_version(path)
 
         run_command(
@@ -217,9 +218,9 @@ def register_version_mutation_commands(versions_app: typer.Typer) -> None:
 
         def operation() -> dict[str, Any]:
             validate_version_path(path)
-            _validate_execution_mode(dry_run=dry_run, apply=apply)
+            validate_execution_mode(dry_run=dry_run, apply=apply)
             if dry_run:
-                return _dry_run(operation="versions.undelete", target=path)
+                return build_dry_run_plan(operation="versions.undelete", target=path)
             return mutations.undelete_version(path)
 
         run_command(

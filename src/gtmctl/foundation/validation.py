@@ -17,10 +17,22 @@ ENVIRONMENT_PATTERN = re.compile(
 )
 VERSION_PATTERN = re.compile(r"^accounts/[^/]+/containers/[^/]+/versions/[^/]+$")
 USER_PERMISSION_PATTERN = re.compile(r"^accounts/[^/]+/user_permissions/[^/]+$")
+_RESERVED_IDENTIFIER_CHARACTERS = frozenset(":/?#[]@!$&'()*+,;=%\\")
 
 
 def _validate(value: str, *, flag: str, pattern: re.Pattern[str]) -> None:
-    if not pattern.fullmatch(value):
+    if not pattern.fullmatch(value) or any(
+        identifier in {".", ".."}
+        or any(
+            character in _RESERVED_IDENTIFIER_CHARACTERS
+            or character.isspace()
+            or ord(character) <= 0x1F
+            or 0x7F <= ord(character) <= 0x9F
+            or 0xD800 <= ord(character) <= 0xDFFF
+            for character in identifier
+        )
+        for identifier in value.split("/")[1::2]
+    ):
         raise RequestValidationError(f"{flag} must be a canonical GTM resource path.")
 
 

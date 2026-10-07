@@ -2,22 +2,30 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any
 
 import pytest
+from httplib2 import Response
 from typer.testing import CliRunner
 
 from gtmctl.cli import app
-from gtmctl.operations import mutations
+from gtmctl.operations import mutations, transport
 
 
 class FakeRequest:
     def __init__(self, response: dict[str, Any]) -> None:
         self.response = response
         self.retries: list[int] = []
+        self.callbacks: list[Callable[[Response], None]] = []
+
+    def add_response_callback(self, callback: Callable[[Response], None]) -> None:
+        self.callbacks.append(callback)
 
     def execute(self, *, num_retries: int = 0) -> dict[str, Any]:
         self.retries.append(num_retries)
+        for callback in self.callbacks:
+            callback(Response({"status": "200"}))
         return self.response
 
 
@@ -46,19 +54,19 @@ class FakeWorkspaceResource:
 
 
 @pytest.mark.parametrize(
-    ("operation", "args", "expected", "scope"),
+    ("operation", "args", "expected", "access"),
     [
         (
             mutations.sync_workspace,
             ("accounts/1/containers/2/workspaces/3",),
             ("sync", {"path": "accounts/1/containers/2/workspaces/3"}),
-            mutations.TAG_MANAGER_EDIT_SCOPE,
+            "containers",
         ),
         (
             mutations.quick_preview_workspace,
             ("accounts/1/containers/2/workspaces/3",),
             ("quick_preview", {"path": "accounts/1/containers/2/workspaces/3"}),
-            mutations.TAG_MANAGER_EDIT_CONTAINER_VERSIONS_SCOPE,
+            "versions",
         ),
         (
             mutations.resolve_workspace_conflict,
@@ -71,7 +79,7 @@ class FakeWorkspaceResource:
                     "fingerprint": "abc",
                 },
             ),
-            mutations.TAG_MANAGER_EDIT_SCOPE,
+            "containers",
         ),
         (
             mutations.bulk_update_workspace,
@@ -83,7 +91,7 @@ class FakeWorkspaceResource:
                     "body": {"changeStatus": "added"},
                 },
             ),
-            mutations.TAG_MANAGER_EDIT_SCOPE,
+            "containers",
         ),
         (
             mutations.create_workspace_version,
@@ -95,26 +103,23 @@ class FakeWorkspaceResource:
                     "body": {"name": "release"},
                 },
             ),
-            mutations.TAG_MANAGER_EDIT_CONTAINER_VERSIONS_SCOPE,
+            "versions",
         ),
     ],
 )
-def test_workspace_actions_use_one_official_request_and_catalogued_scope(
+def test_workspace_actions_use_one_official_request_and_access_tier(
     monkeypatch: pytest.MonkeyPatch,
     operation: Any,
     args: tuple[Any, ...],
     expected: tuple[str, dict[str, Any]],
-    scope: str,
+    access: str,
 ) -> None:
     service = FakeWorkspaceResource()
-    scopes: list[list[str]] = []
+    accesses: list[str] = []
     monkeypatch.setattr(
-        mutations,
-        "service_account_credentials",
-        lambda requested_scopes: (
-            scopes.__iadd__([requested_scopes]),
-            object(),
-        )[1],
+        transport,
+        "credentials_for_access",
+        lambda value: (accesses.append(value), object())[1],
     )
 
     assert operation(*args, service_factory=lambda _: service) == {
@@ -122,7 +127,7 @@ def test_workspace_actions_use_one_official_request_and_catalogued_scope(
     }
     assert service.calls == [expected]
     assert [request.retries for request in service.requests] == [[0]]
-    assert scopes == [[scope]]
+    assert accesses == [access]
 
 
 def test_create_version_help_discloses_workspace_deletion_and_base_version_change() -> (

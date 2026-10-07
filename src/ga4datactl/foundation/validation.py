@@ -121,7 +121,12 @@ def _format_schema_error(error: Any) -> str:
 
 def _validate_schema(body: Mapping[str, Any], validator: Draft202012Validator) -> None:
     """Raise a safe normalized validation error for the first schema violation."""
-    error = next(validator.iter_errors(body), None)
+    try:
+        error = next(validator.iter_errors(body), None)
+    except RecursionError as exc:
+        raise RequestValidationError(
+            "--body exceeds the supported request nesting depth."
+        ) from exc
     if error is not None:
         raise RequestValidationError(_format_schema_error(error))
 

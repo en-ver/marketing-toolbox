@@ -34,9 +34,8 @@ from ga4adminctl.foundation.validation import (
     validate_property_name,
     validate_resource_name,
 )
-from ga4adminctl.operations import mutations, reads
+from ga4adminctl.operations import transport
 
-PropertiesClientFactory = reads.PropertiesClientFactory
 PROPERTY_PATCH_WRITABLE_FIELDS = (
     "displayName",
     "industryCategory",
@@ -45,18 +44,11 @@ PROPERTY_PATCH_WRITABLE_FIELDS = (
 )
 
 
-def get_property(
-    property_name: str,
-    *,
-    client_factory: PropertiesClientFactory | None = None,
-) -> dict[str, Any]:
+def get_property(property_name: str) -> dict[str, Any]:
     """Get one Property through the official Admin API v1beta client."""
     validate_property_name(property_name)
-    return reads._read_v1beta(
-        GetPropertyRequest(name=property_name),
-        "get_property",
-        Property,
-        client_factory=client_factory,
+    return transport.read(
+        GetPropertyRequest(name=property_name), "get_property", Property
     )
 
 
@@ -66,11 +58,10 @@ def list_properties(
     page_size: int,
     page_token: str,
     show_deleted: bool,
-    client_factory: PropertiesClientFactory | None = None,
 ) -> dict[str, Any]:
     """Return exactly one raw ListProperties response page from Admin v1beta."""
     validate_properties_list_request(filter_expression, page_size, page_token)
-    return reads._list_v1beta(
+    return transport.list_page(
         ListPropertiesRequest(
             filter=filter_expression,
             page_size=page_size,
@@ -79,43 +70,28 @@ def list_properties(
         ),
         "list_properties",
         ListPropertiesResponse,
-        client_factory=client_factory,
     )
 
 
-def create_property(
-    body: Mapping[str, Any],
-    *,
-    apply: bool = False,
-    client_factory: PropertiesClientFactory | None = None,
-) -> dict[str, Any]:
+def create_property(body: Mapping[str, Any], *, apply: bool = False) -> dict[str, Any]:
     """Plan or create one bounded Property without automatic retry."""
     property_message = parse_sdk_message(body, Property)
     if not apply:
         return {"dryRun": True, "request": {"property": dict(body)}}
-    return mutations._write_v1beta(
+    return transport.write(
         CreatePropertyRequest(property=property_message),
         "create_property",
         _message_response(Property),
-        client_factory=client_factory,
     )
 
 
-def delete_property(
-    name: str,
-    *,
-    apply: bool = False,
-    client_factory: PropertiesClientFactory | None = None,
-) -> dict[str, Any]:
+def delete_property(name: str, *, apply: bool = False) -> dict[str, Any]:
     """Plan or move one Property to trash; never retry the request."""
     validate_resource_name(name, flag="--name", pattern=PROPERTY_PATTERN)
     if not apply:
         return {"dryRun": True, "request": {"name": name}}
-    return mutations._write_v1beta(
-        DeletePropertyRequest(name=name),
-        "delete_property",
-        _message_response(Property),
-        client_factory=client_factory,
+    return transport.write(
+        DeletePropertyRequest(name=name), "delete_property", _message_response(Property)
     )
 
 
@@ -124,7 +100,6 @@ def acknowledge_user_data_collection(
     body: Mapping[str, Any],
     *,
     apply: bool = False,
-    client_factory: PropertiesClientFactory | None = None,
 ) -> dict[str, Any]:
     """Plan or acknowledge user-data collection once, without automatic retry."""
     validate_resource_name(property_name, flag="--property", pattern=PROPERTY_PATTERN)
@@ -133,17 +108,16 @@ def acknowledge_user_data_collection(
     request = parse_sdk_message(request_body, AcknowledgeUserDataCollectionRequest)
     if not apply:
         return {"dryRun": True, "request": request_body}
-    return mutations._write_v1beta(
+    return transport.write(
         request,
         "acknowledge_user_data_collection",
         _message_response(AcknowledgeUserDataCollectionResponse),
-        client_factory=client_factory,
     )
 
 
 def get_data_sharing_settings(name: str) -> dict[str, Any]:
     validate_resource_name(name, flag="--name", pattern=DATA_SHARING_SETTINGS_PATTERN)
-    return reads._read_v1beta(
+    return transport.read(
         GetDataSharingSettingsRequest(name=name),
         "get_data_sharing_settings",
         DataSharingSettings,
@@ -152,7 +126,7 @@ def get_data_sharing_settings(name: str) -> dict[str, Any]:
 
 def get_data_retention_settings(name: str) -> dict[str, Any]:
     validate_resource_name(name, flag="--name", pattern=DATA_RETENTION_SETTINGS_PATTERN)
-    return reads._read_v1beta(
+    return transport.read(
         GetDataRetentionSettingsRequest(name=name),
         "get_data_retention_settings",
         DataRetentionSettings,
@@ -165,7 +139,6 @@ def update_data_retention_settings(
     update_mask: str,
     *,
     apply: bool = False,
-    client_factory: PropertiesClientFactory | None = None,
 ) -> dict[str, Any]:
     """Plan or apply one bounded, non-retried retention-settings update."""
     validate_resource_name(name, flag="--name", pattern=DATA_RETENTION_SETTINGS_PATTERN)
@@ -202,11 +175,10 @@ def update_data_retention_settings(
     request = UpdateDataRetentionSettingsRequest(
         data_retention_settings=settings, update_mask=update_mask
     )
-    return mutations._write_v1beta(
+    return transport.write(
         request,
         "update_data_retention_settings",
         _message_response(DataRetentionSettings),
-        client_factory=client_factory,
     )
 
 
@@ -216,7 +188,6 @@ def update_property(
     update_mask: str,
     *,
     apply: bool = False,
-    client_factory: PropertiesClientFactory | None = None,
 ) -> dict[str, Any]:
     """Plan or apply one bounded, non-retried Property update."""
     validate_resource_name(name, flag="--name", pattern=PROPERTY_PATTERN)
@@ -246,9 +217,4 @@ def update_property(
             },
         }
     request = UpdatePropertyRequest(property=property_message, update_mask=update_mask)
-    return mutations._write_v1beta(
-        request,
-        "update_property",
-        _message_response(Property),
-        client_factory=client_factory,
-    )
+    return transport.write(request, "update_property", _message_response(Property))

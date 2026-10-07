@@ -20,7 +20,7 @@ from ga4adminctl.foundation.validation import (
     parse_sdk_message,
     validate_resource_name,
 )
-from ga4adminctl.operations import reads
+from ga4adminctl.operations import transport
 
 
 def run_access_report(
@@ -59,7 +59,7 @@ def run_access_report(
         raise RequestValidationError(
             "--body returnEntityQuota must be false for an account access report."
         )
-    return reads._read_v1beta(request, "run_access_report", RunAccessReportResponse)
+    return transport.read(request, "run_access_report", RunAccessReportResponse)
 
 
 def search_change_history_events(
@@ -76,7 +76,9 @@ def search_change_history_events(
         raise RequestValidationError("--body must not contain route field account.")
     request = parse_sdk_message(body, SearchChangeHistoryEventsRequest)
     request.account = account
-    if "pageSize" in body and not 1 <= request.page_size <= MAX_PROPERTY_PAGE_SIZE:
+    if ("pageSize" in body or "page_size" in body) and not (
+        1 <= request.page_size <= MAX_PROPERTY_PAGE_SIZE
+    ):
         raise RequestValidationError(
             f"--body pageSize must be between 1 and {MAX_PROPERTY_PAGE_SIZE}."
         )
@@ -84,9 +86,9 @@ def search_change_history_events(
         raise RequestValidationError(
             "--body pageToken must not have leading or trailing whitespace."
         )
-    return reads._list_v1beta(
+    return transport.list_page(
         request,
         "search_change_history_events",
         SearchChangeHistoryEventsResponse,
-        scopes=[reads.ANALYTICS_EDIT_SCOPE],
+        access="edit",
     )

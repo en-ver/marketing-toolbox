@@ -3,22 +3,30 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from typing import Any
 
 import pytest
+from httplib2 import Response
 from typer.testing import CliRunner
 
 from gtmctl.cli import app
-from gtmctl.operations import mutations, reads
+from gtmctl.operations import mutations, reads, transport
 
 
 class FakeRequest:
     def __init__(self, response: dict[str, Any] | None) -> None:
         self.response = response
         self.retries: list[int] = []
+        self.callbacks: list[Callable[[Response], None]] = []
+
+    def add_response_callback(self, callback: Callable[[Response], None]) -> None:
+        self.callbacks.append(callback)
 
     def execute(self, *, num_retries: int = 0) -> dict[str, Any] | None:
         self.retries.append(num_retries)
+        for callback in self.callbacks:
+            callback(Response({"status": "200"}))
         return self.response
 
 
@@ -45,7 +53,7 @@ class FakeAdminResource:
 
 
 @pytest.mark.parametrize(
-    ("operation", "args", "expected", "scope"),
+    ("operation", "args", "expected", "access"),
     [
         (
             mutations.update_account,
@@ -58,7 +66,7 @@ class FakeAdminResource:
                     "fingerprint": "fp",
                 },
             ),
-            mutations.TAG_MANAGER_MANAGE_ACCOUNTS_SCOPE,
+            "accounts",
         ),
         (
             mutations.create_user_permission,
@@ -67,7 +75,7 @@ class FakeAdminResource:
                 "create",
                 {"parent": "accounts/1", "body": {"emailAddress": "a@example.test"}},
             ),
-            mutations.TAG_MANAGER_MANAGE_USERS_SCOPE,
+            "users",
         ),
         (
             mutations.update_user_permission,
@@ -79,45 +87,42 @@ class FakeAdminResource:
                     "body": {"emailAddress": "a@example.test"},
                 },
             ),
-            mutations.TAG_MANAGER_MANAGE_USERS_SCOPE,
+            "users",
         ),
         (
             mutations.delete_user_permission,
             ("accounts/1/user_permissions/2",),
             ("delete", {"path": "accounts/1/user_permissions/2"}),
-            mutations.TAG_MANAGER_MANAGE_USERS_SCOPE,
+            "users",
         ),
     ],
 )
-def test_account_admin_mutations_use_exact_discovery_calls_and_scopes(
+def test_account_admin_mutations_use_exact_discovery_calls_and_access_tiers(
     monkeypatch: pytest.MonkeyPatch,
     operation: Any,
     args: tuple[Any, ...],
     expected: tuple[str, dict[str, Any]],
-    scope: str,
+    access: str,
 ) -> None:
     service = FakeAdminResource({"path": "response"})
-    requested_scopes: list[list[str]] = []
+    requested_accesses: list[str] = []
     monkeypatch.setattr(
-        mutations,
-        "service_account_credentials",
-        lambda scopes: (
-            requested_scopes.__iadd__([scopes]),
-            object(),
-        )[1],
+        transport,
+        "credentials_for_access",
+        lambda value: (requested_accesses.append(value), object())[1],
     )
 
     assert operation(*args, service_factory=lambda _: service) == {"path": "response"}
     assert service.calls == [expected]
     assert [request.retries for request in service.requests] == [[0]]
-    assert requested_scopes == [[scope]]
+    assert requested_accesses == [access]
 
 
 def test_user_permission_delete_normalizes_empty_success(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     service = FakeAdminResource(None)
-    monkeypatch.setattr(mutations, "service_account_credentials", lambda _: object())
+    monkeypatch.setattr(transport, "credentials_for_access", lambda _: object())
 
     assert (
         mutations.delete_user_permission(
@@ -149,14 +154,11 @@ def test_user_permission_reads_use_one_direct_manage_users_request(
     expected: tuple[str, dict[str, Any]],
 ) -> None:
     service = FakeAdminResource({"nextPageToken": "next", "userPermission": []})
-    requested_scopes: list[list[str]] = []
+    requested_accesses: list[str] = []
     monkeypatch.setattr(
-        reads,
-        "service_account_credentials",
-        lambda scopes: (
-            requested_scopes.__iadd__([scopes]),
-            object(),
-        )[1],
+        transport,
+        "credentials_for_access",
+        lambda value: (requested_accesses.append(value), object())[1],
     )
     kwargs = {"page_token": "next"} if operation is reads.list_user_permissions else {}
 
@@ -166,7 +168,7 @@ def test_user_permission_reads_use_one_direct_manage_users_request(
     )
     assert service.calls == [expected]
     assert [request.retries for request in service.requests] == [[0]]
-    assert requested_scopes == [[reads.TAG_MANAGER_MANAGE_USERS_SCOPE]]
+    assert requested_accesses == ["users"]
 
 
 def _body_file(tmp_path: Any) -> str:
@@ -303,27 +305,24 @@ def test_account_update_apply_maps_canonical_path_body_and_fingerprint(
 
 
 @pytest.mark.parametrize(
-    ("args", "module"),
+    "args",
     [
-        (
-            [
-                "accounts",
-                "user-permissions",
-                "get",
-                "--path",
-                "accounts/1/user_permissions/2",
-            ],
-            reads,
-        ),
-        (["accounts", "user-permissions", "list", "--parent", "accounts/1"], reads),
+        [
+            "accounts",
+            "user-permissions",
+            "get",
+            "--path",
+            "accounts/1/user_permissions/2",
+        ],
+        ["accounts", "user-permissions", "list", "--parent", "accounts/1"],
     ],
 )
 def test_permission_reads_require_sensitive_data_ack_before_credentials(
-    monkeypatch: pytest.MonkeyPatch, args: list[str], module: Any
+    monkeypatch: pytest.MonkeyPatch, args: list[str]
 ) -> None:
     monkeypatch.setattr(
-        module,
-        "service_account_credentials",
+        transport,
+        "credentials_for_access",
         lambda _: pytest.fail("credentials must not load"),
     )
     result = CliRunner().invoke(app, args)

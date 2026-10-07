@@ -2,20 +2,28 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any
 
 import pytest
+from httplib2 import Response
 
-from gtmctl.operations import mutations
+from gtmctl.operations import mutations, transport
 
 
 class FakeRequest:
     def __init__(self, response: dict[str, Any]) -> None:
         self.response = response
         self.retries: list[int] = []
+        self.callbacks: list[Callable[[Response], None]] = []
+
+    def add_response_callback(self, callback: Callable[[Response], None]) -> None:
+        self.callbacks.append(callback)
 
     def execute(self, *, num_retries: int = 0) -> dict[str, Any]:
         self.retries.append(num_retries)
+        for callback in self.callbacks:
+            callback(Response({"status": "200"}))
         return self.response
 
 
@@ -53,14 +61,11 @@ def test_entity_mutations_map_to_one_official_edit_request(
     monkeypatch: pytest.MonkeyPatch, entity: str, action: str
 ) -> None:
     service = FakeWorkspaceResource({"resourceId": "4"})
-    scopes: list[list[str]] = []
+    accesses: list[str] = []
     monkeypatch.setattr(
-        mutations,
-        "service_account_credentials",
-        lambda requested_scopes: (
-            scopes.__iadd__([requested_scopes]),
-            object(),
-        )[1],
+        transport,
+        "credentials_for_access",
+        lambda value: (accesses.append(value), object())[1],
     )
     singular = entity[:-1] if entity != "transformations" else "transformation"
     parent = "accounts/1/containers/2/workspaces/3"
@@ -85,7 +90,7 @@ def test_entity_mutations_map_to_one_official_edit_request(
     assert operation(*args, service_factory=lambda _: service) == {"resourceId": "4"}
     assert service.calls == [expected]
     assert [request.retries for request in service.requests] == [[0]]
-    assert scopes == [[mutations.TAG_MANAGER_EDIT_SCOPE]]
+    assert accesses == ["containers"]
 
 
 def _body_file(tmp_path: Any) -> str:

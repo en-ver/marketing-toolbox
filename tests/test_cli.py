@@ -2,6 +2,7 @@ import json
 import re
 import sys
 from collections.abc import Callable
+from io import StringIO
 from pathlib import Path
 from typing import Any
 
@@ -19,11 +20,14 @@ from typer.testing import CliRunner
 from ga4adminctl.cli import app as ga4_admin_app
 from ga4adminctl.cli import main as ga4_admin_main
 from ga4adminctl.commands import properties as admin_properties
+from ga4adminctl.commands.sdk import (
+    _SCHEMA_TARGET_DECLARATIONS as admin_schema_target_declarations,
+)
 from ga4adminctl.commands.sdk import _SCHEMA_TARGETS as admin_schema_targets
 from ga4adminctl.foundation.validation import (
     RequestValidationError as AdminRequestValidationError,
 )
-from ga4adminctl.operations import reads as admin_read_operations
+from ga4adminctl.operations import transport as admin_transport
 from ga4adminctl.operations.accounts import ACCOUNT_PATCH_WRITABLE_FIELDS
 from ga4adminctl.operations.properties import PROPERTY_PATCH_WRITABLE_FIELDS
 from ga4adminctl.operations.resources import (
@@ -39,12 +43,16 @@ from ga4adminctl.operations.secrets import (
 from ga4datactl.cli import app as ga4_data_app
 from ga4datactl.cli import main as ga4_data_main
 from ga4datactl.commands import audience_exports, metadata, reports
+from ga4datactl.commands.sdk import (
+    _SCHEMA_TARGET_DECLARATIONS as data_schema_target_declarations,
+)
 from ga4datactl.commands.sdk import _SCHEMA_TARGETS as data_schema_targets
+from ga4datactl.foundation import validation as data_validation
 from ga4datactl.foundation.validation import (
     RequestValidationError as DataRequestValidationError,
 )
 from ga4datactl.operations import audience_exports as audience_export_operations
-from ga4datactl.operations import reports as report_operations
+from ga4datactl.operations import transport as data_transport
 from ga4datactl.schemas import (
     BATCH_RUN_PIVOT_REPORTS_BODY_SCHEMA,
     BATCH_RUN_REPORTS_BODY_SCHEMA,
@@ -55,11 +63,7 @@ from ga4datactl.schemas import (
 )
 from gtmctl.cli import app as gtm_app
 from gtmctl.cli import main as gtm_main
-from gtmctl.commands.sdk import (
-    _registered_body_options,
-    _registered_body_paths,
-    _target_for_path,
-)
+from gtmctl.commands.sdk import _registered_body_options, _target_for_path
 from marketing_common.auth import (
     CredentialConfigurationError as AdminCredentialConfigurationError,
 )
@@ -332,9 +336,17 @@ def _registered_body_leaf_paths(app: typer.Typer) -> set[tuple[str, ...]]:
 def test_sdk_schema_maps_every_registered_body_leaf() -> None:
     assert len(data_schema_targets) == 7
     assert len(admin_schema_targets) == 22
+    assert tuple(data_schema_targets) == tuple(
+        target.cli_path for target in data_schema_target_declarations
+    )
+    assert tuple(admin_schema_targets) == tuple(
+        target.cli_path for target in admin_schema_target_declarations
+    )
     assert set(data_schema_targets) == _registered_body_leaf_paths(ga4_data_app)
     assert set(admin_schema_targets) == _registered_body_leaf_paths(ga4_admin_app)
-    assert _registered_body_paths(gtm_app) == _registered_body_leaf_paths(gtm_app)
+    assert set(_registered_body_options(gtm_app)) == _registered_body_leaf_paths(
+        gtm_app
+    )
 
 
 def _discovery_references(value: object) -> set[str]:
@@ -585,6 +597,10 @@ def test_admin_patch_help_and_sdk_constraints_match_owner_allowlists(
 
     assert help_result.exit_code == schema_result.exit_code == 0
     assert owner_fields == expected_fields
+    assert admin_schema_targets[path].request_cli_constraints == {
+        "allowedUpdateMaskFields": list(expected_fields),
+        "bodyFieldsMustExactlyMatchUpdateMask": True,
+    }
     assert all(field in help_result.stdout for field in expected_fields)
     payload = json.loads(schema_result.stdout)["data"]
     assert payload["request"]["cliConstraints"] == {
@@ -1214,14 +1230,13 @@ def test_audience_exports_create_ambiguous_failure_is_sanitized_and_not_retryabl
             )
             raise exceptions.ServiceUnavailable(sentinel)  # type: ignore[no-untyped-call]
 
-    monkeypatch.setattr(
-        audience_export_operations, "service_account_credentials", lambda _: object()
-    )
+    monkeypatch.setattr(data_transport, "credentials_for_access", lambda _: object())
+    monkeypatch.setattr(data_transport, "make_client", lambda _: FailingCreateClient())
     monkeypatch.setattr(
         audience_exports,
         "create_audience_export",
         lambda *args, **kwargs: audience_export_operations.create_audience_export(
-            *args, client_factory=lambda _: FailingCreateClient(), **kwargs
+            *args, **kwargs
         ),
     )
 
@@ -1279,8 +1294,8 @@ def test_report_cli_rejects_local_validation_errors_without_authentication(
     request_body = tmp_path / f"{command}.json"
     request_body.write_text(body, encoding="utf-8")
     monkeypatch.setattr(
-        report_operations,
-        "service_account_credentials",
+        data_transport,
+        "credentials_for_access",
         lambda _: pytest.fail("local request errors must not load credentials"),
     )
 
@@ -1305,8 +1320,8 @@ def test_audience_export_query_rejects_out_of_range_offset_without_authenticatio
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        audience_export_operations,
-        "service_account_credentials",
+        data_transport,
+        "credentials_for_access",
         lambda _: pytest.fail("invalid offsets must not load credentials"),
     )
 
@@ -1340,8 +1355,8 @@ def test_reports_run_rejects_invalid_body_before_credential_lookup(
         '{"UNKNOWN_FIELD_SENTINEL": "UNKNOWN_VALUE_SENTINEL"}', encoding="utf-8"
     )
     monkeypatch.setattr(
-        report_operations,
-        "service_account_credentials",
+        data_transport,
+        "credentials_for_access",
         lambda _: pytest.fail("invalid request must not load credentials"),
     )
 
@@ -1398,8 +1413,8 @@ def test_admin_access_commands_sanitize_invalid_bodies_before_authentication(
         '{"ACCESS_FIELD_SENTINEL": "ACCESS_VALUE_SENTINEL"}', encoding="utf-8"
     )
     monkeypatch.setattr(
-        admin_read_operations,
-        "service_account_credentials",
+        admin_transport,
+        "credentials_for_access",
         lambda _: pytest.fail("invalid request must not load credentials"),
     )
 
@@ -1420,6 +1435,108 @@ def test_admin_access_commands_sanitize_invalid_bodies_before_authentication(
     assert diagnostic["command"] == command
     assert request_type in diagnostic["message"]
     assert "SENTINEL" not in result.stderr
+
+
+@pytest.mark.parametrize("alias", ["pageSize", "page_size"])
+def test_admin_history_stdin_page_size_rejection_is_sanitized_before_authentication(
+    monkeypatch: pytest.MonkeyPatch, alias: str
+) -> None:
+    monkeypatch.setattr(
+        admin_transport,
+        "credentials_for_access",
+        lambda _: pytest.fail("invalid history page size must not load credentials"),
+    )
+    monkeypatch.setattr(
+        admin_transport,
+        "make_client",
+        lambda _: pytest.fail("invalid history page size must not construct a client"),
+    )
+
+    result = runner.invoke(
+        ga4_admin_app,
+        [
+            "accounts",
+            "change-history",
+            "search",
+            "--account",
+            "accounts/1234",
+            "--body",
+            "-",
+            "--acknowledge-sensitive-data",
+        ],
+        input=json.dumps({alias: -1, "actorEmail": ["HISTORY_ACTOR_SECRET_SENTINEL"]}),
+    )
+
+    assert result.exit_code == 2
+    assert result.stdout == ""
+    assert json.loads(result.stderr) == {
+        "schemaVersion": "marketing-toolbox/v1",
+        "command": "ga4adminctl accounts change-history search",
+        "exitCode": 2,
+        "category": "invalid_request",
+        "message": "--body pageSize must be between 1 and 200.",
+    }
+    assert "HISTORY_ACTOR_SECRET_SENTINEL" not in result.stderr
+
+
+def test_reports_run_deep_filter_stdin_exhaustion_is_sanitized_before_authentication(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        data_transport,
+        "credentials_for_access",
+        lambda _: pytest.fail("schema exhaustion must not load credentials"),
+    )
+    monkeypatch.setattr(
+        data_transport,
+        "make_client",
+        lambda _: pytest.fail("schema exhaustion must not construct a client"),
+    )
+
+    # Use the installed validator at the unchanged runtime limit, not a universal
+    # depth claim. String construction avoids a recursive JSON encoder.
+    raw: str | None = None
+    recursion_limit = sys.getrecursionlimit()
+    for depth in range(32, min(512, recursion_limit // 2) + 1, 32):
+        candidate = (
+            '{"metrics":[{"name":"eventCount"}],"dimensionFilter":'
+            + '{"notExpression":' * depth
+            + '{"filter":{"fieldName":"country","stringFilter":'
+            '{"value":"FILTER_SECRET_SENTINEL"}}}' + "}" * depth + "}"
+        )
+        body = data_validation.read_json_body("-", stdin=StringIO(candidate))
+        try:
+            error = next(
+                data_validation.RUN_REPORT_BODY_VALIDATOR.iter_errors(body), None
+            )
+        except RecursionError:
+            raw = candidate
+            break
+        assert error is None, "deep-filter fixture must otherwise satisfy the schema"
+    if raw is None:
+        pytest.fail(
+            f"No schema exhaustion reproduced within bounded depths at recursion limit {recursion_limit}."
+        )
+
+    result = runner.invoke(
+        ga4_data_app,
+        ["reports", "run", "--property", "properties/1234", "--body", "-"],
+        input=raw,
+    )
+
+    assert result.exit_code == 2
+    assert result.stdout == ""
+    assert json.loads(result.stderr) == {
+        "schemaVersion": "marketing-toolbox/v1",
+        "command": "ga4datactl reports run",
+        "exitCode": 2,
+        "category": "invalid_request",
+        "message": "--body exceeds the supported request nesting depth.",
+    }
+    assert "FILTER_SECRET_SENTINEL" not in result.stderr
+    assert "RecursionError" not in result.stderr
+    assert "maximum recursion" not in result.stderr
+    assert sys.getrecursionlimit() == recursion_limit
 
 
 def test_ga4_admin_properties_get_writes_standard_raw_response_envelope(
@@ -1598,26 +1715,26 @@ def test_api_error_paths_keep_shared_safe_diagnostics(
         "get_property",
         lambda _: raise_error(admin_error(exceptions.PermissionDenied(sentinel))),
     )
+    monkeypatch.setattr(data_transport, "credentials_for_access", lambda _: object())
     monkeypatch.setattr(
-        metadata_operations, "service_account_credentials", lambda _: object()
+        data_transport,
+        "make_client",
+        lambda _: type(
+            "RetryingMetadataClient",
+            (),
+            {
+                "get_metadata": lambda *_args, **_kwargs: raise_error(
+                    exceptions.RetryError(
+                        "retry exhausted", exceptions.ServiceUnavailable(sentinel)
+                    )
+                )
+            },
+        )(),
     )
     monkeypatch.setattr(
         metadata,
         "get_metadata",
-        lambda property_name: metadata_operations.get_metadata(
-            property_name,
-            client_factory=lambda _: type(
-                "RetryingMetadataClient",
-                (),
-                {
-                    "get_metadata": lambda *_args, **_kwargs: raise_error(
-                        exceptions.RetryError(
-                            "retry exhausted", exceptions.ServiceUnavailable(sentinel)
-                        )
-                    )
-                },
-            )(),
-        ),
+        lambda property_name: metadata_operations.get_metadata(property_name),
     )
     monkeypatch.setattr(
         "gtmctl.commands.accounts.reads.get_account",

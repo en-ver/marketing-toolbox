@@ -6,7 +6,7 @@ from typing import Any
 
 import pytest
 
-from gtmctl.operations import reads
+from gtmctl.operations import reads, transport
 
 
 class FakeRequest:
@@ -80,26 +80,23 @@ class WorkspaceFakeResource:
 @pytest.fixture
 def fake_service(
     monkeypatch: pytest.MonkeyPatch,
-) -> tuple[FakeResource, list[list[str]]]:
+) -> tuple[FakeResource, list[str]]:
     service = FakeResource(
         {"nextPageToken": "next", "account": [{"path": "accounts/1"}]}
     )
-    scopes: list[list[str]] = []
+    accesses: list[str] = []
     monkeypatch.setattr(
-        reads,
-        "service_account_credentials",
-        lambda requested_scopes: (
-            scopes.__iadd__([requested_scopes]),
-            object(),
-        )[1],
+        transport,
+        "credentials_for_access",
+        lambda value: (accesses.append(value), object())[1],
     )
-    return service, scopes
+    return service, accesses
 
 
 def test_account_list_uses_direct_request_preserving_official_pagination(
-    fake_service: tuple[FakeResource, list[list[str]]],
+    fake_service: tuple[FakeResource, list[str]],
 ) -> None:
-    service, scopes = fake_service
+    service, accesses = fake_service
     assert (
         reads.list_accounts(
             page_token="next",
@@ -109,11 +106,11 @@ def test_account_list_uses_direct_request_preserving_official_pagination(
         == service.response
     )
     assert service.calls == [("list", {"pageToken": "next", "includeGoogleTags": True})]
-    assert scopes == [[reads.TAG_MANAGER_READONLY_SCOPE]]
+    assert accesses == ["read"]
 
 
 def test_lookup_uses_official_camel_case_query_names(
-    fake_service: tuple[FakeResource, list[list[str]]],
+    fake_service: tuple[FakeResource, list[str]],
 ) -> None:
     service, _ = fake_service
     reads.lookup_container(
@@ -148,22 +145,22 @@ def test_lookup_uses_official_camel_case_query_names(
     ],
 )
 def test_new_container_reads_map_one_official_request(
-    fake_service: tuple[FakeResource, list[list[str]]],
+    fake_service: tuple[FakeResource, list[str]],
     operation: Any,
     args: tuple[Any, ...],
     expected: tuple[str, dict[str, Any]],
 ) -> None:
-    service, scopes = fake_service
+    service, accesses = fake_service
     assert operation(*args, service_factory=lambda _: service) == service.response
     assert service.calls == [expected]
-    assert scopes == [[reads.TAG_MANAGER_READONLY_SCOPE]]
+    assert accesses == ["read"]
 
 
 def test_workspace_entity_read_uses_explicit_resource_chain(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     calls: list[tuple[str, str, dict[str, Any]]] = []
-    monkeypatch.setattr(reads, "service_account_credentials", lambda _: object())
+    monkeypatch.setattr(transport, "credentials_for_access", lambda _: object())
     reads.list_tags(
         "accounts/1/containers/2/workspaces/3",
         page_token="next",
@@ -182,7 +179,7 @@ def test_workspace_folder_entity_read_uses_official_entities_endpoint(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     calls: list[tuple[str, str, dict[str, Any]]] = []
-    monkeypatch.setattr(reads, "service_account_credentials", lambda _: object())
+    monkeypatch.setattr(transport, "credentials_for_access", lambda _: object())
     reads.list_folder_entities(
         "accounts/1/containers/2/workspaces/3/folders/4",
         page_token="next",

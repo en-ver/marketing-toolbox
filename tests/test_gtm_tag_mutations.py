@@ -3,22 +3,31 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from typing import Any
 
 import pytest
+from httplib2 import Response
 from typer.testing import CliRunner
 
 from gtmctl.cli import app
-from gtmctl.operations import mutations
+from gtmctl.foundation.errors import GoogleApiError
+from gtmctl.operations import mutations, transport
 
 
 class FakeRequest:
     def __init__(self, response: dict[str, Any]) -> None:
         self.response = response
         self.calls: list[int] = []
+        self.callbacks: list[Callable[[Response], None]] = []
+
+    def add_response_callback(self, callback: Callable[[Response], None]) -> None:
+        self.callbacks.append(callback)
 
     def execute(self, *, num_retries: int = 0) -> dict[str, Any]:
         self.calls.append(num_retries)
+        for callback in self.callbacks:
+            callback(Response({"status": "200"}))
         return self.response
 
 
@@ -50,18 +59,15 @@ class FakeTagResource:
 @pytest.fixture
 def fake_service(
     monkeypatch: pytest.MonkeyPatch,
-) -> tuple[FakeTagResource, list[list[str]]]:
+) -> tuple[FakeTagResource, list[str]]:
     service = FakeTagResource({"tagId": "4"})
-    scopes: list[list[str]] = []
+    accesses: list[str] = []
     monkeypatch.setattr(
-        mutations,
-        "service_account_credentials",
-        lambda requested_scopes: (
-            scopes.__iadd__([requested_scopes]),
-            object(),
-        )[1],
+        transport,
+        "credentials_for_access",
+        lambda value: (accesses.append(value), object())[1],
     )
-    return service, scopes
+    return service, accesses
 
 
 @pytest.mark.parametrize(
@@ -109,24 +115,24 @@ def fake_service(
     ],
 )
 def test_tag_mutations_use_one_official_edit_request(
-    fake_service: tuple[FakeTagResource, list[list[str]]],
+    fake_service: tuple[FakeTagResource, list[str]],
     operation: Any,
     args: tuple[Any, ...],
     expected: tuple[str, dict[str, Any]],
 ) -> None:
-    service, scopes = fake_service
+    service, accesses = fake_service
 
     response = operation(*args, service_factory=lambda _: service)
 
     assert response == service.response
     assert service.calls == [expected]
-    assert scopes == [[mutations.TAG_MANAGER_EDIT_SCOPE]]
+    assert accesses == ["containers"]
 
 
 def test_tag_update_omits_an_unsupplied_optional_fingerprint(
-    fake_service: tuple[FakeTagResource, list[list[str]]],
+    fake_service: tuple[FakeTagResource, list[str]],
 ) -> None:
-    service, _scopes = fake_service
+    service, _accesses = fake_service
 
     mutations.update_tag(
         "accounts/1/containers/2/workspaces/3/tags/4",
@@ -293,8 +299,8 @@ def test_invalid_tag_route_is_rejected_before_credentials(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Any
 ) -> None:
     monkeypatch.setattr(
-        mutations,
-        "service_account_credentials",
+        transport,
+        "credentials_for_access",
         lambda _: pytest.fail("credentials must not load before route validation"),
     )
 
@@ -341,8 +347,8 @@ def test_body_must_be_a_json_object_without_loading_credentials(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Any
 ) -> None:
     monkeypatch.setattr(
-        mutations,
-        "service_account_credentials",
+        transport,
+        "credentials_for_access",
         lambda _: pytest.fail("credentials must not load for bad bodies"),
     )
 
@@ -366,40 +372,78 @@ def test_body_must_be_a_json_object_without_loading_credentials(
     assert "JSON object" in result.output
 
 
-def test_execute_mutation_normalizes_empty_success_response(monkeypatch: Any) -> None:
-    class EmptyRequest:
-        def __init__(self, response: list[Any] | str | bytes | None) -> None:
-            self.response = response
+@pytest.mark.parametrize(
+    ("response", "expected"),
+    [
+        (None, {}),
+        ("", {}),
+        (b"", {}),
+        ({}, {}),
+        ("{}", {}),
+        (b"{}\n", {}),
+        ('{"tagId":"4"}', {"tagId": "4"}),
+        (b'{"tagId":"4"}', {"tagId": "4"}),
+        (
+            {"unrecognizedField": ["no response schema checks"]},
+            {"unrecognizedField": ["no response schema checks"]},
+        ),
+    ],
+)
+def test_execute_mutation_normalizes_success_response(
+    monkeypatch: pytest.MonkeyPatch,
+    response: dict[str, Any] | str | bytes | None,
+    expected: dict[str, Any],
+) -> None:
+    class SuccessRequest:
+        def __init__(self) -> None:
+            self.callbacks: list[Callable[[Response], None]] = []
 
-        def execute(self, *, num_retries: int = 0) -> list[Any] | str | bytes | None:
+        def add_response_callback(self, callback: Callable[[Response], None]) -> None:
+            self.callbacks.append(callback)
+
+        def execute(
+            self, *, num_retries: int = 0
+        ) -> dict[str, Any] | str | bytes | None:
             assert num_retries == 0
-            return self.response
+            for callback in self.callbacks:
+                callback(Response({"status": "200"}))
+            return response
 
-    monkeypatch.setattr(
-        mutations, "service_account_credentials", lambda scopes: object()
-    )
+    monkeypatch.setattr(transport, "credentials_for_access", lambda _: object())
 
     assert (
         mutations.execute_mutation(
-            "test empty",
-            lambda service: EmptyRequest(None),
-            service_factory=lambda credentials: object(),
+            "test success",
+            lambda _: SuccessRequest(),
+            service_factory=lambda _: object(),  # type: ignore[return-value]
         )
-        == {}
+        == expected
     )
-    for response in ("", b"", b"{}\n"):
-        request = EmptyRequest(response)
 
-        def request_factory(
-            _service: Any, request: EmptyRequest = request
-        ) -> EmptyRequest:
-            return request
 
-        assert (
-            mutations.execute_mutation(
-                "test empty response",
-                request_factory,
-                service_factory=lambda credentials: object(),
-            )
-            == {}
+@pytest.mark.parametrize(
+    "response", ['{"response-secret":', b"\xff", [], "[]", "null", "42"]
+)
+def test_local_unreadable_or_nonobject_results_are_sanitized(
+    monkeypatch: pytest.MonkeyPatch, response: Any
+) -> None:
+    request = FakeRequest(response)
+    monkeypatch.setattr(transport, "credentials_for_access", lambda _: object())
+
+    with pytest.raises(GoogleApiError) as raised:
+        mutations.execute_mutation(
+            "accounts containers workspaces tags create",
+            lambda _: request,
+            service_factory=lambda _: object(),  # type: ignore[return-value]
         )
+
+    assert request.calls == [0]
+    assert (raised.value.exit_code, raised.value.category, raised.value.status) == (
+        1,
+        "unexpected",
+        None,
+    )
+    assert str(raised.value) == (
+        "Google Tag Manager mutation may have completed, but its API response "
+        "could not be read. Inspect the current GTM state before retrying."
+    )

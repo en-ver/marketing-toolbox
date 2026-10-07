@@ -6,11 +6,12 @@ from typing import Annotated, Any
 
 import typer
 
-from gtmctl.commands._common import DRY_RUN_HELP, run_command
-from gtmctl.commands.tag_mutations import (
-    _dry_run,
-    _validate_execution_mode,
-    _validate_fingerprint,
+from gtmctl.commands._common import (
+    DRY_RUN_HELP,
+    build_dry_run_plan,
+    run_command,
+    validate_execution_mode,
+    validate_fingerprint,
 )
 from gtmctl.foundation.body import read_json_object
 from gtmctl.foundation.validation import RequestValidationError, validate_workspace_path
@@ -39,9 +40,9 @@ def register_workspace_action_commands(workspaces_app: typer.Typer) -> None:
 
         def operation() -> dict[str, Any]:
             validate_workspace_path(path)
-            _validate_execution_mode(dry_run=dry_run, apply=apply)
+            validate_execution_mode(dry_run=dry_run, apply=apply)
             if dry_run:
-                return _dry_run(operation="workspaces.sync", target=path)
+                return build_dry_run_plan(operation="workspaces.sync", target=path)
             return mutations.sync_workspace(path)
 
         run_command(
@@ -70,14 +71,16 @@ def register_workspace_action_commands(workspaces_app: typer.Typer) -> None:
 
         def operation() -> dict[str, Any]:
             validate_workspace_path(path)
-            _validate_execution_mode(dry_run=dry_run, apply=apply)
+            validate_execution_mode(dry_run=dry_run, apply=apply)
             _require_acknowledgement(
                 acknowledge_quick_preview,
                 "--acknowledge-quick-preview",
                 "creating a workspace quick preview",
             )
             if dry_run:
-                return _dry_run(operation="workspaces.quick-preview", target=path)
+                return build_dry_run_plan(
+                    operation="workspaces.quick-preview", target=path
+                )
             return mutations.quick_preview_workspace(path)
 
         run_command(
@@ -108,11 +111,11 @@ def register_workspace_action_commands(workspaces_app: typer.Typer) -> None:
 
         def operation() -> dict[str, Any]:
             validate_workspace_path(path)
-            _validate_execution_mode(dry_run=dry_run, apply=apply)
-            _validate_fingerprint(fingerprint)
+            validate_execution_mode(dry_run=dry_run, apply=apply)
+            validate_fingerprint(fingerprint)
             request_body = read_json_object(body)
             if dry_run:
-                return _dry_run(
+                return build_dry_run_plan(
                     operation="workspaces.resolve-conflict",
                     target=path,
                     body=request_body,
@@ -149,7 +152,7 @@ def register_workspace_action_commands(workspaces_app: typer.Typer) -> None:
 
         def operation() -> dict[str, Any]:
             validate_workspace_path(path)
-            _validate_execution_mode(dry_run=dry_run, apply=apply)
+            validate_execution_mode(dry_run=dry_run, apply=apply)
             request_body = read_json_object(body)
             _require_acknowledgement(
                 acknowledge_bulk_update,
@@ -157,7 +160,7 @@ def register_workspace_action_commands(workspaces_app: typer.Typer) -> None:
                 "applying a workspace bulk update",
             )
             if dry_run:
-                return _dry_run(
+                return build_dry_run_plan(
                     operation="workspaces.bulk-update", target=path, body=request_body
                 )
             return mutations.bulk_update_workspace(path, request_body)
@@ -191,7 +194,7 @@ def register_workspace_action_commands(workspaces_app: typer.Typer) -> None:
 
         def operation() -> dict[str, Any]:
             validate_workspace_path(path)
-            _validate_execution_mode(dry_run=dry_run, apply=apply)
+            validate_execution_mode(dry_run=dry_run, apply=apply)
             request_body = read_json_object(body)
             _require_acknowledgement(
                 acknowledge_version_create,
@@ -199,7 +202,7 @@ def register_workspace_action_commands(workspaces_app: typer.Typer) -> None:
                 "creating a container version",
             )
             if dry_run:
-                return _dry_run(
+                return build_dry_run_plan(
                     operation="workspaces.create-version",
                     target=path,
                     body=request_body,

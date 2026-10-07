@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any, NoReturn, cast
 
+from gtmctl.foundation.body import body_sha256
 from gtmctl.foundation.errors import GoogleApiError
 from gtmctl.foundation.validation import RequestValidationError
 from marketing_common.auth import CredentialConfigurationError
@@ -16,6 +17,43 @@ DRY_RUN_HELP = (
     "validate the body against the Discovery schema, Google API semantics, or any "
     "response schema."
 )
+
+
+def validate_execution_mode(*, dry_run: bool, apply: bool) -> None:
+    """Require exactly one mutation execution mode."""
+    if dry_run == apply:
+        raise RequestValidationError("Specify exactly one of --dry-run or --apply.")
+
+
+def validate_fingerprint(fingerprint: str | None) -> None:
+    """Reject empty or whitespace-padded resource fingerprints."""
+    if fingerprint is not None and (
+        not fingerprint or fingerprint.strip() != fingerprint
+    ):
+        raise RequestValidationError(
+            "--fingerprint must be a non-empty value without surrounding whitespace."
+        )
+
+
+def build_dry_run_plan(
+    *,
+    operation: str,
+    target: str,
+    body: dict[str, Any] | None = None,
+    fingerprint: str | None = None,
+) -> dict[str, Any]:
+    """Produce a deterministic plan without exposing the request body."""
+    plan: dict[str, Any] = {
+        "applied": False,
+        "mode": "dry-run",
+        "operation": operation,
+        "target": target,
+    }
+    if fingerprint is not None:
+        plan["fingerprint"] = fingerprint
+    if body is not None:
+        plan["bodySha256"] = body_sha256(body)
+    return plan
 
 
 def run_command(*, command: str, operation: Callable[[], dict[str, Any]]) -> None:

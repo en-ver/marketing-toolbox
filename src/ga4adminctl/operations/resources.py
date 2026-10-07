@@ -66,9 +66,8 @@ from ga4adminctl.foundation.validation import (
     validate_page_request,
     validate_resource_name,
 )
-from ga4adminctl.operations import mutations, reads
+from ga4adminctl.operations import transport
 
-PropertiesClientFactory = reads.PropertiesClientFactory
 CUSTOM_DIMENSION_PATCH_WRITABLE_FIELDS = (
     "displayName",
     "description",
@@ -132,7 +131,6 @@ def _update_child(
     request_json_field: str,
     method: str,
     apply: bool,
-    client_factory: PropertiesClientFactory | None,
     name_pattern: re.Pattern[str] | None = None,
 ) -> dict[str, Any]:
     """Plan or apply one bounded custom-definition update."""
@@ -171,12 +169,7 @@ def _update_child(
             },
         }
     request = request_type(**{request_field: message, "update_mask": update_mask})
-    return mutations._write_v1beta(
-        request,
-        method,
-        _message_response(message_type),
-        client_factory=client_factory,
-    )
+    return transport.write(request, method, _message_response(message_type))
 
 
 def update_custom_dimension(
@@ -185,7 +178,6 @@ def update_custom_dimension(
     update_mask: str,
     *,
     apply: bool = False,
-    client_factory: PropertiesClientFactory | None = None,
 ) -> dict[str, Any]:
     return _update_child(
         name,
@@ -199,7 +191,6 @@ def update_custom_dimension(
         request_json_field="customDimension",
         method="update_custom_dimension",
         apply=apply,
-        client_factory=client_factory,
     )
 
 
@@ -209,7 +200,6 @@ def update_custom_metric(
     update_mask: str,
     *,
     apply: bool = False,
-    client_factory: PropertiesClientFactory | None = None,
 ) -> dict[str, Any]:
     return _update_child(
         name,
@@ -223,7 +213,6 @@ def update_custom_metric(
         request_json_field="customMetric",
         method="update_custom_metric",
         apply=apply,
-        client_factory=client_factory,
     )
 
 
@@ -237,7 +226,6 @@ def _create_custom_definition(
     request_json_field: str,
     method: str,
     apply: bool,
-    client_factory: PropertiesClientFactory | None,
 ) -> dict[str, Any]:
     """Plan or create one bounded custom definition without automatic retry."""
     validate_resource_name(property_name, flag="--property", pattern=PROPERTY_PATTERN)
@@ -248,12 +236,7 @@ def _create_custom_definition(
             "request": {"parent": property_name, request_json_field: dict(body)},
         }
     request = request_type(parent=property_name, **{request_field: message})
-    return mutations._write_v1beta(
-        request,
-        method,
-        _message_response(message_type),
-        client_factory=client_factory,
-    )
+    return transport.write(request, method, _message_response(message_type))
 
 
 def create_custom_dimension(
@@ -261,7 +244,6 @@ def create_custom_dimension(
     body: Mapping[str, Any],
     *,
     apply: bool = False,
-    client_factory: PropertiesClientFactory | None = None,
 ) -> dict[str, Any]:
     return _create_custom_definition(
         property_name,
@@ -272,7 +254,6 @@ def create_custom_dimension(
         request_json_field="customDimension",
         method="create_custom_dimension",
         apply=apply,
-        client_factory=client_factory,
     )
 
 
@@ -281,7 +262,6 @@ def create_custom_metric(
     body: Mapping[str, Any],
     *,
     apply: bool = False,
-    client_factory: PropertiesClientFactory | None = None,
 ) -> dict[str, Any]:
     return _create_custom_definition(
         property_name,
@@ -292,7 +272,6 @@ def create_custom_metric(
         request_json_field="customMetric",
         method="create_custom_metric",
         apply=apply,
-        client_factory=client_factory,
     )
 
 
@@ -303,26 +282,19 @@ def _archive_custom_definition(
     request_type: Any,
     method: str,
     apply: bool,
-    client_factory: PropertiesClientFactory | None,
 ) -> dict[str, Any]:
     """Plan or archive a custom definition; archive is never retried."""
     pattern, _ = _child_patterns(collection)
     validate_resource_name(name, flag="--name", pattern=pattern)
     if not apply:
         return {"dryRun": True, "request": {"name": name}}
-    return mutations._write_v1beta(
-        request_type(name=name),
-        method,
-        _empty_response,
-        client_factory=client_factory,
-    )
+    return transport.write(request_type(name=name), method, _empty_response)
 
 
 def archive_custom_dimension(
     name: str,
     *,
     apply: bool = False,
-    client_factory: PropertiesClientFactory | None = None,
 ) -> dict[str, Any]:
     return _archive_custom_definition(
         name,
@@ -330,7 +302,6 @@ def archive_custom_dimension(
         request_type=ArchiveCustomDimensionRequest,
         method="archive_custom_dimension",
         apply=apply,
-        client_factory=client_factory,
     )
 
 
@@ -338,7 +309,6 @@ def archive_custom_metric(
     name: str,
     *,
     apply: bool = False,
-    client_factory: PropertiesClientFactory | None = None,
 ) -> dict[str, Any]:
     return _archive_custom_definition(
         name,
@@ -346,7 +316,6 @@ def archive_custom_metric(
         request_type=ArchiveCustomMetricRequest,
         method="archive_custom_metric",
         apply=apply,
-        client_factory=client_factory,
     )
 
 
@@ -356,7 +325,6 @@ def update_data_stream(
     update_mask: str,
     *,
     apply: bool = False,
-    client_factory: PropertiesClientFactory | None = None,
 ) -> dict[str, Any]:
     """Plan or apply one bounded, non-retried DataStream update."""
     return _update_child(
@@ -371,7 +339,6 @@ def update_data_stream(
         request_json_field="dataStream",
         method="update_data_stream",
         apply=apply,
-        client_factory=client_factory,
     )
 
 
@@ -380,7 +347,6 @@ def create_data_stream(
     body: Mapping[str, Any],
     *,
     apply: bool = False,
-    client_factory: PropertiesClientFactory | None = None,
 ) -> dict[str, Any]:
     """Plan or create one bounded Web DataStream without automatic retry."""
     return _create_custom_definition(
@@ -392,7 +358,6 @@ def create_data_stream(
         request_json_field="dataStream",
         method="create_data_stream",
         apply=apply,
-        client_factory=client_factory,
     )
 
 
@@ -400,17 +365,13 @@ def delete_data_stream(
     name: str,
     *,
     apply: bool = False,
-    client_factory: PropertiesClientFactory | None = None,
 ) -> dict[str, Any]:
     """Plan or delete one DataStream; deletion is irreversible and never retried."""
     validate_resource_name(name, flag="--name", pattern=DATA_STREAM_PATTERN)
     if not apply:
         return {"dryRun": True, "request": {"name": name}}
-    return mutations._write_v1beta(
-        DeleteDataStreamRequest(name=name),
-        "delete_data_stream",
-        _empty_response,
-        client_factory=client_factory,
+    return transport.write(
+        DeleteDataStreamRequest(name=name), "delete_data_stream", _empty_response
     )
 
 
@@ -419,7 +380,6 @@ def create_firebase_link(
     body: Mapping[str, Any],
     *,
     apply: bool = False,
-    client_factory: PropertiesClientFactory | None = None,
 ) -> dict[str, Any]:
     """Plan or create one Firebase link without automatic retry."""
     return _create_custom_definition(
@@ -431,7 +391,6 @@ def create_firebase_link(
         request_json_field="firebaseLink",
         method="create_firebase_link",
         apply=apply,
-        client_factory=client_factory,
     )
 
 
@@ -439,17 +398,13 @@ def delete_firebase_link(
     name: str,
     *,
     apply: bool = False,
-    client_factory: PropertiesClientFactory | None = None,
 ) -> dict[str, Any]:
     """Plan or delete one Firebase link; deletion is irreversible and never retried."""
     validate_resource_name(name, flag="--name", pattern=FIREBASE_LINK_PATTERN)
     if not apply:
         return {"dryRun": True, "request": {"name": name}}
-    return mutations._write_v1beta(
-        DeleteFirebaseLinkRequest(name=name),
-        "delete_firebase_link",
-        _empty_response,
-        client_factory=client_factory,
+    return transport.write(
+        DeleteFirebaseLinkRequest(name=name), "delete_firebase_link", _empty_response
     )
 
 
@@ -458,7 +413,6 @@ def create_google_ads_link(
     body: Mapping[str, Any],
     *,
     apply: bool = False,
-    client_factory: PropertiesClientFactory | None = None,
 ) -> dict[str, Any]:
     """Plan or create one Google Ads link without automatic retry."""
     return _create_custom_definition(
@@ -470,7 +424,6 @@ def create_google_ads_link(
         request_json_field="googleAdsLink",
         method="create_google_ads_link",
         apply=apply,
-        client_factory=client_factory,
     )
 
 
@@ -478,17 +431,15 @@ def delete_google_ads_link(
     name: str,
     *,
     apply: bool = False,
-    client_factory: PropertiesClientFactory | None = None,
 ) -> dict[str, Any]:
     """Plan or delete one Google Ads link; deletion is irreversible and never retried."""
     validate_resource_name(name, flag="--name", pattern=GOOGLE_ADS_LINK_PATTERN)
     if not apply:
         return {"dryRun": True, "request": {"name": name}}
-    return mutations._write_v1beta(
+    return transport.write(
         DeleteGoogleAdsLinkRequest(name=name),
         "delete_google_ads_link",
         _empty_response,
-        client_factory=client_factory,
     )
 
 
@@ -497,7 +448,6 @@ def create_key_event(
     body: Mapping[str, Any],
     *,
     apply: bool = False,
-    client_factory: PropertiesClientFactory | None = None,
 ) -> dict[str, Any]:
     """Plan or create one KeyEvent without automatic retry."""
     return _create_custom_definition(
@@ -509,7 +459,6 @@ def create_key_event(
         request_json_field="keyEvent",
         method="create_key_event",
         apply=apply,
-        client_factory=client_factory,
     )
 
 
@@ -517,17 +466,13 @@ def delete_key_event(
     name: str,
     *,
     apply: bool = False,
-    client_factory: PropertiesClientFactory | None = None,
 ) -> dict[str, Any]:
     """Plan or delete one KeyEvent; deletion is irreversible and never retried."""
     validate_resource_name(name, flag="--name", pattern=KEY_EVENT_PATTERN)
     if not apply:
         return {"dryRun": True, "request": {"name": name}}
-    return mutations._write_v1beta(
-        DeleteKeyEventRequest(name=name),
-        "delete_key_event",
-        _empty_response,
-        client_factory=client_factory,
+    return transport.write(
+        DeleteKeyEventRequest(name=name), "delete_key_event", _empty_response
     )
 
 
@@ -537,7 +482,6 @@ def update_google_ads_link(
     update_mask: str,
     *,
     apply: bool = False,
-    client_factory: PropertiesClientFactory | None = None,
 ) -> dict[str, Any]:
     """Plan or apply one bounded, non-retried Google Ads link update."""
     return _update_child(
@@ -552,7 +496,6 @@ def update_google_ads_link(
         request_json_field="googleAdsLink",
         method="update_google_ads_link",
         apply=apply,
-        client_factory=client_factory,
     )
 
 
@@ -562,7 +505,6 @@ def update_key_event(
     update_mask: str,
     *,
     apply: bool = False,
-    client_factory: PropertiesClientFactory | None = None,
 ) -> dict[str, Any]:
     """Plan or apply one bounded, non-retried KeyEvent update."""
     return _update_child(
@@ -577,7 +519,6 @@ def update_key_event(
         request_json_field="keyEvent",
         method="update_key_event",
         apply=apply,
-        client_factory=client_factory,
     )
 
 
@@ -594,7 +535,7 @@ def _get_child(
 ) -> dict[str, Any]:
     pattern, _ = _child_patterns(collection)
     validate_resource_name(name, flag="--name", pattern=pattern)
-    return reads._read_v1beta(request_type(name=name), method, response_type)
+    return transport.read(request_type(name=name), method, response_type)
 
 
 def _list_child(
@@ -609,7 +550,7 @@ def _list_child(
     _, parent_pattern = _child_patterns(collection)
     validate_resource_name(parent, flag="--property", pattern=parent_pattern)
     validate_page_request(page_size, page_token)
-    return reads._list_v1beta(
+    return transport.list_page(
         request_type(parent=parent, page_size=page_size, page_token=page_token),
         method,
         response_type,

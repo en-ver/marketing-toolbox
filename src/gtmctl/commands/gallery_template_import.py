@@ -6,8 +6,12 @@ from typing import Annotated, Any
 
 import typer
 
-from gtmctl.commands._common import DRY_RUN_HELP, run_command
-from gtmctl.commands.tag_mutations import _dry_run, _validate_execution_mode
+from gtmctl.commands._common import (
+    DRY_RUN_HELP,
+    build_dry_run_plan,
+    run_command,
+    validate_execution_mode,
+)
 from gtmctl.foundation.body import read_json_object
 from gtmctl.foundation.validation import (
     RequestValidationError,
@@ -69,7 +73,7 @@ def register_gallery_template_import_command(templates_app: typer.Typer) -> None
 
         def operation() -> dict[str, Any]:
             validate_workspace_entity_parent(parent)
-            _validate_execution_mode(dry_run=dry_run, apply=apply)
+            validate_execution_mode(dry_run=dry_run, apply=apply)
             request_body = read_json_object(body)
             query = _gallery_query_parameters(request_body)
             if not acknowledge_template_import_permissions:
@@ -78,7 +82,7 @@ def register_gallery_template_import_command(templates_app: typer.Typer) -> None
                     "importing a Gallery template."
                 )
             if dry_run:
-                return _dry_run(
+                return build_dry_run_plan(
                     operation="templates.import-from-gallery",
                     target=parent,
                     body=request_body,

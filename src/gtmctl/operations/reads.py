@@ -8,7 +8,7 @@ from typing import Any, Protocol
 
 from google.auth.credentials import Credentials
 from google.auth.exceptions import RefreshError, TransportError
-from googleapiclient.discovery import Resource, build
+from googleapiclient.discovery import Resource
 from googleapiclient.errors import HttpError
 from httplib2.error import ServerNotFoundError  # type: ignore[import-untyped]
 
@@ -17,18 +17,8 @@ from gtmctl.foundation.errors import (
     normalize_google_error,
     normalize_transport_error,
 )
-from marketing_common.auth import CredentialConfigurationError, resolve_credentials
-
-
-def service_account_credentials(scopes: list[str]) -> Credentials:
-    """Compatibility injection seam backed by generic credential resolution."""
-    return resolve_credentials(scopes, tool="gtmctl")
-
-
-TAG_MANAGER_READONLY_SCOPE = "https://www.googleapis.com/auth/tagmanager.readonly"
-TAG_MANAGER_MANAGE_USERS_SCOPE = (
-    "https://www.googleapis.com/auth/tagmanager.manage.users"
-)
+from gtmctl.operations import transport
+from marketing_common.auth import CredentialConfigurationError
 
 
 class Request(Protocol):
@@ -38,23 +28,18 @@ class Request(Protocol):
 ServiceFactory = Callable[[Credentials], Resource]
 
 
-def make_tag_manager_service(credentials: Credentials) -> Resource:
-    """Create the official discovery-backed GTM API v2 client."""
-    return build("tagmanager", "v2", credentials=credentials, cache_discovery=False)
-
-
 def execute_read(
     command: str,
     request_factory: Callable[[Resource], Request],
     *,
-    scope: str = TAG_MANAGER_READONLY_SCOPE,
+    access: str = "read",
     service_factory: ServiceFactory | None = None,
 ) -> dict[str, Any]:
     """Execute exactly one official GTM read request without auto-retry."""
     try:
-        credentials = service_account_credentials([scope])
+        credentials = transport.credentials_for_access(access)
         service = (
-            make_tag_manager_service if service_factory is None else service_factory
+            transport.make_read_service if service_factory is None else service_factory
         )(credentials)
         response = request_factory(service).execute(num_retries=0)
     except CredentialConfigurationError:
@@ -105,7 +90,7 @@ def get_user_permission(
     return execute_read(
         "accounts user-permissions get",
         lambda service: _user_permissions(service).get(path=path),
-        scope=TAG_MANAGER_MANAGE_USERS_SCOPE,
+        access="users",
         service_factory=service_factory,
     )
 
@@ -121,7 +106,7 @@ def list_user_permissions(
         lambda service: _user_permissions(service).list(
             parent=parent, pageToken=page_token
         ),
-        scope=TAG_MANAGER_MANAGE_USERS_SCOPE,
+        access="users",
         service_factory=service_factory,
     )
 

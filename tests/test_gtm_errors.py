@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 import ssl
+from collections.abc import Callable
+from typing import Any
 
 import pytest
 import typer
@@ -14,7 +16,7 @@ from httplib2.error import ServerNotFoundError
 
 from gtmctl.commands._common import run_command
 from gtmctl.foundation.errors import GoogleApiError, normalize_google_error
-from gtmctl.operations import mutations, reads
+from gtmctl.operations import mutations, reads, transport
 
 _SENTINEL = "UPSTREAM-SECRET-MARKER"
 
@@ -73,16 +75,23 @@ def test_normalize_google_error_uses_status_without_upstream_diagnostics(
 def test_mutation_execution_boundary_applies_http_error_policy(
     monkeypatch: pytest.MonkeyPatch, status: int, exit_code: int, category: str
 ) -> None:
-    monkeypatch.setattr(mutations, "service_account_credentials", lambda _: object())
-    request = type(
-        "FailingRequest",
-        (),
-        {
-            "execute": lambda *_args, **_kwargs: (_ for _ in ()).throw(
-                _http_error(status)
-            )
-        },
-    )()
+    monkeypatch.setattr(transport, "credentials_for_access", lambda _: object())
+
+    class FailingRequest:
+        def __init__(self) -> None:
+            self.callbacks: list[Callable[[Response], None]] = []
+
+        def add_response_callback(self, callback: Callable[[Response], None]) -> None:
+            self.callbacks.append(callback)
+
+        def execute(self, *, num_retries: int = 0) -> dict[str, Any]:
+            assert num_retries == 0
+            error = _http_error(status)
+            for callback in self.callbacks:
+                callback(error.resp)
+            raise error
+
+    request = FailingRequest()
 
     with pytest.raises(GoogleApiError) as raised:
         mutations.execute_mutation(
@@ -105,7 +114,7 @@ def test_mutation_execution_boundary_applies_http_error_policy(
 def test_mutation_mtls_factory_configuration_is_an_authentication_diagnostic(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    monkeypatch.setattr(mutations, "service_account_credentials", lambda _: object())
+    monkeypatch.setattr(transport, "credentials_for_access", lambda _: object())
     monkeypatch.setenv("GOOGLE_API_USE_MTLS_ENDPOINT", "always")
 
     with pytest.raises(typer.Exit) as raised:
@@ -156,7 +165,7 @@ def test_gtm_diagnostic_envelope_is_shared_and_redacts_google_payload(
 def test_read_execution_boundary_normalizes_request_time_authentication_errors(
     monkeypatch: pytest.MonkeyPatch, auth_error: Exception
 ) -> None:
-    monkeypatch.setattr(reads, "service_account_credentials", lambda _: object())
+    monkeypatch.setattr(transport, "credentials_for_access", lambda _: object())
     request = type(
         "FailingRequest",
         (),
@@ -180,12 +189,20 @@ def test_read_execution_boundary_normalizes_request_time_authentication_errors(
 def test_mutation_execution_boundary_normalizes_request_time_authentication_errors(
     monkeypatch: pytest.MonkeyPatch, auth_error: Exception
 ) -> None:
-    monkeypatch.setattr(mutations, "service_account_credentials", lambda _: object())
-    request = type(
-        "FailingRequest",
-        (),
-        {"execute": lambda *_args, **_kwargs: (_ for _ in ()).throw(auth_error)},
-    )()
+    monkeypatch.setattr(transport, "credentials_for_access", lambda _: object())
+
+    class FailingRequest:
+        def __init__(self) -> None:
+            self.callbacks: list[Callable[[Response], None]] = []
+
+        def add_response_callback(self, callback: Callable[[Response], None]) -> None:
+            self.callbacks.append(callback)
+
+        def execute(self, *, num_retries: int = 0) -> dict[str, Any]:
+            assert num_retries == 0
+            raise auth_error
+
+    request = FailingRequest()
 
     with pytest.raises(GoogleApiError) as raised:
         mutations.execute_mutation(
@@ -210,7 +227,7 @@ def test_mutation_execution_boundary_normalizes_request_time_authentication_erro
 def test_gtm_execution_boundary_normalizes_known_transport_errors(
     monkeypatch: pytest.MonkeyPatch, transport_error: Exception
 ) -> None:
-    monkeypatch.setattr(reads, "service_account_credentials", lambda _: object())
+    monkeypatch.setattr(transport, "credentials_for_access", lambda _: object())
     request = type(
         "FailingRequest",
         (),
@@ -227,3 +244,82 @@ def test_gtm_execution_boundary_normalizes_known_transport_errors(
     error = raised.value
     assert (error.exit_code, error.category, error.status) == (6, "retryable", None)
     assert _SENTINEL not in str(error)
+
+
+@pytest.mark.parametrize("status", [None, 199, 200, 299, 400])
+def test_sdk_decode_error_requires_successful_response_evidence(
+    monkeypatch: pytest.MonkeyPatch, status: int | None
+) -> None:
+    failure = UnicodeDecodeError("utf-8", b"\xff", 0, 1, _SENTINEL)
+
+    class DecodeRequest:
+        def __init__(self) -> None:
+            self.callbacks: list[Callable[[Response], None]] = []
+            self.calls: list[int] = []
+
+        def add_response_callback(self, callback: Callable[[Response], None]) -> None:
+            self.callbacks.append(callback)
+
+        def execute(self, *, num_retries: int = 0) -> dict[str, Any]:
+            self.calls.append(num_retries)
+            assert len(self.callbacks) == 1
+            if status is not None:
+                for callback in self.callbacks:
+                    callback(Response({"status": str(status)}))
+            raise failure
+
+    request = DecodeRequest()
+    monkeypatch.setattr(transport, "credentials_for_access", lambda _: object())
+
+    with pytest.raises(
+        GoogleApiError if status in {200, 299} else UnicodeDecodeError
+    ) as raised:
+        mutations.execute_mutation(
+            "accounts containers workspaces tags create",
+            lambda _: request,
+            service_factory=lambda _: object(),  # type: ignore[return-value]
+        )
+
+    assert request.calls == [0]
+    if status in {200, 299}:
+        error = raised.value
+        assert (error.exit_code, error.category, error.status) == (
+            1,
+            "unexpected",
+            None,
+        )
+        assert str(error) == (
+            "Google Tag Manager mutation may have completed, but its API response "
+            "could not be read. Inspect the current GTM state before retrying."
+        )
+        assert _SENTINEL not in str(error)
+    else:
+        assert raised.value is failure
+
+
+def test_unrelated_execution_error_after_success_is_not_response_uncertainty(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    failure = TypeError(_SENTINEL)
+
+    class FailingRequest:
+        def __init__(self) -> None:
+            self.callbacks: list[Callable[[Response], None]] = []
+
+        def add_response_callback(self, callback: Callable[[Response], None]) -> None:
+            self.callbacks.append(callback)
+
+        def execute(self, *, num_retries: int = 0) -> dict[str, Any]:
+            assert num_retries == 0
+            for callback in self.callbacks:
+                callback(Response({"status": "200"}))
+            raise failure
+
+    monkeypatch.setattr(transport, "credentials_for_access", lambda _: object())
+    with pytest.raises(TypeError) as raised:
+        mutations.execute_mutation(
+            "accounts containers workspaces tags create",
+            lambda _: FailingRequest(),
+            service_factory=lambda _: object(),  # type: ignore[return-value]
+        )
+    assert raised.value is failure

@@ -16,7 +16,6 @@ from .oauth import (
     native_record_status,
     revoke_native_credentials,
     scope_for_access,
-    validate_login_request,
 )
 
 
@@ -80,13 +79,11 @@ def make_auth_app(tool: ToolName, *, access_guidance: str) -> typer.Typer:
     ) -> None:
         """Authorize one least-privilege installed-app OAuth access tier."""
         try:
-            validate_login_request(tool, access, open_browser=open_browser, port=port)
-        except OAuthRequestError as exc:
-            fail_invalid_request("login", exc)
-        try:
             login_native_credentials(
                 tool, access, client_secrets, open_browser=open_browser, port=port
             )
+        except OAuthRequestError as exc:
+            fail_invalid_request("login", exc)
         except OAuthAuthenticationError as exc:
             fail("login", exc)
         write_success(command=command("login"), data={"stored": True, "access": access})

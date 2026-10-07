@@ -72,6 +72,7 @@ def _target(
     body_type: type[object] | None = None,
     path_or_query_fields: tuple[str, ...] = (),
     body_forbidden_fields: tuple[str, ...] = (),
+    writable_fields: tuple[str, ...] | None = None,
 ) -> ProtobufSchemaTarget:
     return ProtobufSchemaTarget(
         cli_path=path,
@@ -80,82 +81,76 @@ def _target(
         body_type=body_type,
         path_or_query_fields=path_or_query_fields,
         body_forbidden_fields=body_forbidden_fields,
+        request_cli_constraints=(
+            {
+                "allowedUpdateMaskFields": list(writable_fields),
+                "bodyFieldsMustExactlyMatchUpdateMask": True,
+            }
+            if writable_fields is not None
+            else None
+        ),
     )
 
 
-_PATCH_WRITABLE_FIELDS_BY_CLI_PATH = {
-    ("accounts", "patch"): ACCOUNT_PATCH_WRITABLE_FIELDS,
-    ("properties", "patch"): PROPERTY_PATCH_WRITABLE_FIELDS,
-    ("properties", "custom-dimensions", "patch"): (
-        CUSTOM_DIMENSION_PATCH_WRITABLE_FIELDS
-    ),
-    ("properties", "custom-metrics", "patch"): CUSTOM_METRIC_PATCH_WRITABLE_FIELDS,
-    ("properties", "data-streams", "patch"): DATA_STREAM_PATCH_WRITABLE_FIELDS,
-    ("properties", "data-streams", "measurement-protocol-secrets", "patch"): (
-        MEASUREMENT_PROTOCOL_SECRET_PATCH_WRITABLE_FIELDS
-    ),
-    ("properties", "google-ads-links", "patch"): GOOGLE_ADS_LINK_PATCH_WRITABLE_FIELDS,
-    ("properties", "key-events", "patch"): KEY_EVENT_PATCH_WRITABLE_FIELDS,
-}
-
-
-_SCHEMA_TARGETS: dict[tuple[str, ...], ProtobufSchemaTarget] = {
-    ("accounts", "patch"): _target(
+_SCHEMA_TARGET_DECLARATIONS: tuple[ProtobufSchemaTarget, ...] = (
+    _target(
         ("accounts", "patch"),
         "analyticsadmin.accounts.patch",
         UpdateAccountRequest,
         body_type=Account,
         path_or_query_fields=("account.name", "updateMask"),
         body_forbidden_fields=("name",),
+        writable_fields=ACCOUNT_PATCH_WRITABLE_FIELDS,
     ),
-    ("accounts", "provision-account-ticket"): _target(
+    _target(
         ("accounts", "provision-account-ticket"),
         "analyticsadmin.accounts.provisionAccountTicket",
         ProvisionAccountTicketRequest,
     ),
-    ("accounts", "access-reports", "run"): _target(
+    _target(
         ("accounts", "access-reports", "run"),
         "analyticsadmin.accounts.runAccessReport",
         RunAccessReportRequest,
         path_or_query_fields=("entity",),
         body_forbidden_fields=("entity",),
     ),
-    ("accounts", "change-history", "search"): _target(
+    _target(
         ("accounts", "change-history", "search"),
         "analyticsadmin.accounts.searchChangeHistoryEvents",
         SearchChangeHistoryEventsRequest,
         path_or_query_fields=("account",),
         body_forbidden_fields=("account",),
     ),
-    ("properties", "acknowledge-user-data-collection"): _target(
+    _target(
         ("properties", "acknowledge-user-data-collection"),
         "analyticsadmin.properties.acknowledgeUserDataCollection",
         AcknowledgeUserDataCollectionRequest,
         path_or_query_fields=("property",),
         body_forbidden_fields=("property",),
     ),
-    ("properties", "create"): _target(
+    _target(
         ("properties", "create"),
         "analyticsadmin.properties.create",
         CreatePropertyRequest,
         body_type=Property,
     ),
-    ("properties", "patch"): _target(
+    _target(
         ("properties", "patch"),
         "analyticsadmin.properties.patch",
         UpdatePropertyRequest,
         body_type=Property,
         path_or_query_fields=("property.name", "updateMask"),
         body_forbidden_fields=("name",),
+        writable_fields=PROPERTY_PATCH_WRITABLE_FIELDS,
     ),
-    ("properties", "access-reports", "run"): _target(
+    _target(
         ("properties", "access-reports", "run"),
         "analyticsadmin.properties.runAccessReport",
         RunAccessReportRequest,
         path_or_query_fields=("entity",),
         body_forbidden_fields=("entity",),
     ),
-    ("properties", "data-retention-settings", "update"): _target(
+    _target(
         ("properties", "data-retention-settings", "update"),
         "analyticsadmin.properties.updateDataRetentionSettings",
         UpdateDataRetentionSettingsRequest,
@@ -163,7 +158,7 @@ _SCHEMA_TARGETS: dict[tuple[str, ...], ProtobufSchemaTarget] = {
         path_or_query_fields=("dataRetentionSettings.name", "updateMask"),
         body_forbidden_fields=("name",),
     ),
-    ("properties", "custom-dimensions", "create"): _target(
+    _target(
         ("properties", "custom-dimensions", "create"),
         "analyticsadmin.properties.customDimensions.create",
         CreateCustomDimensionRequest,
@@ -171,15 +166,16 @@ _SCHEMA_TARGETS: dict[tuple[str, ...], ProtobufSchemaTarget] = {
         path_or_query_fields=("parent",),
         body_forbidden_fields=("parent",),
     ),
-    ("properties", "custom-dimensions", "patch"): _target(
+    _target(
         ("properties", "custom-dimensions", "patch"),
         "analyticsadmin.properties.customDimensions.patch",
         UpdateCustomDimensionRequest,
         body_type=CustomDimension,
         path_or_query_fields=("customDimension.name", "updateMask"),
         body_forbidden_fields=("name",),
+        writable_fields=CUSTOM_DIMENSION_PATCH_WRITABLE_FIELDS,
     ),
-    ("properties", "custom-metrics", "create"): _target(
+    _target(
         ("properties", "custom-metrics", "create"),
         "analyticsadmin.properties.customMetrics.create",
         CreateCustomMetricRequest,
@@ -187,15 +183,16 @@ _SCHEMA_TARGETS: dict[tuple[str, ...], ProtobufSchemaTarget] = {
         path_or_query_fields=("parent",),
         body_forbidden_fields=("parent",),
     ),
-    ("properties", "custom-metrics", "patch"): _target(
+    _target(
         ("properties", "custom-metrics", "patch"),
         "analyticsadmin.properties.customMetrics.patch",
         UpdateCustomMetricRequest,
         body_type=CustomMetric,
         path_or_query_fields=("customMetric.name", "updateMask"),
         body_forbidden_fields=("name",),
+        writable_fields=CUSTOM_METRIC_PATCH_WRITABLE_FIELDS,
     ),
-    ("properties", "data-streams", "create"): _target(
+    _target(
         ("properties", "data-streams", "create"),
         "analyticsadmin.properties.dataStreams.create",
         CreateDataStreamRequest,
@@ -203,15 +200,16 @@ _SCHEMA_TARGETS: dict[tuple[str, ...], ProtobufSchemaTarget] = {
         path_or_query_fields=("parent",),
         body_forbidden_fields=("parent",),
     ),
-    ("properties", "data-streams", "patch"): _target(
+    _target(
         ("properties", "data-streams", "patch"),
         "analyticsadmin.properties.dataStreams.patch",
         UpdateDataStreamRequest,
         body_type=DataStream,
         path_or_query_fields=("dataStream.name", "updateMask"),
         body_forbidden_fields=("name",),
+        writable_fields=DATA_STREAM_PATCH_WRITABLE_FIELDS,
     ),
-    ("properties", "data-streams", "measurement-protocol-secrets", "create"): _target(
+    _target(
         ("properties", "data-streams", "measurement-protocol-secrets", "create"),
         "analyticsadmin.properties.dataStreams.measurementProtocolSecrets.create",
         CreateMeasurementProtocolSecretRequest,
@@ -219,15 +217,16 @@ _SCHEMA_TARGETS: dict[tuple[str, ...], ProtobufSchemaTarget] = {
         path_or_query_fields=("parent",),
         body_forbidden_fields=("parent", "secretValue", "secret_value"),
     ),
-    ("properties", "data-streams", "measurement-protocol-secrets", "patch"): _target(
+    _target(
         ("properties", "data-streams", "measurement-protocol-secrets", "patch"),
         "analyticsadmin.properties.dataStreams.measurementProtocolSecrets.patch",
         UpdateMeasurementProtocolSecretRequest,
         body_type=MeasurementProtocolSecret,
         path_or_query_fields=("measurementProtocolSecret.name", "updateMask"),
         body_forbidden_fields=("name",),
+        writable_fields=MEASUREMENT_PROTOCOL_SECRET_PATCH_WRITABLE_FIELDS,
     ),
-    ("properties", "firebase-links", "create"): _target(
+    _target(
         ("properties", "firebase-links", "create"),
         "analyticsadmin.properties.firebaseLinks.create",
         CreateFirebaseLinkRequest,
@@ -235,7 +234,7 @@ _SCHEMA_TARGETS: dict[tuple[str, ...], ProtobufSchemaTarget] = {
         path_or_query_fields=("parent",),
         body_forbidden_fields=("parent",),
     ),
-    ("properties", "google-ads-links", "create"): _target(
+    _target(
         ("properties", "google-ads-links", "create"),
         "analyticsadmin.properties.googleAdsLinks.create",
         CreateGoogleAdsLinkRequest,
@@ -243,15 +242,16 @@ _SCHEMA_TARGETS: dict[tuple[str, ...], ProtobufSchemaTarget] = {
         path_or_query_fields=("parent",),
         body_forbidden_fields=("parent",),
     ),
-    ("properties", "google-ads-links", "patch"): _target(
+    _target(
         ("properties", "google-ads-links", "patch"),
         "analyticsadmin.properties.googleAdsLinks.patch",
         UpdateGoogleAdsLinkRequest,
         body_type=GoogleAdsLink,
         path_or_query_fields=("googleAdsLink.name", "updateMask"),
         body_forbidden_fields=("name",),
+        writable_fields=GOOGLE_ADS_LINK_PATCH_WRITABLE_FIELDS,
     ),
-    ("properties", "key-events", "create"): _target(
+    _target(
         ("properties", "key-events", "create"),
         "analyticsadmin.properties.keyEvents.create",
         CreateKeyEventRequest,
@@ -259,14 +259,19 @@ _SCHEMA_TARGETS: dict[tuple[str, ...], ProtobufSchemaTarget] = {
         path_or_query_fields=("parent",),
         body_forbidden_fields=("parent",),
     ),
-    ("properties", "key-events", "patch"): _target(
+    _target(
         ("properties", "key-events", "patch"),
         "analyticsadmin.properties.keyEvents.patch",
         UpdateKeyEventRequest,
         body_type=KeyEvent,
         path_or_query_fields=("keyEvent.name", "updateMask"),
         body_forbidden_fields=("name",),
+        writable_fields=KEY_EVENT_PATCH_WRITABLE_FIELDS,
     ),
+)
+
+_SCHEMA_TARGETS: dict[tuple[str, ...], ProtobufSchemaTarget] = {
+    target.cli_path: target for target in _SCHEMA_TARGET_DECLARATIONS
 }
 
 
@@ -293,15 +298,11 @@ def schema(
             message="--command must name an eligible registered ga4adminctl leaf.",
             command="ga4adminctl sdk schema",
         )
-    data = protobuf_schema_response(
-        target=target,
-        package="google-analytics-admin",
-        api_version="v1beta",
+    write_success(
+        command="ga4adminctl sdk schema",
+        data=protobuf_schema_response(
+            target=target,
+            package="google-analytics-admin",
+            api_version="v1beta",
+        ),
     )
-    fields = _PATCH_WRITABLE_FIELDS_BY_CLI_PATH.get(target.cli_path)
-    if fields is not None:
-        data["request"]["cliConstraints"] = {
-            "allowedUpdateMaskFields": list(fields),
-            "bodyFieldsMustExactlyMatchUpdateMask": True,
-        }
-    write_success(command="ga4adminctl sdk schema", data=data)

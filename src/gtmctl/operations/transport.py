@@ -1,4 +1,4 @@
-"""Single-dispatch Requests transport for GTM mutations."""
+"""GTM credential and Discovery transport."""
 
 from __future__ import annotations
 
@@ -14,9 +14,20 @@ from googleapiclient.discovery import Resource, build
 from requests.auth import AuthBase
 from requests.models import PreparedRequest
 
-from marketing_common.auth import CredentialConfigurationError
+from marketing_common.auth import CredentialConfigurationError, resolve_credentials
+from marketing_common.oauth import scope_for_access
 
 GTM_MUTATION_TIMEOUT_SECONDS = 60
+
+
+def credentials_for_access(access: str) -> Credentials:
+    """Resolve credentials for one GTM access tier."""
+    return resolve_credentials([scope_for_access("gtmctl", access)], tool="gtmctl")
+
+
+def make_read_service(credentials: Credentials) -> Resource:
+    """Create the official Discovery-backed GTM read service."""
+    return build("tagmanager", "v2", credentials=credentials, cache_discovery=False)
 
 
 class _PreserveAuthorization(AuthBase):
@@ -86,7 +97,7 @@ def _validate_mutation_mtls_environment() -> None:
         )
 
 
-def make_tag_manager_mutation_service(credentials: Credentials) -> Resource:
+def make_mutation_service(credentials: Credentials) -> Resource:
     """Build the mutation-only Discovery resource with the bounded adapter."""
     _validate_mutation_mtls_environment()
     http = _DiscoveryAuthorizedSessionHttp(credentials)

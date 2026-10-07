@@ -6,11 +6,12 @@ from typing import Annotated, Any
 
 import typer
 
-from gtmctl.commands._common import DRY_RUN_HELP, run_command
-from gtmctl.commands.tag_mutations import (
-    _dry_run,
-    _validate_execution_mode,
-    _validate_fingerprint,
+from gtmctl.commands._common import (
+    DRY_RUN_HELP,
+    build_dry_run_plan,
+    run_command,
+    validate_execution_mode,
+    validate_fingerprint,
 )
 from gtmctl.foundation.body import read_json_object
 from gtmctl.foundation.validation import (
@@ -43,10 +44,10 @@ def register_container_core_mutation_commands(containers_app: typer.Typer) -> No
 
         def operation() -> dict[str, Any]:
             validate_account_parent(parent)
-            _validate_execution_mode(dry_run=dry_run, apply=apply)
+            validate_execution_mode(dry_run=dry_run, apply=apply)
             request_body = read_json_object(body)
             if dry_run:
-                return _dry_run(
+                return build_dry_run_plan(
                     operation="containers.create", target=parent, body=request_body
                 )
             return mutations.create_container(parent, request_body)
@@ -76,11 +77,11 @@ def register_container_core_mutation_commands(containers_app: typer.Typer) -> No
 
         def operation() -> dict[str, Any]:
             validate_container_path(path)
-            _validate_execution_mode(dry_run=dry_run, apply=apply)
-            _validate_fingerprint(fingerprint)
+            validate_execution_mode(dry_run=dry_run, apply=apply)
+            validate_fingerprint(fingerprint)
             request_body = read_json_object(body)
             if dry_run:
-                return _dry_run(
+                return build_dry_run_plan(
                     operation="containers.update",
                     target=path,
                     body=request_body,
@@ -111,13 +112,13 @@ def register_container_core_mutation_commands(containers_app: typer.Typer) -> No
 
         def operation() -> dict[str, Any]:
             validate_container_path(path)
-            _validate_execution_mode(dry_run=dry_run, apply=apply)
+            validate_execution_mode(dry_run=dry_run, apply=apply)
             if not acknowledge_delete:
                 raise RequestValidationError(
                     "--acknowledge-container-delete is required before deleting a container."
                 )
             if dry_run:
-                return _dry_run(operation="containers.delete", target=path)
+                return build_dry_run_plan(operation="containers.delete", target=path)
             return mutations.delete_container(path)
 
         run_command(command="gtmctl accounts containers delete", operation=operation)
@@ -143,10 +144,10 @@ def register_workspace_core_mutation_commands(workspaces_app: typer.Typer) -> No
 
         def operation() -> dict[str, Any]:
             validate_container_parent(parent)
-            _validate_execution_mode(dry_run=dry_run, apply=apply)
+            validate_execution_mode(dry_run=dry_run, apply=apply)
             request_body = read_json_object(body)
             if dry_run:
-                return _dry_run(
+                return build_dry_run_plan(
                     operation="workspaces.create", target=parent, body=request_body
                 )
             return mutations.create_workspace(parent, request_body)
@@ -178,11 +179,11 @@ def register_workspace_core_mutation_commands(workspaces_app: typer.Typer) -> No
 
         def operation() -> dict[str, Any]:
             validate_workspace_path(path)
-            _validate_execution_mode(dry_run=dry_run, apply=apply)
-            _validate_fingerprint(fingerprint)
+            validate_execution_mode(dry_run=dry_run, apply=apply)
+            validate_fingerprint(fingerprint)
             request_body = read_json_object(body)
             if dry_run:
-                return _dry_run(
+                return build_dry_run_plan(
                     operation="workspaces.update",
                     target=path,
                     body=request_body,
@@ -215,13 +216,13 @@ def register_workspace_core_mutation_commands(workspaces_app: typer.Typer) -> No
 
         def operation() -> dict[str, Any]:
             validate_workspace_path(path)
-            _validate_execution_mode(dry_run=dry_run, apply=apply)
+            validate_execution_mode(dry_run=dry_run, apply=apply)
             if not acknowledge_delete:
                 raise RequestValidationError(
                     "--acknowledge-workspace-delete is required before deleting a workspace."
                 )
             if dry_run:
-                return _dry_run(operation="workspaces.delete", target=path)
+                return build_dry_run_plan(operation="workspaces.delete", target=path)
             return mutations.delete_workspace(path)
 
         run_command(

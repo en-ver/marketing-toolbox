@@ -37,11 +37,6 @@ def _registered_body_options(root: typer.Typer) -> dict[tuple[str, ...], set[str
     return leaves
 
 
-def _registered_body_paths(root: typer.Typer) -> set[tuple[str, ...]]:
-    """Return the registered body paths retained for catalog contract tests."""
-    return set(_registered_body_options(root))
-
-
 def _method_id(path: tuple[str, ...]) -> str:
     return "tagmanager." + ".".join(part.replace("-", "_") for part in path)
 
@@ -84,7 +79,7 @@ def _target_for_path(
     )
 
 
-def register_sdk_commands(root: typer.Typer) -> typer.Typer:
+def register_sdk_commands(root: typer.Typer) -> None:
     """Attach ``gtmctl sdk schema`` after the complete registered tree exists."""
     app = typer.Typer(
         help=(
@@ -131,4 +126,3 @@ def register_sdk_commands(root: typer.Typer) -> typer.Typer:
         write_success(command="gtmctl sdk schema", data=data)
 
     root.add_typer(app, name="sdk")
-    return app

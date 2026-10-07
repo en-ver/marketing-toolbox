@@ -16,19 +16,9 @@ from ga4adminctl.commands import properties as admin_properties
 from ga4adminctl.foundation import errors as admin_errors
 from ga4adminctl.foundation import validation as admin_validation
 from ga4adminctl.foundation.errors import normalize_create_mutation_error
-from ga4adminctl.operations import mutations, reads
-from ga4adminctl.operations import properties as property_operations
-
-_UNCERTAIN_CREATE_METHODS = (
-    "create_property",
-    "create_custom_dimension",
-    "create_custom_metric",
-    "create_data_stream",
-    "create_firebase_link",
-    "create_google_ads_link",
-    "create_key_event",
-    "create_measurement_protocol_secret",
-    "provision_account_ticket",
+from ga4adminctl.operations import accounts, resources, secrets, transport
+from ga4adminctl.operations import (
+    properties as property_operations,
 )
 
 
@@ -143,28 +133,77 @@ def test_normalize_create_mutation_error_preserves_definitive_errors(
     )
 
 
-@pytest.mark.parametrize("method_name", _UNCERTAIN_CREATE_METHODS)
+_UNCERTAIN_CREATE_CASES = (
+    pytest.param(
+        lambda: property_operations.create_property({}, apply=True),
+        "create_property",
+        id="property",
+    ),
+    pytest.param(
+        lambda: resources.create_custom_dimension("properties/1234", {}, apply=True),
+        "create_custom_dimension",
+        id="custom-dimension",
+    ),
+    pytest.param(
+        lambda: resources.create_custom_metric("properties/1234", {}, apply=True),
+        "create_custom_metric",
+        id="custom-metric",
+    ),
+    pytest.param(
+        lambda: resources.create_data_stream("properties/1234", {}, apply=True),
+        "create_data_stream",
+        id="data-stream",
+    ),
+    pytest.param(
+        lambda: resources.create_firebase_link("properties/1234", {}, apply=True),
+        "create_firebase_link",
+        id="firebase-link",
+    ),
+    pytest.param(
+        lambda: resources.create_google_ads_link("properties/1234", {}, apply=True),
+        "create_google_ads_link",
+        id="google-ads-link",
+    ),
+    pytest.param(
+        lambda: resources.create_key_event("properties/1234", {}, apply=True),
+        "create_key_event",
+        id="key-event",
+    ),
+    pytest.param(
+        lambda: secrets.create_measurement_protocol_secret(
+            "properties/1234/dataStreams/stream-1", {}, apply=True
+        ),
+        "create_measurement_protocol_secret",
+        id="measurement-protocol-secret",
+    ),
+    pytest.param(
+        lambda: accounts.provision_account_ticket({}, apply=True),
+        "provision_account_ticket",
+        id="provision-account-ticket",
+    ),
+)
+
+
+@pytest.mark.parametrize(("operation", "method_name"), _UNCERTAIN_CREATE_CASES)
 def test_create_like_writes_use_uncertain_error_policy_once_without_retry(
-    monkeypatch: pytest.MonkeyPatch, method_name: str
+    monkeypatch: pytest.MonkeyPatch,
+    operation: object,
+    method_name: str,
 ) -> None:
-    request = object()
     client = FailingWriteClient(
         exceptions.ServiceUnavailable("write-error-sentinel")  # type: ignore[no-untyped-call]
     )
-    monkeypatch.setattr(mutations, "service_account_credentials", lambda _: object())
+    monkeypatch.setattr(transport, "credentials_for_access", lambda _: object())
+    monkeypatch.setattr(transport, "make_client", lambda _: client)
 
     with pytest.raises(admin_errors.GoogleApiError) as raised:
-        mutations._write_v1beta(
-            request,
-            method_name,
-            lambda _: {},
-            client_factory=lambda _: client,
-        )
+        operation()
 
-    assert mutations._UNCERTAIN_CREATE_METHODS == frozenset(_UNCERTAIN_CREATE_METHODS)
-    assert client.calls == [
-        (method_name, request, None, reads.PROPERTY_READ_TIMEOUT_SECONDS)
-    ]
+    assert len(client.calls) == 1
+    actual_method, _request, retry, timeout = client.calls[0]
+    assert actual_method == method_name
+    assert retry is None
+    assert timeout == transport.ADMIN_RPC_TIMEOUT_SECONDS
     error = raised.value
     assert (error.exit_code, error.category, error.status) == (1, "unexpected", 503)
     assert "write-error-sentinel" not in str(error)
@@ -179,23 +218,16 @@ def test_non_create_write_and_read_keep_generic_error_policy(
     read_client = FailingWriteClient(
         exceptions.ServiceUnavailable("read-sentinel")  # type: ignore[no-untyped-call]
     )
-    monkeypatch.setattr(mutations, "service_account_credentials", lambda _: object())
-    monkeypatch.setattr(reads, "service_account_credentials", lambda _: object())
+    clients = iter((write_client, read_client))
+    monkeypatch.setattr(transport, "credentials_for_access", lambda _: object())
+    monkeypatch.setattr(transport, "make_client", lambda _: next(clients))
 
     with pytest.raises(admin_errors.GoogleApiError) as write_raised:
-        mutations._write_v1beta(
-            object(),
-            "update_property",
-            lambda _: {},
-            client_factory=lambda _: write_client,
+        property_operations.update_property(
+            "properties/1234", {"displayName": "Example"}, "displayName", apply=True
         )
     with pytest.raises(admin_errors.GoogleApiError) as read_raised:
-        reads._read_v1beta(
-            GetPropertyRequest(name="properties/1234"),
-            "get_property",
-            Property,
-            client_factory=lambda _: read_client,
-        )
+        property_operations.get_property("properties/1234")
 
     for error, sentinel in (
         (write_raised.value, "non-create-write-sentinel"),
@@ -271,26 +303,25 @@ class CapturingPropertiesClient:
         )()
 
 
-def test_get_property_uses_v1beta_readonly_scope_and_raw_sdk_json(
+def test_get_property_uses_v1beta_read_access_and_raw_sdk_json(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     client = CapturingPropertiesClient()
-    scopes: list[str] = []
+    accesses: list[str] = []
 
-    def credentials(value: list[str]) -> object:
-        scopes.extend(value)
+    def credentials(access: str) -> object:
+        accesses.append(access)
         return object()
 
-    monkeypatch.setattr(reads, "service_account_credentials", credentials)
+    monkeypatch.setattr(transport, "credentials_for_access", credentials)
+    monkeypatch.setattr(transport, "make_client", lambda _: client)
 
-    response = property_operations.get_property(
-        "properties/1234", client_factory=lambda _: client
-    )
+    response = property_operations.get_property("properties/1234")
 
-    assert scopes == [reads.ANALYTICS_READONLY_SCOPE]
+    assert accesses == ["read"]
     assert client.get_request == GetPropertyRequest(name="properties/1234")
     assert client.retry is None
-    assert client.timeout == reads.PROPERTY_READ_TIMEOUT_SECONDS
+    assert client.timeout == transport.ADMIN_RPC_TIMEOUT_SECONDS
     assert response == {"name": "properties/1234", "displayName": "Example property"}
 
 
@@ -309,14 +340,14 @@ def test_list_properties_forwards_documented_filters_unchanged(
     filter_expression: str,
 ) -> None:
     client = CapturingPropertiesClient()
-    monkeypatch.setattr(reads, "service_account_credentials", lambda _: object())
+    monkeypatch.setattr(transport, "credentials_for_access", lambda _: object())
+    monkeypatch.setattr(transport, "make_client", lambda _: client)
 
     response = property_operations.list_properties(
         filter_expression,
         page_size=25,
         page_token="prior-page",
         show_deleted=True,
-        client_factory=lambda _: client,
     )
 
     assert client.list_request == ListPropertiesRequest(
@@ -326,7 +357,7 @@ def test_list_properties_forwards_documented_filters_unchanged(
         show_deleted=True,
     )
     assert client.retry is None
-    assert client.timeout == reads.PROPERTY_READ_TIMEOUT_SECONDS
+    assert client.timeout == transport.ADMIN_RPC_TIMEOUT_SECONDS
     assert response == {
         "properties": [{"name": "properties/1234", "displayName": "Example property"}],
         "nextPageToken": "next-page",
@@ -345,8 +376,8 @@ def test_invalid_property_filters_fail_before_credential_lookup(
     filter_expression: str,
 ) -> None:
     monkeypatch.setattr(
-        reads,
-        "service_account_credentials",
+        transport,
+        "credentials_for_access",
         lambda _: pytest.fail("invalid input must not load credentials"),
     )
 
@@ -374,8 +405,8 @@ def test_property_read_validation_happens_before_credential_lookup(
     page_size: int,
 ) -> None:
     monkeypatch.setattr(
-        reads,
-        "service_account_credentials",
+        transport,
+        "credentials_for_access",
         lambda _: pytest.fail("invalid input must not load credentials"),
     )
 
