@@ -4,7 +4,10 @@ import importlib
 import importlib.metadata
 import os
 import re
+import shutil
 import subprocess
+import sys
+import tarfile
 import tomllib
 from pathlib import Path
 from typing import Any, cast
@@ -61,11 +64,99 @@ def _project_metadata(distribution: str) -> dict[str, object]:
         return tomllib.load(manifest)["project"]
 
 
-def test_core_sdist_excludes_release_output_directories() -> None:
-    with (ROOT / "pyproject.toml").open("rb") as manifest:
-        sdist = tomllib.load(manifest)["tool"]["hatch"]["build"]["targets"]["sdist"]
+def test_build_and_development_dependencies_match_approved_refresh() -> None:
+    for project in PROJECTS.values():
+        with project["manifest"].open("rb") as manifest:
+            metadata = tomllib.load(manifest)
+        assert metadata["build-system"] == {
+            "requires": ["hatchling==1.32.4"],
+            "build-backend": "hatchling.build",
+        }
 
-    assert {"/dist", "/.release-build-*"} <= set(sdist["exclude"])
+    with (ROOT / "pyproject.toml").open("rb") as manifest:
+        metadata = tomllib.load(manifest)
+    assert metadata["dependency-groups"] == {
+        "build": ["hatchling==1.32.4"],
+        "dev": [
+            "mypy==2.4.0",
+            "pytest==9.1.1",
+            "pyyaml==6.0.3",
+            "ruff==0.16.10",
+            "types-protobuf>=7.34.1.20260518",
+        ],
+    }
+    for distribution, version in {
+        "hatchling": "1.32.4",
+        "mypy": "2.4.0",
+        "ruff": "0.16.10",
+        "types-protobuf": "7.35.1.20260906",
+        "librt": "0.16.0",
+        "ast-serialize": "0.12.1",
+        "tomlkit": "0.15.1",
+    }.items():
+        assert importlib.metadata.version(distribution) == version
+
+
+def test_core_sdist_excludes_release_output_directories(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    required_files = ["pyproject.toml", "uv.lock", "README.md", "LICENSE", ".gitignore"]
+    required_files.extend(
+        str(config["manifest"].relative_to(ROOT))
+        for distribution, config in PROJECTS.items()
+        if distribution != "marketing-toolbox"
+    )
+    for relative_path in required_files:
+        destination = project / relative_path
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(ROOT / relative_path, destination)
+
+    # Gitignore negations for manifest/lock names must not reinclude output files.
+    for directory in ("dist", ".release-build-regression"):
+        for relative_path in (
+            "pyproject.toml",
+            "uv.lock",
+            "cache/pyproject.toml",
+            "evidence/input/uv.lock",
+        ):
+            destination = project / directory / relative_path
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_text("synthetic validation output\n")
+
+    artifacts = tmp_path / "artifacts"
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "hatchling",
+            "build",
+            "-t",
+            "sdist",
+            "-d",
+            str(artifacts),
+        ],
+        cwd=project,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    with tarfile.open(next(artifacts.glob("*.tar.gz"))) as archive:
+        files = {
+            member.name.partition("/")[2]
+            for member in archive.getmembers()
+            if member.isfile()
+        }
+        assert not any(
+            path.split("/")[0] == "dist"
+            or path.split("/")[0].startswith(".release-build-")
+            for path in files
+        ), files
+        for relative_path in required_files:
+            assert relative_path in files
+            member = archive.extractfile(f"marketing_toolbox-0.6.0/{relative_path}")
+            assert member is not None
+            assert member.read() == (ROOT / relative_path).read_bytes()
 
 
 def test_legacy_marketing_toolbox_package_source_is_absent_and_not_packaged() -> None:
@@ -95,14 +186,14 @@ def test_aliases_pin_the_exact_core_version_and_expose_expected_scripts() -> Non
 
     core = importlib.metadata.distribution("marketing-toolbox")
     assert set(core.requires or ()) == {
-        "google-analytics-admin==0.30.1",
-        "google-analytics-data==0.23.0",
-        "google-api-python-client==2.198.0",
-        "google-auth[requests]==2.56.2",
-        "google-auth-oauthlib==1.2.4",
-        "jsonschema==4.25.1",
-        "keyring==25.6.0",
-        "typer==0.27.0",
+        "google-analytics-admin==0.30.2",
+        "google-analytics-data==0.23.3",
+        "google-api-python-client==2.201.0",
+        "google-auth[requests]==2.60.0",
+        "google-auth-oauthlib==1.5.0",
+        "jsonschema==4.26.0",
+        "keyring==25.7.0",
+        "typer==0.27.3",
     }
 
     for distribution, project in PROJECTS.items():

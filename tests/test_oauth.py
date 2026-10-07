@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import base64
 import contextlib
 import json
+import logging
 import os
 import re
 import stat
@@ -12,6 +14,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, Self
+from urllib.parse import parse_qs, urlencode, urlsplit
 
 import pytest
 import typer
@@ -837,6 +840,126 @@ def test_login_uses_loopback_pkce_offline_and_no_forced_consent(
     assert captured["port"] == 8765
     assert captured["access_type"] == "offline"
     assert "prompt" not in captured
+
+
+@pytest.mark.parametrize("outcome", ["success", "timeout", "exchange_error"])
+def test_installed_login_keeps_upstream_callback_and_token_logs_private(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    capsys: pytest.CaptureFixture[str],
+    outcome: str,
+) -> None:
+    import google_auth_oauthlib.flow as upstream
+    import requests
+
+    scope = oauth.scope_for_access("ga4datactl", "read")
+    secret, code = "SYNTHETIC_CLIENT_SECRET", "SYNTHETIC_AUTH_CODE"
+    token, refresh = "SYNTHETIC_ACCESS_TOKEN", "SYNTHETIC_REFRESH_TOKEN"
+    client = tmp_path / "client.json"
+    client.write_text(
+        json.dumps(
+            {
+                "installed": {
+                    "client_id": "synthetic-client",
+                    "client_secret": secret,
+                    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                    "token_uri": "https://oauth2.googleapis.com/token",
+                    "redirect_uris": ["http://127.0.0.1"],
+                }
+            }
+        )
+    )
+    stored: list[UserCredentials] = []
+    closed: list[bool] = []
+    caplog.set_level(logging.DEBUG)
+    monkeypatch.setattr(oauth, "preflight_keyring", lambda: None)
+    monkeypatch.setattr(
+        oauth,
+        "store_native_credentials",
+        lambda _tool, _access, value: stored.append(value),
+    )
+    monkeypatch.setattr(
+        upstream.webbrowser,
+        "get",
+        lambda *_args: pytest.fail("browser must stay mocked"),
+    )
+
+    def make_server(host: str, port: int, app: Any, **kwargs: Any) -> Any:
+        assert host == "127.0.0.1" and port == 8765
+        server = SimpleNamespace(server_port=port, timeout=None)
+
+        def handle_request() -> None:
+            assert server.timeout == 600
+            if outcome == "timeout":
+                return
+            # The prompt is intentionally visible; the code-bearing callback is not.
+            prompt = capsys.readouterr().err
+            assert prompt.startswith("Open this URL to authorize: ")
+            url = prompt.removeprefix("Open this URL to authorize: ").strip()
+            query = parse_qs(urlsplit(url).query)
+            assert query["code_challenge_method"] == ["S256"]
+            callback = urlencode({"state": query["state"][0], "code": code})
+            app(
+                {
+                    "wsgi.url_scheme": "http",
+                    "HTTP_HOST": "127.0.0.1:8765",
+                    "SCRIPT_NAME": "",
+                    "PATH_INFO": "/",
+                    "QUERY_STRING": callback,
+                },
+                lambda *_args: None,
+            )
+            handler_class = kwargs["handler_class"]
+            handler = handler_class.__new__(handler_class)
+            handler.log_message('"%s" %s %s', f"GET /?{callback} HTTP/1.1", 200, 1)
+
+        server.handle_request = handle_request
+        server.server_close = lambda: closed.append(True)
+        return server
+
+    def send(_session: Any, request: Any, **_kwargs: Any) -> requests.Response:
+        assert parse_qs(request.body)["code"] == [code]
+        if outcome == "exchange_error":
+            raise RuntimeError(f"{secret} {code} {token} {refresh}")
+        response = requests.Response()
+        response.status_code = 200
+        response.request = request
+        response._content = json.dumps(
+            {
+                "access_token": token,
+                "refresh_token": refresh,
+                "token_type": "Bearer",
+                "expires_in": 3600,
+                "scope": scope,
+            }
+        ).encode()
+        return response
+
+    monkeypatch.setattr(upstream.wsgiref.simple_server, "make_server", make_server)
+    monkeypatch.setattr(requests.sessions.Session, "send", send)
+    if outcome == "success":
+        oauth.login_native_credentials(
+            "ga4datactl", "read", client, open_browser=False, port=8765
+        )
+        assert stored[0].token == token and stored[0].refresh_token == refresh
+    else:
+        with pytest.raises(
+            oauth.OAuthAuthenticationError, match="^OAuth login did not complete\\.$"
+        ):
+            oauth.login_native_credentials(
+                "ga4datactl", "read", client, open_browser=False, port=8765
+            )
+        assert stored == []
+    output = capsys.readouterr()
+    assert closed == [True]
+    encoded_secret = base64.b64encode(f"synthetic-client:{secret}".encode()).decode()
+    for value in (secret, encoded_secret, code, token, refresh):
+        assert value not in output.out + output.err + caplog.text
+    # Filters are removed even on errors, without changing logger levels/handlers.
+    for name in ("google_auth_oauthlib.flow", "requests_oauthlib.oauth2_session"):
+        logging.getLogger(name).info("logging restored after login")
+    assert caplog.text.count("logging restored after login") == 2
 
 
 def test_keyring_initialization_failure_is_a_sanitized_cli_authentication_error(

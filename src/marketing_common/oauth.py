@@ -11,6 +11,7 @@ import contextlib
 import errno
 import importlib
 import json
+import logging
 import os
 import platform
 import secrets
@@ -900,6 +901,27 @@ def revoke_native_credentials(tool: ToolName, access: str) -> None:
         ) from exc
 
 
+@contextlib.contextmanager
+def _private_oauth_flow_logs() -> Iterator[None]:
+    """Keep upstream callback and token payload logs out of this login's sinks."""
+    thread_id = threading.get_ident()
+
+    def outside_login(record: logging.LogRecord) -> bool:
+        return record.thread != thread_id
+
+    loggers = [
+        logging.getLogger("google_auth_oauthlib.flow"),
+        logging.getLogger("requests_oauthlib.oauth2_session"),
+    ]
+    for logger in loggers:
+        logger.addFilter(outside_login)
+    try:
+        yield
+    finally:
+        for logger in loggers:
+            logger.removeFilter(outside_login)
+
+
 def login_native_credentials(
     tool: ToolName,
     access: str,
@@ -912,12 +934,12 @@ def login_native_credentials(
     scope = validate_login_request(tool, access, open_browser=open_browser, port=port)
     preflight_keyring()
     try:
-        flow = InstalledAppFlow.from_client_secrets_file(
-            str(client_secrets), scopes=[scope], autogenerate_code_verifier=True
-        )
-        if flow.client_type != "installed":
-            raise ValueError("not an installed client")
-        with contextlib.redirect_stdout(sys.stderr):
+        with _private_oauth_flow_logs(), contextlib.redirect_stdout(sys.stderr):
+            flow = InstalledAppFlow.from_client_secrets_file(
+                str(client_secrets), scopes=[scope], autogenerate_code_verifier=True
+            )
+            if flow.client_type != "installed":
+                raise ValueError("not an installed client")
             credentials = flow.run_local_server(
                 host="127.0.0.1",
                 bind_addr="127.0.0.1",
