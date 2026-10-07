@@ -963,7 +963,7 @@ def test_ga4_entrypoint_version_remains_an_eager_json_success(
     assert json.loads(captured.out) == {
         "schemaVersion": "marketing-toolbox/v1",
         "command": command,
-        "data": {"version": "0.5.1"},
+        "data": {"version": "0.6.0"},
     }
     assert captured.err == ""
 
@@ -1016,7 +1016,7 @@ def test_ga4_entrypoint_parse_errors_remain_json_diagnostics(
         (
             ["ga4datactl", "--version"],
             0,
-            {"version": "0.5.1"},
+            {"version": "0.6.0"},
             None,
         ),
         (
@@ -1662,7 +1662,7 @@ def test_gtm_entrypoint_version_is_eager_and_uses_shared_json_success_envelope(
     assert json.loads(captured.out) == {
         "schemaVersion": "marketing-toolbox/v1",
         "command": "gtmctl",
-        "data": {"version": "0.5.1"},
+        "data": {"version": "0.6.0"},
     }
     assert captured.err == ""
 

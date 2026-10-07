@@ -20,7 +20,7 @@ uvx gtmctl --help
 Pin a release when reproducibility matters:
 
 ```bash
-uvx --from 'ga4datactl==0.5.1' ga4datactl --version
+uvx --from 'ga4datactl==0.6.0' ga4datactl --version
 ```
 
 ## Install persistently

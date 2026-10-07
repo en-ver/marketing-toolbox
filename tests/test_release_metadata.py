@@ -232,20 +232,20 @@ def test_release_workflow_stages_the_right_artifacts_per_mode(tmp_path: Path) ->
     assert stage["env"]["PUBLISH_TARGET"] == "${{ inputs.publish_target }}"
     stage_script = cast(str, stage["run"])
     artifacts = {
-        "marketing_toolbox-0.5.1-py3-none-any.whl",
-        "marketing_toolbox-0.5.1.tar.gz",
-        "ga4datactl-0.5.1-py3-none-any.whl",
-        "ga4datactl-0.5.1.tar.gz",
-        "ga4adminctl-0.5.1-py3-none-any.whl",
-        "ga4adminctl-0.5.1.tar.gz",
-        "gtmctl-0.5.1-py3-none-any.whl",
-        "gtmctl-0.5.1.tar.gz",
+        "marketing_toolbox-0.6.0-py3-none-any.whl",
+        "marketing_toolbox-0.6.0.tar.gz",
+        "ga4datactl-0.6.0-py3-none-any.whl",
+        "ga4datactl-0.6.0.tar.gz",
+        "ga4adminctl-0.6.0-py3-none-any.whl",
+        "ga4adminctl-0.6.0.tar.gz",
+        "gtmctl-0.6.0-py3-none-any.whl",
+        "gtmctl-0.6.0.tar.gz",
     }
 
     for target, bootstrap in MANUAL_BOOTSTRAP_TARGETS.items():
         stem = str(bootstrap["artifact_stem"])
-        wheel = f"{stem}-0.5.1-py3-none-any.whl"
-        sdist = f"{stem}-0.5.1.tar.gz"
+        wheel = f"{stem}-0.6.0-py3-none-any.whl"
+        sdist = f"{stem}-0.6.0.tar.gz"
         manual_artifact_cases = {
             "valid-pair": ({wheel, sdist}, True),
             "missing-wheel": ({sdist}, False),
@@ -342,7 +342,7 @@ def test_release_workflow_validates_tag_versions_and_publishes_once() -> None:
     verify_script = cast(str, verify_tag["run"])
 
     valid = _run_workflow_script(
-        verify_script, cwd=ROOT, environment={"RELEASE_TAG": "v0.5.1"}
+        verify_script, cwd=ROOT, environment={"RELEASE_TAG": "v0.6.0"}
     )
     assert valid.returncode == 0, valid.stderr
     for tag in ("0.5.0", "v", "v0.2.0", "v0.5.2"):
