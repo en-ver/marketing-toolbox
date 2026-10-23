@@ -47,23 +47,35 @@ maintained audit mapping, not a second editorial changelog or website route.
 Update both together. Keep accepted JSON and original words as immutable
 historical witnesses, not alternative maintained notes.
 
-Start each release in a Markdown version section, newest first. Preserve the
+Start each release with a version-only H2 heading, newest first. Preserve the
 explicit version anchor and each stable, non-rendered `change-id` comment
 beside its bullet. These comments are internal identities, not public DOM
 anchors or runtime data. Keep plain Markdown without new rendering machinery.
-Show the date and its basis, a short non-enumerative summary, and relevant
-compatibility uncertainty. Do not infer publication dates or historical test
-success from tag dates or source assertions.
+Show a bare ISO date below each heading, then a short non-enumerative summary
+and relevant compatibility uncertainty. Keep all eight historical dates unchanged.
+After the package explanation, keep one global historical notice and one
+`Historical provenance` link to the maintained mapping. The notice states the
+reconstruction sources and unverified original notes, PyPI publication dates,
+and historical test results. It distinguishes tag dates from publication dates,
+retains the 0.3.0 tag's +03:00 offset basis, and explains the untagged 0.1.0
+initial-commit date and September 24 packaging interval. Keep release-specific
+caveats visible. For future releases, use verified date facts and retain their
+basis in provenance. Do not infer publication dates or historical test success
+from tag dates or source assertions.
 
-Put complete confirmed-breaking bullets before potential-breaking bullets in
-“Before upgrading.” Put remaining bullets in “Other changes,” when needed.
+Put complete confirmed-breaking bullets first, potential-breaking bullets
+second, and ordinary changes last. Keep inline `Breaking:` and
+`Potential breaking change:` labels where warranted. Do not add visible
+“Before upgrading” or “Other changes” headings.
 State the required action before the risk or changed behavior. Keep every
 user-facing fact, number, identifier, affected-tool meaning, warning, and limit
 visible. Do not repeat facts or actions in summaries or other bullets.
 Do not turn absence of an identified break into a compatibility guarantee.
 
-Within each set, order tool groups as shared, `ga4datactl`, `ga4adminctl`,
-`gtmctl`, then `marketing-toolbox` only. Omit empty sets and groups.
+Use H3 tool headings directly within each release. Within each priority band,
+order groups as shared, `ga4datactl`, `ga4adminctl`, `gtmctl`, then
+`marketing-toolbox` only. Omit empty groups. Repeat a tool heading only when
+needed to preserve priority across bands. Never repeat its bullets or actions.
 Explain lockstep membership once: a tool heading means that launcher and the
 umbrella implementation. Launchers do not have separate release histories.
 Show shared changes once. If only some launchers are affected, name them in
@@ -81,9 +93,13 @@ Release IDs, URLs, and body hashes. Map each record to its website section and
 adjacent stable comment. Record original/current order, wording and placement
 changes, and the disposition and reason for every audit-only field.
 Only original phrasing and audit metadata leave the reading flow, never user
-behavior or required actions. Link each release to its provenance section.
-Keep separate tag and verified Release links for tagged history. Add a Release
-URL only after confirming that the matching Release exists.
+behavior or required actions. Use the global provenance link instead of
+per-release provenance links. End each of the seven tagged historical sections
+with one link labelled only with its tag, pointing to its verified GitHub Release.
+Do not add separate tag-tree links. Keep 0.1.0 explicitly untagged, without a
+Release footer or invented tag or Release. Retain its initial-source-commit
+destination in provenance. Add a Release URL only after confirming that the
+matching Release exists.
 
 Historical website equivalence means factual and action equivalence, not exact
 wording, visible metadata, or Markdown bytes. Human semantic review must account
@@ -100,9 +116,11 @@ canonical human-oriented website section through a reviewed copy or one-off
 temporary projection. Preserve every user-facing fact, warning, action,
 uncertainty, and affected-tool meaning. Only heading depth, navigation, and
 meaning-preserving Markdown adaptation can differ. Include an appropriate
-source-controlled provenance link when evidence is separate. Audit fields do
-not become mandatory inline body labels. Review the proposed body before any
-separately authorized publication. Fetch and compare the body afterward.
+source-controlled provenance link when evidence is separate. Carry relevant
+global historical context into a standalone body through meaning-preserving
+navigation adaptation. This does not require a three-link website footer.
+Audit fields do not become mandatory inline body labels. Review the proposed
+body before any separately authorized publication. Fetch and compare the body afterward.
 If a Release already exists, read its tag identity and body first. Stop on an
 unexpected difference. Creation permission does not permit an existing-body edit.
 Do not add a permanent generator, parser, synchronization service, bundled

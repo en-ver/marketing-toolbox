@@ -12,6 +12,12 @@ Its website locator consists of the version anchor and the adjacent, non-rendere
 These comments are not public DOM anchors or runtime data.
 There are 40 accepted identities, with release counts 4, 4, 6, 5, 5, 6, 5, 5 in newest-first order.
 
+Current website tool groups use H3 headings directly below each release introduction, without separate upgrade or ordinary-change headings.
+Confirmed breaks precede potential breaks, then ordinary changes. Within each priority band, order is shared, Data, Admin, GTM, then umbrella-only.
+Adjacent bands for the same tool share one heading. A group recurs only when another tool intervenes to preserve priority.
+Occurrence numbers below count each H3 group of that name within its release. Bullet numbers count within that occurrence.
+The 0.5.1 Shared changes group therefore recurs after the Data and Admin warnings. No bullet or action repeats.
+
 Historical website equivalence means preservation of facts, actions, affected-tool meaning, breaking strength, and uncertainty.
 It does not mean identical wording or inline metadata.
 The seven published GitHub bodies remain byte-identical historical witnesses.
@@ -40,7 +46,10 @@ A `none` assessment stays audit-only: absence of an identified break is not a gu
 An absent action means that the accepted record did not provide a separate action, not that review proved no action necessary.
 Evidence links remain audit-only because they support reconstruction rather than upgrade decisions.
 Full tag objects, timestamps, commits, comparison boundaries, and Release body hashes are audit-only identity data.
-The website retains date bases, descriptive tag/Release links, relevant caveats, and one evidence link per rewritten release.
+The website shows bare dates and retains their bases in one complete page-wide historical notice.
+That notice has the single Historical provenance link. Each tagged section ends with one tag-labelled GitHub Release link.
+Tag-tree links and per-release evidence destinations remain here. The untagged 0.1.0 section has no footer link.
+Its former initial-source-commit footer destination remains in its accepted release metadata below.
 No user behavior or required action is relocated solely to audit.
 
 ## Reconstruction limits
@@ -73,7 +82,7 @@ E1A completed the 19 records for 0.6.0, 0.5.1, 0.5.0, and 0.4.0.
 E1B completes the remaining 21 records for 0.3.1, 0.3.0, 0.2.0, and 0.1.0.
 All eight sections and 40 records are mapped. This author-checked candidate still needs independent semantic and pre-publication review.
 Website links identify the existing release sections, not proof that these rewritten notes are deployed.
-The page's main-branch provenance links resolve to this candidate's explicit anchors. They do not establish that the new file exists on main yet.
+The page's global main-branch provenance link targets this candidate's maintained mapping file. It does not establish that the file exists on main yet.
 All eight date bases, section metadata, and seven Release ledger entries are retained.
 Each accepted record has a website locator, original/current order, and fact/action disposition for combined review.
 
@@ -132,13 +141,14 @@ The ledger body hash is for decoded UTF-8 body bytes, without newline normalizat
 
 ### Editorial mapping
 
-Dates and date bases remain visible. The page-wide retrospective notice replaces repeated per-release status labels.
+The bare date remains visible. Its tag basis is in the complete page-wide historical notice.
+The section has one tag-labelled Release footer, without a repeated provenance link.
 Both private-import and historical-runtime caveats remain visible below the upgrade bullets.
 
 ### Record 1: 0-6-0-gtm-identifiers
 
 Website locator: `release-0-6-0`, adjacent comment `<!-- change-id: 0-6-0-gtm-identifiers -->`.
-Original JSON position: 1. Accepted-page position: 3. Current website position: 3 (Before upgrading / gtmctl / bullet 1).
+Original JSON position: 1. Accepted-page position: 3. Current website position: 3 (H3 gtmctl / occurrence 1 / bullet 1).
 
 Placement: Retains accepted-page relative order within its tool and priority set. Category headings are removed.
 
@@ -182,7 +192,7 @@ Evidence destinations:
 ### Record 2: 0-6-0-gtm-responses
 
 Website locator: `release-0-6-0`, adjacent comment `<!-- change-id: 0-6-0-gtm-responses -->`.
-Original JSON position: 2. Accepted-page position: 4. Current website position: 4 (Before upgrading / gtmctl / bullet 2).
+Original JSON position: 2. Accepted-page position: 4. Current website position: 4 (H3 gtmctl / occurrence 1 / bullet 2).
 
 Placement: Retains accepted-page relative order within its tool and priority set. Category headings are removed.
 
@@ -226,7 +236,7 @@ Evidence destinations:
 ### Record 3: 0-6-0-admin-page-size
 
 Website locator: `release-0-6-0`, adjacent comment `<!-- change-id: 0-6-0-admin-page-size -->`.
-Original JSON position: 3. Accepted-page position: 2. Current website position: 2 (Before upgrading / ga4adminctl / bullet 1).
+Original JSON position: 3. Accepted-page position: 2. Current website position: 2 (H3 ga4adminctl / occurrence 1 / bullet 1).
 
 Placement: Retains accepted-page relative order within its tool and priority set. Category headings are removed.
 
@@ -270,7 +280,7 @@ Evidence destinations:
 ### Record 4: 0-6-0-data-nesting
 
 Website locator: `release-0-6-0`, adjacent comment `<!-- change-id: 0-6-0-data-nesting -->`.
-Original JSON position: 4. Accepted-page position: 1. Current website position: 1 (Before upgrading / ga4datactl / bullet 1).
+Original JSON position: 4. Accepted-page position: 1. Current website position: 1 (H3 ga4datactl / occurrence 1 / bullet 1).
 
 Placement: Retains accepted-page relative order within its tool and priority set. Category headings are removed.
 
@@ -368,13 +378,14 @@ The ledger body hash is for decoded UTF-8 body bytes, without newline normalizat
 
 ### Editorial mapping
 
-Dates and date bases remain visible. The page-wide retrospective notice replaces repeated per-release status labels.
-Incomplete review and uncertain custom-profile migration remain in the introduction. The diagnostic guarantee caveat remains before Other changes. The final Windows fixture/runtime caveat remains after the ordinary change.
+The bare date remains visible. Its tag basis is in the complete page-wide historical notice.
+The section has one tag-labelled Release footer, without a repeated provenance link.
+Incomplete review and uncertain custom-profile migration remain in the introduction. The diagnostic guarantee caveat remains after the potential-breaking bullets and before the ordinary Shared changes group. The final Windows fixture/runtime caveat remains after the ordinary change.
 
 ### Record 1: 0-5-1-oauth-lock
 
 Website locator: `release-0-5-1`, adjacent comment `<!-- change-id: 0-5-1-oauth-lock -->`.
-Original JSON position: 1. Accepted-page position: 1. Current website position: 1 (Before upgrading / Shared changes / bullet 1).
+Original JSON position: 1. Accepted-page position: 1. Current website position: 1 (H3 Shared changes / occurrence 1 / bullet 1).
 
 Placement: Retains accepted-page relative order within its tool and priority set. Category headings are removed.
 
@@ -420,7 +431,7 @@ Evidence destinations:
 ### Record 2: 0-5-1-oauth-replacement
 
 Website locator: `release-0-5-1`, adjacent comment `<!-- change-id: 0-5-1-oauth-replacement -->`.
-Original JSON position: 2. Accepted-page position: 2. Current website position: 4 (Other changes / Shared changes / bullet 1).
+Original JSON position: 2. Accepted-page position: 2. Current website position: 4 (H3 Shared changes / occurrence 2 / bullet 1).
 
 Placement: Moved after the potential-breaking bullets so upgrade risks come first.
 
@@ -465,7 +476,7 @@ Evidence destinations:
 ### Record 3: 0-5-1-data-diagnostics
 
 Website locator: `release-0-5-1`, adjacent comment `<!-- change-id: 0-5-1-data-diagnostics -->`.
-Original JSON position: 3. Accepted-page position: 3. Current website position: 2 (Before upgrading / ga4datactl / bullet 1).
+Original JSON position: 3. Accepted-page position: 3. Current website position: 2 (H3 ga4datactl / occurrence 1 / bullet 1).
 
 Placement: Moves ahead of the ordinary OAuth replacement record so potential breaks come first. Tool order remains Data before Admin.
 
@@ -509,7 +520,7 @@ Evidence destinations:
 ### Record 4: 0-5-1-admin-diagnostics
 
 Website locator: `release-0-5-1`, adjacent comment `<!-- change-id: 0-5-1-admin-diagnostics -->`.
-Original JSON position: 4. Accepted-page position: 4. Current website position: 3 (Before upgrading / ga4adminctl / bullet 1).
+Original JSON position: 4. Accepted-page position: 4. Current website position: 3 (H3 ga4adminctl / occurrence 1 / bullet 1).
 
 Placement: Moves ahead of the ordinary OAuth replacement record so potential breaks come first. Tool order remains Data before Admin.
 
@@ -605,13 +616,14 @@ The ledger body hash is for decoded UTF-8 body bytes, without newline normalizat
 
 ### Editorial mapping
 
-Dates and date bases remain visible. The page-wide retrospective notice replaces repeated per-release status labels.
+The bare date remains visible. Its tag basis is in the complete page-wide historical notice.
+The section has one tag-labelled Release footer, without a repeated provenance link.
 Both upstream-availability and internal-namespace caveats remain below the ordinary change.
 
 ### Record 1: 0-5-0-removed-commands
 
 Website locator: `release-0-5-0`, adjacent comment `<!-- change-id: 0-5-0-removed-commands -->`.
-Original JSON position: 1. Accepted-page position: 1. Current website position: 1 (Before upgrading / gtmctl / bullet 1).
+Original JSON position: 1. Accepted-page position: 1. Current website position: 1 (H3 gtmctl / occurrence 1 / bullet 1).
 
 Placement: Retains accepted-page relative order within its tool and priority set. Category headings are removed.
 
@@ -649,7 +661,7 @@ Evidence destinations:
 ### Record 2: 0-5-0-mutation-transport
 
 Website locator: `release-0-5-0`, adjacent comment `<!-- change-id: 0-5-0-mutation-transport -->`.
-Original JSON position: 2. Accepted-page position: 4. Current website position: 3 (Before upgrading / gtmctl / bullet 3).
+Original JSON position: 2. Accepted-page position: 4. Current website position: 3 (H3 gtmctl / occurrence 1 / bullet 3).
 
 Placement: Moves ahead of the ordinary help record so confirmed breaks come first. Relative order among these Fixed records is preserved.
 
@@ -693,7 +705,7 @@ Evidence destinations:
 ### Record 3: 0-5-0-mtls
 
 Website locator: `release-0-5-0`, adjacent comment `<!-- change-id: 0-5-0-mtls -->`.
-Original JSON position: 3. Accepted-page position: 2. Current website position: 2 (Before upgrading / gtmctl / bullet 2).
+Original JSON position: 3. Accepted-page position: 2. Current website position: 2 (H3 gtmctl / occurrence 1 / bullet 2).
 
 Placement: Retains accepted-page relative order within its tool and priority set. Category headings are removed.
 
@@ -731,7 +743,7 @@ Evidence destinations:
 ### Record 4: 0-5-0-selectors
 
 Website locator: `release-0-5-0`, adjacent comment `<!-- change-id: 0-5-0-selectors -->`.
-Original JSON position: 4. Accepted-page position: 5. Current website position: 4 (Before upgrading / gtmctl / bullet 4).
+Original JSON position: 4. Accepted-page position: 5. Current website position: 4 (H3 gtmctl / occurrence 1 / bullet 4).
 
 Placement: Moves ahead of the ordinary help record so confirmed breaks come first. Relative order among these Fixed records is preserved.
 
@@ -775,7 +787,7 @@ Evidence destinations:
 ### Record 5: 0-5-0-gtag-envelope
 
 Website locator: `release-0-5-0`, adjacent comment `<!-- change-id: 0-5-0-gtag-envelope -->`.
-Original JSON position: 5. Accepted-page position: 6. Current website position: 5 (Before upgrading / gtmctl / bullet 5).
+Original JSON position: 5. Accepted-page position: 6. Current website position: 5 (H3 gtmctl / occurrence 1 / bullet 5).
 
 Placement: Moves ahead of the ordinary help record so confirmed breaks come first. Relative order among these Fixed records is preserved.
 
@@ -813,9 +825,9 @@ Evidence destinations:
 ### Record 6: 0-5-0-version-warning
 
 Website locator: `release-0-5-0`, adjacent comment `<!-- change-id: 0-5-0-version-warning -->`.
-Original JSON position: 6. Accepted-page position: 3. Current website position: 6 (Other changes / gtmctl / bullet 1).
+Original JSON position: 6. Accepted-page position: 3. Current website position: 6 (H3 gtmctl / occurrence 1 / bullet 6).
 
-Placement: Moved to Other changes after all confirmed breaks.
+Placement: Follows all confirmed breaks in the same H3 gtmctl group. No bullet is repeated.
 
 Fact and action disposition: The ordinary-change bullet keeps the create-version help change, deletion of the source workspace, setting of the new base version, and the already-existing acknowledgement requirement. No separate action existed in the accepted record. The none assessment remains audit-only and is not a safety guarantee.
 
@@ -898,13 +910,14 @@ The ledger body hash is for decoded UTF-8 body bytes, without newline normalizat
 
 ### Editorial mapping
 
-Dates and date bases remain visible. The page-wide retrospective notice replaces repeated per-release status labels.
+The bare date remains visible. Its tag basis is in the complete page-wide historical notice.
+The section has one tag-labelled Release footer, without a repeated provenance link.
 The accepted caveat list is empty. No historical runtime or compatibility assurance is added.
 
 ### Record 1: 0-4-0-confirm-resource
 
 Website locator: `release-0-4-0`, adjacent comment `<!-- change-id: 0-4-0-confirm-resource -->`.
-Original JSON position: 1. Accepted-page position: 1. Current website position: 1 (Before upgrading / ga4adminctl / bullet 1).
+Original JSON position: 1. Accepted-page position: 1. Current website position: 1 (H3 ga4adminctl / occurrence 1 / bullet 1).
 
 Placement: Retains accepted-page relative order within its tool and priority set. Category headings are removed.
 
@@ -948,7 +961,7 @@ Evidence destinations:
 ### Record 2: 0-4-0-patch-bodies
 
 Website locator: `release-0-4-0`, adjacent comment `<!-- change-id: 0-4-0-patch-bodies -->`.
-Original JSON position: 2. Accepted-page position: 2. Current website position: 2 (Before upgrading / ga4adminctl / bullet 2).
+Original JSON position: 2. Accepted-page position: 2. Current website position: 2 (H3 ga4adminctl / occurrence 1 / bullet 2).
 
 Placement: Retains accepted-page relative order within its tool and priority set. Category headings are removed.
 
@@ -992,7 +1005,7 @@ Evidence destinations:
 ### Record 3: 0-4-0-firebase-filter
 
 Website locator: `release-0-4-0`, adjacent comment `<!-- change-id: 0-4-0-firebase-filter -->`.
-Original JSON position: 3. Accepted-page position: 3. Current website position: 3 (Before upgrading / ga4adminctl / bullet 3).
+Original JSON position: 3. Accepted-page position: 3. Current website position: 3 (H3 ga4adminctl / occurrence 1 / bullet 3).
 
 Placement: Retains accepted-page relative order within its tool and priority set. Category headings are removed.
 
@@ -1030,7 +1043,7 @@ Evidence destinations:
 ### Record 4: 0-4-0-secret-alias
 
 Website locator: `release-0-4-0`, adjacent comment `<!-- change-id: 0-4-0-secret-alias -->`.
-Original JSON position: 4. Accepted-page position: 4. Current website position: 4 (Before upgrading / ga4adminctl / bullet 4).
+Original JSON position: 4. Accepted-page position: 4. Current website position: 4 (H3 ga4adminctl / occurrence 1 / bullet 4).
 
 Placement: Retains accepted-page relative order within its tool and priority set. Category headings are removed.
 
@@ -1068,7 +1081,7 @@ Evidence destinations:
 ### Record 5: 0-4-0-uncertain-create
 
 Website locator: `release-0-4-0`, adjacent comment `<!-- change-id: 0-4-0-uncertain-create -->`.
-Original JSON position: 5. Accepted-page position: 5. Current website position: 5 (Before upgrading / ga4adminctl / bullet 5).
+Original JSON position: 5. Accepted-page position: 5. Current website position: 5 (H3 ga4adminctl / occurrence 1 / bullet 5).
 
 Placement: Retains accepted-page relative order within its tool and priority set. Category headings are removed.
 
@@ -1160,12 +1173,12 @@ The ledger body hash is for decoded UTF-8 body bytes, without newline normalizat
 
 ### Editorial mapping
 
-The date remains visible with its tag basis. Confirmed-breaking warnings precede ordinary Data and umbrella-only changes. The shared credential warning affects all four packages. The page-wide retrospective notice replaces repeated status labels.
+The bare date remains visible, with its tag basis in the page-wide historical notice. Confirmed-breaking warnings precede ordinary Data and umbrella-only changes. The shared credential warning affects all four packages. The complete page-wide historical notice carries the retrospective limits and date bases.
 
 ### Record 1: 0-3-1-audience-create
 
 Website locator: `release-0-3-1`, adjacent comment `<!-- change-id: 0-3-1-audience-create -->`.
-Original JSON position: 1. Accepted-page position: 2. Current website position: 2 (Before upgrading / ga4datactl).
+Original JSON position: 1. Accepted-page position: 2. Current website position: 2 (H3 ga4datactl / occurrence 1 / bullet 1).
 
 Placement: Retains accepted-page position. Category headings are removed.
 
@@ -1209,7 +1222,7 @@ Evidence destinations:
 ### Record 2: 0-3-1-report-bounds
 
 Website locator: `release-0-3-1`, adjacent comment `<!-- change-id: 0-3-1-report-bounds -->`.
-Original JSON position: 2. Accepted-page position: 3. Current website position: 3 (Before upgrading / ga4datactl).
+Original JSON position: 2. Accepted-page position: 3. Current website position: 3 (H3 ga4datactl / occurrence 1 / bullet 2).
 
 Placement: Retains accepted-page position. Category headings are removed.
 
@@ -1253,7 +1266,7 @@ Evidence destinations:
 ### Record 3: 0-3-1-request-discovery
 
 Website locator: `release-0-3-1`, adjacent comment `<!-- change-id: 0-3-1-request-discovery -->`.
-Original JSON position: 3. Accepted-page position: 4. Current website position: 4 (Other changes / ga4datactl).
+Original JSON position: 3. Accepted-page position: 4. Current website position: 4 (H3 ga4datactl / occurrence 1 / bullet 3).
 
 Placement: Retains accepted-page position. Category headings are removed.
 
@@ -1296,7 +1309,7 @@ Evidence destinations:
 ### Record 4: 0-3-1-empty-credentials
 
 Website locator: `release-0-3-1`, adjacent comment `<!-- change-id: 0-3-1-empty-credentials -->`.
-Original JSON position: 4. Accepted-page position: 1. Current website position: 1 (Before upgrading / Shared changes).
+Original JSON position: 4. Accepted-page position: 1. Current website position: 1 (H3 Shared changes / occurrence 1 / bullet 1).
 
 Placement: Retains accepted-page position. Category headings are removed.
 
@@ -1342,7 +1355,7 @@ Evidence destinations:
 ### Record 5: 0-3-1-archive-exclusions
 
 Website locator: `release-0-3-1`, adjacent comment `<!-- change-id: 0-3-1-archive-exclusions -->`.
-Original JSON position: 5. Accepted-page position: 5. Current website position: 5 (Other changes / marketing-toolbox).
+Original JSON position: 5. Accepted-page position: 5. Current website position: 5 (H3 marketing-toolbox / occurrence 1 / bullet 1).
 
 Placement: Retains accepted-page position. Category headings are removed.
 
@@ -1428,12 +1441,12 @@ The ledger body hash is for decoded UTF-8 body bytes, without newline normalizat
 
 ### Editorial mapping
 
-The date remains September 30 in the recorded +03:00 offset. The qualified no-break assessment, Hugo attribution, exclusion of later VitePress changes, and unverified site publication remain visible. The page-wide retrospective notice replaces repeated status labels.
+The bare date remains September 30. The page-wide historical notice retains the recorded +03:00 offset basis. The qualified no-break assessment, Hugo attribution, exclusion of later VitePress changes, and unverified site publication remain visible. The complete page-wide historical notice carries the retrospective limits and date bases.
 
 ### Record 1: 0-3-0-help
 
 Website locator: `release-0-3-0`, adjacent comment `<!-- change-id: 0-3-0-help -->`.
-Original JSON position: 1. Accepted-page position: 2. Current website position: 2 (Shared changes).
+Original JSON position: 1. Accepted-page position: 2. Current website position: 2 (H3 Shared changes / occurrence 1 / bullet 2).
 
 Placement: Retains accepted-page position. Category headings are removed.
 
@@ -1478,7 +1491,7 @@ Evidence destinations:
 ### Record 2: 0-3-0-gtm-planning-help
 
 Website locator: `release-0-3-0`, adjacent comment `<!-- change-id: 0-3-0-gtm-planning-help -->`.
-Original JSON position: 2. Accepted-page position: 5. Current website position: 5 (gtmctl).
+Original JSON position: 2. Accepted-page position: 5. Current website position: 5 (H3 gtmctl / occurrence 1 / bullet 1).
 
 Placement: Retains accepted-page position. Category headings are removed.
 
@@ -1515,7 +1528,7 @@ Evidence destinations:
 ### Record 3: 0-3-0-data-schema
 
 Website locator: `release-0-3-0`, adjacent comment `<!-- change-id: 0-3-0-data-schema -->`.
-Original JSON position: 3. Accepted-page position: 3. Current website position: 3 (ga4datactl).
+Original JSON position: 3. Accepted-page position: 3. Current website position: 3 (H3 ga4datactl / occurrence 1 / bullet 1).
 
 Placement: Retains accepted-page position. Category headings are removed.
 
@@ -1558,7 +1571,7 @@ Evidence destinations:
 ### Record 4: 0-3-0-admin-schema
 
 Website locator: `release-0-3-0`, adjacent comment `<!-- change-id: 0-3-0-admin-schema -->`.
-Original JSON position: 4. Accepted-page position: 4. Current website position: 4 (ga4adminctl).
+Original JSON position: 4. Accepted-page position: 4. Current website position: 4 (H3 ga4adminctl / occurrence 1 / bullet 1).
 
 Placement: Retains accepted-page position. Category headings are removed.
 
@@ -1601,7 +1614,7 @@ Evidence destinations:
 ### Record 5: 0-3-0-guides
 
 Website locator: `release-0-3-0`, adjacent comment `<!-- change-id: 0-3-0-guides -->`.
-Original JSON position: 5. Accepted-page position: 1. Current website position: 1 (Shared changes).
+Original JSON position: 5. Accepted-page position: 1. Current website position: 1 (H3 Shared changes / occurrence 1 / bullet 1).
 
 Placement: Retains accepted-page position. Category headings are removed.
 
@@ -1646,7 +1659,7 @@ Evidence destinations:
 ### Record 6: 0-3-0-source-archive
 
 Website locator: `release-0-3-0`, adjacent comment `<!-- change-id: 0-3-0-source-archive -->`.
-Original JSON position: 6. Accepted-page position: 6. Current website position: 6 (marketing-toolbox).
+Original JSON position: 6. Accepted-page position: 6. Current website position: 6 (H3 marketing-toolbox / occurrence 1 / bullet 1).
 
 Placement: Retains accepted-page position. Category headings are removed.
 
@@ -1732,12 +1745,12 @@ The ledger body hash is for decoded UTF-8 body bytes, without newline normalizat
 
 ### Editorial mapping
 
-The date remains visible with its tag basis. The confirmed exit-code warning precedes the potential credential-identity warning and ordinary OAuth additions. Retrospective OAuth/ADC attribution, the 0.1.0 feature manifest, and subsequent 0.2.0 bump remain visible.
+The bare date remains visible, with its tag basis in the page-wide historical notice. The confirmed exit-code warning precedes the potential credential-identity warning and ordinary OAuth additions. Retrospective OAuth/ADC attribution, the 0.1.0 feature manifest, and subsequent 0.2.0 bump remain visible.
 
 ### Record 1: 0-2-0-auth
 
 Website locator: `release-0-2-0`, adjacent comment `<!-- change-id: 0-2-0-auth -->`.
-Original JSON position: 1. Accepted-page position: 1. Current website position: 3 (Other changes / Shared changes).
+Original JSON position: 1. Accepted-page position: 1. Current website position: 3 (H3 Shared changes / occurrence 1 / bullet 3).
 
 Placement: Moves ahead of or behind upgrade warnings so confirmed breaks precede potential breaks and ordinary additions. Relative order within each priority/tool group is preserved.
 
@@ -1782,7 +1795,7 @@ Evidence destinations:
 ### Record 2: 0-2-0-native-setup
 
 Website locator: `release-0-2-0`, adjacent comment `<!-- change-id: 0-2-0-native-setup -->`.
-Original JSON position: 2. Accepted-page position: 2. Current website position: 4 (Other changes / Shared changes).
+Original JSON position: 2. Accepted-page position: 2. Current website position: 4 (H3 Shared changes / occurrence 1 / bullet 4).
 
 Placement: Moves ahead of or behind upgrade warnings so confirmed breaks precede potential breaks and ordinary additions. Relative order within each priority/tool group is preserved.
 
@@ -1827,7 +1840,7 @@ Evidence destinations:
 ### Record 3: 0-2-0-auth-lifecycle
 
 Website locator: `release-0-2-0`, adjacent comment `<!-- change-id: 0-2-0-auth-lifecycle -->`.
-Original JSON position: 3. Accepted-page position: 3. Current website position: 5 (Other changes / Shared changes).
+Original JSON position: 3. Accepted-page position: 3. Current website position: 5 (H3 Shared changes / occurrence 1 / bullet 5).
 
 Placement: Moves ahead of or behind upgrade warnings so confirmed breaks precede potential breaks and ordinary additions. Relative order within each priority/tool group is preserved.
 
@@ -1866,7 +1879,7 @@ Evidence destinations:
 ### Record 4: 0-2-0-credential-fallback
 
 Website locator: `release-0-2-0`, adjacent comment `<!-- change-id: 0-2-0-credential-fallback -->`.
-Original JSON position: 4. Accepted-page position: 4. Current website position: 2 (Before upgrading / Shared changes).
+Original JSON position: 4. Accepted-page position: 4. Current website position: 2 (H3 Shared changes / occurrence 1 / bullet 2).
 
 Placement: Moves ahead of or behind upgrade warnings so confirmed breaks precede potential breaks and ordinary additions. Relative order within each priority/tool group is preserved.
 
@@ -1912,7 +1925,7 @@ Evidence destinations:
 ### Record 5: 0-2-0-process-exit
 
 Website locator: `release-0-2-0`, adjacent comment `<!-- change-id: 0-2-0-process-exit -->`.
-Original JSON position: 5. Accepted-page position: 5. Current website position: 1 (Before upgrading / Shared changes).
+Original JSON position: 5. Accepted-page position: 5. Current website position: 1 (H3 Shared changes / occurrence 1 / bullet 1).
 
 Placement: Moves ahead of or behind upgrade warnings so confirmed breaks precede potential breaks and ordinary additions. Relative order within each priority/tool group is preserved.
 
@@ -1991,12 +2004,13 @@ No tag or GitHub Release exists for this untagged interval.
 
 ### Editorial mapping
 
-The initial-source date remains September 23, not publication. Untagged status, September 24 packaging through the pre-OAuth boundary, original marketing-tools name, later package vocabulary, and 0.2.0 OAuth/ADC attribution remain visible. No tag or Release is invented. The obsolete filtering explanation remains only in accepted metadata as historical wording. Confirmed-breaking naming warnings precede ordinary initial functionality.
+The bare initial-source date remains September 23. The page-wide historical notice explains that it is not publication.
+The former initial-source-commit footer destination remains in the accepted metadata above. This section has no footer link. Untagged status, September 24 packaging through the pre-OAuth boundary, original marketing-tools name, later package vocabulary, and 0.2.0 OAuth/ADC attribution remain visible. No tag or Release is invented. The obsolete filtering explanation remains only in accepted metadata as historical wording. Confirmed-breaking naming warnings precede ordinary initial functionality.
 
 ### Record 1: 0-1-0-commands
 
 Website locator: `release-0-1-0`, adjacent comment `<!-- change-id: 0-1-0-commands -->`.
-Original JSON position: 1. Accepted-page position: 1. Current website position: 3 (Other changes / Shared changes).
+Original JSON position: 1. Accepted-page position: 1. Current website position: 3 (H3 Shared changes / occurrence 1 / bullet 3).
 
 Placement: Moves ahead of or behind upgrade warnings so confirmed breaks precede potential breaks and ordinary additions. Relative order within each priority/tool group is preserved.
 
@@ -2035,7 +2049,7 @@ Evidence destinations:
 ### Record 2: 0-1-0-output
 
 Website locator: `release-0-1-0`, adjacent comment `<!-- change-id: 0-1-0-output -->`.
-Original JSON position: 2. Accepted-page position: 2. Current website position: 4 (Other changes / Shared changes).
+Original JSON position: 2. Accepted-page position: 2. Current website position: 4 (H3 Shared changes / occurrence 1 / bullet 4).
 
 Placement: Moves ahead of or behind upgrade warnings so confirmed breaks precede potential breaks and ordinary additions. Relative order within each priority/tool group is preserved.
 
@@ -2080,7 +2094,7 @@ Evidence destinations:
 ### Record 3: 0-1-0-service-accounts
 
 Website locator: `release-0-1-0`, adjacent comment `<!-- change-id: 0-1-0-service-accounts -->`.
-Original JSON position: 3. Accepted-page position: 3. Current website position: 5 (Other changes / Shared changes).
+Original JSON position: 3. Accepted-page position: 3. Current website position: 5 (H3 Shared changes / occurrence 1 / bullet 5).
 
 Placement: Moves ahead of or behind upgrade warnings so confirmed breaks precede potential breaks and ordinary additions. Relative order within each priority/tool group is preserved.
 
@@ -2119,7 +2133,7 @@ Evidence destinations:
 ### Record 4: 0-1-0-package-rename
 
 Website locator: `release-0-1-0`, adjacent comment `<!-- change-id: 0-1-0-package-rename -->`.
-Original JSON position: 4. Accepted-page position: 4. Current website position: 1 (Before upgrading / Shared changes).
+Original JSON position: 4. Accepted-page position: 4. Current website position: 1 (H3 Shared changes / occurrence 1 / bullet 1).
 
 Placement: Moves ahead of or behind upgrade warnings so confirmed breaks precede potential breaks and ordinary additions. Relative order within each priority/tool group is preserved.
 
@@ -2165,7 +2179,7 @@ Evidence destinations:
 ### Record 5: 0-1-0-schema-identity
 
 Website locator: `release-0-1-0`, adjacent comment `<!-- change-id: 0-1-0-schema-identity -->`.
-Original JSON position: 5. Accepted-page position: 5. Current website position: 2 (Before upgrading / Shared changes).
+Original JSON position: 5. Accepted-page position: 5. Current website position: 2 (H3 Shared changes / occurrence 1 / bullet 2).
 
 Placement: Moves ahead of or behind upgrade warnings so confirmed breaks precede potential breaks and ordinary additions. Relative order within each priority/tool group is preserved.
 
