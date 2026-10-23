@@ -23,6 +23,39 @@ const releaseWitnesses = [
   'ga4datactl provides GA4 reports and audience exports'
 ];
 const themeResults = [];
+async function waitForRouteContent(page, route) {
+  const headings = route === '/changelog/'
+    ? releaseAnchors.map(id => `h2[id="${id}"]`)
+    : baseline.find(item => item.route === route).headings.map(h => `h${h.level}[id="${h.id}"]`);
+  try {
+    // Client navigation can update the URL before Vue replaces the old article.
+    // networkidle describes network activity, not destination-content readiness.
+    await page.waitForFunction(({url, headings}) => location.href === url &&
+      headings.every(selector => document.querySelectorAll(`.vp-doc ${selector}`).length === 1),
+    {url: origin+route, headings}, {timeout:15000});
+  } catch (error) {
+    console.error('route-content timeout', JSON.stringify({expectedRoute:route, url:page.url()}));
+    // Only inspect the served public docs. Keep diagnostics bounded and retain the
+    // original error even if the page is no longer responsive.
+    if (new URL(page.url()).origin === origin) {
+      try {
+        const snapshot = await page.locator('html').evaluate((_, servedOrigin) => location.origin === servedOrigin ? ({
+          url:location.href, title:document.title.slice(0,256),
+          headings:[...document.querySelectorAll('.vp-doc h1, .vp-doc h2')].slice(0,40)
+            .map(node => ({id:node.id.slice(0,128), text:node.textContent.slice(0,256)}))
+        }) : null, origin, {timeout:3000, signal:AbortSignal.timeout(3000)});
+        console.error('route-content failure DOM', JSON.stringify(snapshot));
+        if (!snapshot || new URL(page.url()).origin !== origin) throw new Error('left served docs');
+        // Reuse an allowlisted output slot; on failure this is a diagnostic,
+        // NOT a successful theme/auth screenshot (identified explicitly in log).
+        const path = `/evidence/${route === '/changelog/' ? 'changelog' : 'auth'}-${page.viewportSize().width}${route === '/changelog/' ? '-light' : ''}.png`;
+        await page.screenshot({path, timeout:3000});
+        console.error('route-content failure screenshot', path);
+      } catch (diagnosticError) { console.error('route-content diagnostic failed', String(diagnosticError)); }
+    }
+    throw error;
+  }
+}
 async function assertNativeReleases(page) {
   assert.equal(await page.locator('.vp-doc h2').count(), 8);
   for (const [index, id] of releaseAnchors.entries()) {
@@ -102,14 +135,15 @@ const fragments = ['/auth/#credential-precedence','/tools/#output-and-requests',
       }
       const side = page.locator('.VPSidebar');
       await side.locator('a[href="/tools/"]').first().click();
-      await page.waitForURL(origin+'/tools/');
-      await page.waitForLoadState('networkidle');
+      await waitForRouteContent(page, '/tools/');
       if (viewport.width<600) await page.locator('.VPLocalNav button.menu').click();
       await side.locator('a[href="/auth/"]').first().click();
-      await page.waitForURL(origin+'/auth/');
+      await waitForRouteContent(page, '/auth/');
       await page.goBack({waitUntil:'networkidle'});
+      await waitForRouteContent(page, '/tools/');
       assert.equal(new URL(page.url()).pathname,'/tools/');
       await page.goForward({waitUntil:'networkidle'});
+      await waitForRouteContent(page, '/auth/');
       assert.equal(new URL(page.url()).pathname,'/auth/');
       await page.screenshot({path:`/evidence/auth-${viewport.width}.png`,fullPage:true});
     }
@@ -130,8 +164,7 @@ const fragments = ['/auth/#credential-precedence','/tools/#output-and-requests',
       await page.goto(origin+'/auth/',{waitUntil:'networkidle'});
       if (viewport.width<600) await page.locator('.VPLocalNav button.menu').click();
       await page.locator('.VPSidebar a[href="/changelog/"]').first().click();
-      await page.waitForURL(origin+'/changelog/');
-      await page.waitForLoadState('networkidle');
+      await waitForRouteContent(page, '/changelog/');
       await assertNativeReleases(page);
       assert.equal(await page.locator('main').count(),1);
       assert.equal(await page.locator('h1').count(),1);
@@ -147,6 +180,7 @@ const fragments = ['/auth/#credential-precedence','/tools/#output-and-requests',
       assert(await skip.evaluate(node=>node===document.activeElement));
       const skipTarget = await skip.getAttribute('href');
       await skip.press('Enter');
+      await page.waitForURL(origin+'/changelog/'+skipTarget);
       assert.equal(new URL(page.url()).hash,skipTarget);
       assert.equal(await page.locator(skipTarget).count(),1);
       if (viewport.width>=600) {
