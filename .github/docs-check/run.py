@@ -44,6 +44,15 @@ RUN = Path(os.environ["RUNNER_TEMP"]) / "docs-validation"
 EVIDENCE = RUN / "evidence"
 ENV = {"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8"}
 CHANGELOG_INPUTS = ("docs/user/changelog/index.md",)
+BROWSER_OUTPUTS = {
+    "browser-result.json",
+    "auth-1440.png",
+    "auth-390.png",
+    "changelog-1440-light.png",
+    "changelog-1440-dark.png",
+    "changelog-390-light.png",
+    "changelog-390-dark.png",
+}
 containers: list[str] = []
 mounts: list[Path] = []
 
@@ -197,7 +206,11 @@ def execute(cid: str, name: str) -> None:
 
 
 def copy_site(
-    trusted_root: Path, relative_source: Path, destination: Path
+    trusted_root: Path,
+    relative_source: Path,
+    destination: Path,
+    *,
+    allowed_files: set[str] | None = None,
 ) -> dict[str, str]:
     """Walk from a trusted mount root without following any output-path symlink."""
     assert not relative_source.is_absolute() and ".." not in relative_source.parts
@@ -212,9 +225,13 @@ def copy_site(
             entries += 1
             assert entries <= 8192
             rel = relative / name
+            if allowed_files is not None:
+                assert str(rel) in allowed_files
             assert len(str(rel)) <= 512
             assert not name.startswith(".") or str(rel) == ".nojekyll"
             info = os.stat(name, dir_fd=fd, follow_symlinks=False)
+            if allowed_files is not None:
+                assert stat.S_ISREG(info.st_mode)
             out = destination / rel
             if stat.S_ISDIR(info.st_mode):
                 out.mkdir()
@@ -271,6 +288,58 @@ def copy_site(
         os.close(fd)
     destination.chmod(0o555)
     return hashes
+
+
+def retain_browser_evidence(browser: str, server: str, source: Path) -> None:
+    """Stop producers before bounded, no-follow reads into trusted artifacts."""
+    for cid in (browser, server):
+        command("docker", "stop", cid)
+        state = json.loads(command("docker", "inspect", cid))[0]["State"]
+        assert not state["Running"]
+    for cid, name in ((browser, "browser"), (server, "server")):
+        # Capture both Docker log streams as inert bytes, capped at 1 MiB.
+        with subprocess.Popen(
+            ["docker", "logs", cid],
+            env=ENV,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+        ) as process:
+            try:
+                assert process.stdout is not None
+                data = process.stdout.read(1024**2)
+            finally:
+                process.kill()
+                process.wait(timeout=30)
+        (EVIDENCE / f"{name}.log").write_bytes(data)
+    command("sudo", "rm", "-f", str(source / "sandbox-ok"))
+    hashes = copy_site(
+        source, Path(), EVIDENCE / "browser", allowed_files=BROWSER_OUTPUTS
+    )
+    save("browser-sha256.json", hashes)
+
+
+def run_browser(
+    browser: str, server: str, browser_evidence: Path, sentinel: str
+) -> None:
+    try:
+        command("docker", "start", browser)
+        for _ in range(120):
+            if "sandbox-probe-ready" in command("docker", "logs", browser):
+                break
+            assert json.loads(command("docker", "inspect", browser))[0]["State"][
+                "Running"
+            ]
+            time.sleep(1)
+        else:
+            raise AssertionError("browser probe timeout")
+        sandbox_probe(browser, sentinel)
+        command("sudo", "touch", str(browser_evidence / "sandbox-ok"))
+        code = command("docker", "wait", browser).strip()
+    finally:
+        retain_browser_evidence(browser, server, browser_evidence)
+    assert code == "0", ("browser", code)
+    browser_hashes = json.loads((EVIDENCE / "browser-sha256.json").read_text())
+    assert set(browser_hashes) == BROWSER_OUTPUTS
 
 
 def validate_site_paths(hashes: dict[str, str], expected_html: set[str]) -> None:
@@ -612,32 +681,7 @@ def main() -> None:
         "container:" + server,
         True,
     )
-    command("docker", "start", browser)
-    for _ in range(120):
-        if "sandbox-probe-ready" in command("docker", "logs", browser):
-            break
-        assert json.loads(command("docker", "inspect", browser))[0]["State"]["Running"]
-        time.sleep(1)
-    else:
-        raise AssertionError("browser probe timeout")
-    sandbox_probe(browser, sentinel)
-    command("sudo", "touch", str(browser_evidence / "sandbox-ok"))
-    assert command("docker", "wait", browser).strip() == "0"
-    (EVIDENCE / "browser.log").write_text(command("docker", "logs", browser))
-    command("docker", "stop", server)
-    (EVIDENCE / "server.log").write_text(command("docker", "logs", server))
-    command("sudo", "rm", str(browser_evidence / "sandbox-ok"))
-    browser_hashes = copy_site(browser_evidence, Path(), EVIDENCE / "browser")
-    assert set(browser_hashes) == {
-        "browser-result.json",
-        "auth-1440.png",
-        "auth-390.png",
-        "changelog-1440-light.png",
-        "changelog-1440-dark.png",
-        "changelog-390-light.png",
-        "changelog-390-dark.png",
-    }
-    save("browser-sha256.json", browser_hashes)
+    run_browser(browser, server, browser_evidence, sentinel)
     # Only the inspected ordinary-file copy enters artifact handling.
     destination = ROOT / "docs/user/.vitepress/dist"
     shutil.copytree(site, destination)

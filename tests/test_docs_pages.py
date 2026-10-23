@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import hashlib
 import importlib.util
+import io
 import json
 import os
 import re
 import subprocess
 import sys
 from pathlib import Path
+from typing import Self
 
 import pytest
 import yaml
@@ -359,6 +361,109 @@ def test_host_npm_inputs_require_bounded_ordinary_unchanged_files(
         else:
             target.unlink()
         target.write_bytes(original)
+
+
+@pytest.mark.parametrize("early_failure", [False, True])
+def test_browser_failure_retains_bounded_diagnostics_before_raising(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, early_failure: bool
+) -> None:
+    monkeypatch.setenv("RUNNER_TEMP", str(tmp_path))
+    spec = importlib.util.spec_from_file_location("docs_check", HELPERS / "run.py")
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    module.EVIDENCE.mkdir(parents=True)
+    source = tmp_path / "browser-source"
+    source.mkdir()
+    (source / "auth-1440.png").write_bytes(b"partial screenshot")
+    calls = []
+
+    def command(*args: str) -> str:
+        calls.append(args)
+        if args[:2] == ("docker", "logs"):
+            return "sandbox-probe-ready"
+        if args[:2] == ("docker", "inspect"):
+            return '[{"State":{"Running":false}}]'
+        if args[:2] == ("docker", "wait"):
+            return "1"
+        return ""
+
+    class Logs:
+        def __init__(self, args: list[str], **kwargs: object) -> None:
+            assert kwargs["stderr"] == subprocess.STDOUT
+            assert ("docker", "stop", args[-1]) in calls
+            self.stdout = io.BytesIO(b"assertion stderr\n" + b"x" * 1024**2)
+
+        def __enter__(self) -> Self:
+            return self
+
+        def __exit__(self, *args: object) -> None:
+            self.stdout.close()
+
+        def kill(self) -> None:
+            pass
+
+        def wait(self, timeout: int) -> None:
+            assert timeout == 30
+
+    def probe(*args: str) -> None:
+        if early_failure:
+            raise AssertionError("probe failure")
+
+    monkeypatch.setattr(module, "command", command)
+    monkeypatch.setattr(module, "sandbox_probe", probe)
+    monkeypatch.setattr(module.subprocess, "Popen", Logs)
+    with pytest.raises(
+        AssertionError, match="probe failure" if early_failure else "browser"
+    ):
+        module.run_browser("browser-id", "server-id", source, "sentinel")
+    for name in ("browser.log", "server.log"):
+        data = (module.EVIDENCE / name).read_bytes()
+        assert data.startswith(b"assertion stderr\n") and len(data) == 1024**2
+    assert (
+        module.EVIDENCE / "browser/auth-1440.png"
+    ).read_bytes() == b"partial screenshot"
+    assert set(json.loads((module.EVIDENCE / "browser-sha256.json").read_text())) == {
+        "auth-1440.png"
+    }
+    assert not (module.EVIDENCE / "success.json").exists()
+
+
+@pytest.mark.parametrize(
+    "unsafe", ["symlink", "hardlink", "fifo", "directory", "oversize", "unknown"]
+)
+def test_browser_output_copy_rejects_unsafe_files(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, unsafe: str
+) -> None:
+    monkeypatch.setenv("RUNNER_TEMP", str(tmp_path))
+    spec = importlib.util.spec_from_file_location("docs_check", HELPERS / "run.py")
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    source = tmp_path / "source"
+    source.mkdir()
+    outside = tmp_path / "private"
+    outside.write_bytes(b"must not enter artifact")
+    target = source / "browser-result.json"
+    if unsafe == "symlink":
+        target.symlink_to(outside)
+    elif unsafe == "hardlink":
+        os.link(outside, target)
+    elif unsafe == "fifo":
+        os.mkfifo(target)
+    elif unsafe == "directory":
+        target.mkdir()
+    elif unsafe == "oversize":
+        with target.open("wb") as stream:
+            stream.truncate(8 * 1024**2 + 1)
+    else:
+        (source / "private.json").write_bytes(outside.read_bytes())
+    destination = tmp_path / "artifact"
+    with pytest.raises(AssertionError):
+        module.copy_site(
+            source, Path(), destination, allowed_files=module.BROWSER_OUTPUTS
+        )
+    assert not list(destination.iterdir())
 
 
 def test_output_copy_rejects_links_and_preserves_bytes(
