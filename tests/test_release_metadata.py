@@ -123,6 +123,29 @@ def test_core_sdist_excludes_release_output_directories(tmp_path: Path) -> None:
             destination.parent.mkdir(parents=True, exist_ok=True)
             destination.write_text("synthetic validation output\n")
 
+    site_files = (
+        "package.json",
+        "package-lock.json",
+        ".node-version",
+        "node_modules/tool/package.json",
+        "nested/node_modules/tool/file.js",
+        "docs/user/index.md",
+        "docs/user/.vitepress/config.mts",
+        "docs/user/.vitepress/cache/cache.json",
+        "docs/user/.vitepress/.temp/app.js",
+        "docs/user/.vitepress/dist/index.html",
+        ".github/docs-check/run.py",
+        ".github/workflows/docs-pages.yml",
+        "tests/data/docs-pages-baseline.yaml",
+        "tests/test_docs_pages.py",
+        "client_secret.json",
+        "nested/credentials.json",
+    )
+    for relative_path in site_files:
+        destination = project / relative_path
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_text("synthetic site or credential data\n")
+
     artifacts = tmp_path / "artifacts"
     result = subprocess.run(
         [
@@ -152,6 +175,7 @@ def test_core_sdist_excludes_release_output_directories(tmp_path: Path) -> None:
             or path.split("/")[0].startswith(".release-build-")
             for path in files
         ), files
+        assert not set(site_files) & files
         for relative_path in required_files:
             assert relative_path in files
             member = archive.extractfile(f"marketing_toolbox-0.6.0/{relative_path}")

@@ -1,6 +1,5 @@
 ---
 title: Authentication
-weight: 20
 ---
 
 # Authentication
@@ -35,7 +34,7 @@ The legal native OAuth tiers and their scopes are:
 | `gtmctl` | `publish` | `https://www.googleapis.com/auth/tagmanager.publish` |
 | `gtmctl` | `delete` | `https://www.googleapis.com/auth/tagmanager.delete.containers` |
 
-Use `<tool> auth --help` to see the installed tool's legal `--access` values. Choose a tier from the operation mapping in the relevant [tool guide](../tools/_index.md), not from a simple read/write/delete assumption.
+Use `<tool> auth --help` to see the installed tool's legal `--access` values. Choose a tier from the operation mapping in the relevant [tool guide](/tools/), not from a simple read/write/delete assumption.
 
 ## Native OAuth storage
 
@@ -76,4 +75,4 @@ and the command reports that local cleanup needs review. It is not a tier-local
 remote logout. Alternatively, revoke the grant in Google Account permissions and
 run `auth forget` locally.
 
-For an interactive login, follow [Desktop OAuth setup](desktop-oauth.md).
+For an interactive login, follow [Desktop OAuth setup](/auth/desktop-oauth/).

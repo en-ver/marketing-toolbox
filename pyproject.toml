@@ -33,7 +33,22 @@ gtmctl = "gtmctl.cli:main"
 packages = ["src/ga4datactl", "src/ga4adminctl", "src/gtmctl", "src/marketing_common"]
 
 [tool.hatch.build.targets.sdist]
-exclude = ["/docs/user", "/go.mod", "/go.sum", "/hugo.toml", "/dist", "/dist/**", "/.release-build-*", "/.release-build-*/**"]
+exclude = [
+    "/docs/user",
+    "/package.json",
+    "/package-lock.json",
+    "/.node-version",
+    "**/node_modules",
+    "**/node_modules/**",
+    "/.github/docs-check",
+    "/.github/workflows/docs-pages.yml",
+    "/tests/data/docs-pages-baseline.yaml",
+    "/tests/test_docs_pages.py",
+    "/dist",
+    "/dist/**",
+    "/.release-build-*",
+    "/.release-build-*/**",
+]
 
 [tool.mypy]
 python_version = "3.11"

@@ -1,6 +1,5 @@
 ---
 title: Desktop OAuth setup
-weight: 10
 ---
 
 # Desktop OAuth setup
@@ -16,7 +15,7 @@ Use a Google Cloud **Desktop app** client for native OAuth. The CLI owns its loo
    - [Tag Manager API](https://console.cloud.google.com/apis/library/tagmanager.googleapis.com) for `gtmctl`.
 3. In [Google Auth Platform](https://console.developers.google.com/auth/overview), complete **Branding** with an app name, support email, and contact email.
 4. Under **Audience**, choose **External** for a personal project or users outside a Google Workspace organization. Choose **Internal** only for eligible organization-only users. For an External app in **Testing**, add each signing-in account as a test user.
-5. Under **Data Access**, add only the scope or scopes for the access tiers you will use. The [authentication guide](./_index.md#credential-precedence) lists the exact tiers and scopes.
+5. Under **Data Access**, add only the scope or scopes for the access tiers you will use. The [authentication guide](/auth/#credential-precedence) lists the exact tiers and scopes.
 
 External Testing refresh tokens can expire after seven days. Personal testing does not require verification or publishing the app to Production.
 

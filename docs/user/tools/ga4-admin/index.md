@@ -1,6 +1,5 @@
 ---
 title: GA4 Admin
-weight: 20
 ---
 
 # GA4 Admin
@@ -87,4 +86,4 @@ Supported mutations require exactly one of `--dry-run` or `--apply`; dry runs do
 
 For those creates and provisioning, only a Google status of 500, 503, or 504 is reported as uncertain completion: the CLI exits 1 with category `unexpected`, includes the known `googleStatus`, and emits a sanitized instruction to inspect current state before retrying. It does not expose the server error text. Other errors retain the normal diagnostic mapping.
 
-See [authentication](../auth/_index.md#credential-precedence) for the native OAuth tier-to-scope mapping and [tool behavior](_index.md#output-and-requests) for the shared request and output contract.
+See [authentication](/auth/#credential-precedence) for the native OAuth tier-to-scope mapping and [tool behavior](/tools/#output-and-requests) for the shared request and output contract.

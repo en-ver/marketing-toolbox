@@ -1,0 +1,211 @@
+{
+  "source_revision": "3850475b56cf18b54d32dfca642845819ef2a4a3",
+  "inventory_sha256": "68f7c6a920a06fe98b7082adb6eb54a861c6585bf1ebca30eb9805f209501ff1",
+  "pages": [
+    {
+      "route": "/",
+      "headings": [
+        {
+          "level": 1,
+          "id": "marketing-toolbox",
+          "text": "Marketing Toolbox"
+        },
+        {
+          "level": 2,
+          "id": "choose-a-command",
+          "text": "Choose a command"
+        }
+      ]
+    },
+    {
+      "route": "/install/",
+      "headings": [
+        {
+          "level": 1,
+          "id": "installation",
+          "text": "Installation"
+        },
+        {
+          "level": 2,
+          "id": "run-without-installing",
+          "text": "Run without installing"
+        },
+        {
+          "level": 2,
+          "id": "install-persistently",
+          "text": "Install persistently"
+        }
+      ]
+    },
+    {
+      "route": "/auth/",
+      "headings": [
+        {
+          "level": 1,
+          "id": "authentication",
+          "text": "Authentication"
+        },
+        {
+          "level": 2,
+          "id": "credential-precedence",
+          "text": "Credential precedence"
+        },
+        {
+          "level": 2,
+          "id": "native-oauth-storage",
+          "text": "Native OAuth storage"
+        },
+        {
+          "level": 2,
+          "id": "record-lifecycle",
+          "text": "Record lifecycle"
+        }
+      ]
+    },
+    {
+      "route": "/auth/desktop-oauth/",
+      "headings": [
+        {
+          "level": 1,
+          "id": "desktop-oauth-setup",
+          "text": "Desktop OAuth setup"
+        },
+        {
+          "level": 2,
+          "id": "configure-a-cloud-project",
+          "text": "Configure a Cloud project"
+        },
+        {
+          "level": 2,
+          "id": "create-and-protect-the-client-json",
+          "text": "Create and protect the client JSON"
+        },
+        {
+          "level": 2,
+          "id": "log-in",
+          "text": "Log in"
+        },
+        {
+          "level": 2,
+          "id": "deletion-and-revocation-are-different",
+          "text": "Deletion and revocation are different"
+        },
+        {
+          "level": 2,
+          "id": "ssh-or-another-remote-browser",
+          "text": "SSH or another remote browser"
+        }
+      ]
+    },
+    {
+      "route": "/tools/",
+      "headings": [
+        {
+          "level": 1,
+          "id": "tool-behavior",
+          "text": "Tool behavior"
+        },
+        {
+          "level": 2,
+          "id": "output-and-requests",
+          "text": "Output and requests"
+        },
+        {
+          "level": 2,
+          "id": "request-discovery-and-validation-boundaries",
+          "text": "Request discovery and validation boundaries"
+        },
+        {
+          "level": 2,
+          "id": "pagination",
+          "text": "Pagination"
+        },
+        {
+          "level": 2,
+          "id": "guides",
+          "text": "Guides"
+        }
+      ]
+    },
+    {
+      "route": "/tools/ga4-data/",
+      "headings": [
+        {
+          "level": 1,
+          "id": "ga4-data",
+          "text": "GA4 Data"
+        }
+      ]
+    },
+    {
+      "route": "/tools/ga4-admin/",
+      "headings": [
+        {
+          "level": 1,
+          "id": "ga4-admin",
+          "text": "GA4 Admin"
+        },
+        {
+          "level": 2,
+          "id": "patch-constraints",
+          "text": "Patch constraints"
+        },
+        {
+          "level": 2,
+          "id": "property-lists",
+          "text": "Property lists"
+        },
+        {
+          "level": 2,
+          "id": "destructive-admin-mutations",
+          "text": "Destructive Admin mutations"
+        },
+        {
+          "level": 2,
+          "id": "secret-handling",
+          "text": "Secret handling"
+        },
+        {
+          "level": 2,
+          "id": "mutation-outcomes",
+          "text": "Mutation outcomes"
+        }
+      ]
+    },
+    {
+      "route": "/tools/tag-manager/",
+      "headings": [
+        {
+          "level": 1,
+          "id": "tag-manager",
+          "text": "Tag Manager"
+        },
+        {
+          "level": 2,
+          "id": "native-oauth-tiers",
+          "text": "Native OAuth tiers"
+        },
+        {
+          "level": 2,
+          "id": "removed-container-commands",
+          "text": "Removed container commands"
+        },
+        {
+          "level": 2,
+          "id": "transport-and-mutation-failures",
+          "text": "Transport and mutation failures"
+        },
+        {
+          "level": 2,
+          "id": "selectors-identities-and-version-lifecycle",
+          "text": "Selectors, identities, and version lifecycle"
+        },
+        {
+          "level": 2,
+          "id": "body-descriptors-and-dry-runs",
+          "text": "Body descriptors and dry runs"
+        }
+      ]
+    }
+  ]
+}

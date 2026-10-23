@@ -1,6 +1,5 @@
 ---
 title: Tool behavior
-weight: 30
 ---
 
 # Tool behavior
@@ -37,7 +36,7 @@ Eligibility is intentionally per tool:
 
 In 0.5.1, the six GA4 report leaves also offer `--schema`, which prints the structural JSON Schema used by the CLI body validator. It is not a response schema: additional CLI cross-field checks, live property metadata, and Google API semantic validation still apply. On earlier 0.2.0 installations, use the existing `ga4datactl sdk schema` route. Report execution has no offline execution or validate-only command; a report leaf executes against Google after its normal validation.
 
-Supported mutations require the documented explicit `--dry-run` or `--apply` mode, and some require an acknowledgement. A GA4 dry run performs that command's documented local validation and returns its plan without calling a mutation endpoint. The nine destructive GA4 Admin leaves documented in [GA4 Admin](ga4-admin.md#destructive-admin-mutations) also accept `--confirm-resource`; it may be omitted for a dry run, but when supplied it must exactly match `--name`, and it is required with `--apply`. See that guide for the intentional script-migration behavior, patch constraints, secret handling, and the narrow uncertain-completion policy for non-idempotent Admin creates and provisioning. GA4 audience-export creation submits an apply request once; it does not retry or poll the operation. A GTM dry run is narrower: it checks command-local inputs and emits a no-network plan, but does not validate a body against the Discovery schema, Google API semantics, or any response schema. It can still enforce route syntax, execution mode, acknowledgements, fingerprints, option constraints, and bounded JSON-object parsing. A GTM plan includes `bodySha256` only when the command has a body.
+Supported mutations require the documented explicit `--dry-run` or `--apply` mode, and some require an acknowledgement. A GA4 dry run performs that command's documented local validation and returns its plan without calling a mutation endpoint. The nine destructive GA4 Admin leaves documented in [GA4 Admin](/tools/ga4-admin/#destructive-admin-mutations) also accept `--confirm-resource`; it may be omitted for a dry run, but when supplied it must exactly match `--name`, and it is required with `--apply`. See that guide for the intentional script-migration behavior, patch constraints, secret handling, and the narrow uncertain-completion policy for non-idempotent Admin creates and provisioning. GA4 audience-export creation submits an apply request once; it does not retry or poll the operation. A GTM dry run is narrower: it checks command-local inputs and emits a no-network plan, but does not validate a body against the Discovery schema, Google API semantics, or any response schema. It can still enforce route syntax, execution mode, acknowledgements, fingerprints, option constraints, and bounded JSON-object parsing. A GTM plan includes `bodySha256` only when the command has a body.
 
 ## Pagination
 
@@ -45,6 +44,6 @@ List and report commands return one bounded page where applicable. Use the retur
 
 ## Guides
 
-- [GA4 Data](ga4-data.md) covers a small reporting request and its schema routes.
-- [GA4 Admin](ga4-admin.md) covers reading and patching a property.
-- [Tag Manager](tag-manager.md) covers account paths, mutation tiers, and a safe Constant-variable dry run.
+- [GA4 Data](/tools/ga4-data/) covers a small reporting request and its schema routes.
+- [GA4 Admin](/tools/ga4-admin/) covers reading and patching a property.
+- [Tag Manager](/tools/tag-manager/) covers account paths, mutation tiers, and a safe Constant-variable dry run.

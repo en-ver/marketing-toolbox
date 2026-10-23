@@ -1,6 +1,5 @@
 ---
 title: Tag Manager
-weight: 30
 ---
 
 # Tag Manager
@@ -27,7 +26,7 @@ The native OAuth tier is specific to the operation, not merely whether it reads,
 | `publish` | Version publish and environment reauthorize |
 | `delete` | Only container deletion and workspace deletion |
 
-Thus a user-permission read requires `users`, while a variable or environment delete requires `containers`; only container/workspace deletion uses `delete`. Likewise, `versions set-latest` uses `containers`, while version deletion, workspace quick preview, and workspace version creation use `versions`. See [authentication](../auth/_index.md#credential-precedence) for tier-to-scope mappings and separate tool+tier credential records.
+Thus a user-permission read requires `users`, while a variable or environment delete requires `containers`; only container/workspace deletion uses `delete`. Likewise, `versions set-latest` uses `containers`, while version deletion, workspace quick preview, and workspace version creation use `versions`. See [authentication](/auth/#credential-precedence) for tier-to-scope mappings and separate tool+tier credential records.
 
 ## Removed container commands
 
@@ -111,4 +110,4 @@ gtmctl accounts containers workspaces variables create \
 
 For the resource shape, see the official [Variables reference](https://developers.google.com/tag-platform/tag-manager/api/reference/rest/v2/accounts.containers.workspaces.variables) and [Parameter reference](https://developers.google.com/tag-platform/tag-manager/api/reference/rest/v2/Parameter). This guide does not claim a separate official Constant-specific page; use the leaf help, bundled descriptor, and these references together.
 
-Mutations use explicit `--dry-run` or `--apply`, and high-impact changes can require another acknowledgement. Command help describes the installed options and acknowledgements. See [tool behavior](_index.md) for shared pagination, output, and safety conventions.
+Mutations use explicit `--dry-run` or `--apply`, and high-impact changes can require another acknowledgement. Command help describes the installed options and acknowledgements. See [tool behavior](/tools/) for shared pagination, output, and safety conventions.

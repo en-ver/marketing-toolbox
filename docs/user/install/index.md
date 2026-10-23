@@ -1,6 +1,5 @@
 ---
 title: Installation
-weight: 10
 ---
 
 # Installation
@@ -46,4 +45,4 @@ ga4datactl --version
 ga4datactl --help
 ```
 
-Continue with [authentication](auth/_index.md) before running commands that access Google resources.
+Continue with [authentication](/auth/) before running commands that access Google resources.

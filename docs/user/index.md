@@ -1,6 +1,5 @@
 ---
 title: Marketing Toolbox
-weight: 1
 ---
 
 # Marketing Toolbox
@@ -11,9 +10,9 @@ Marketing Toolbox provides three command-line tools for Google Analytics 4 and G
 - `ga4adminctl` manages the Google Analytics Admin API.
 - `gtmctl` manages the Google Tag Manager API.
 
-This guide describes the released 0.6.0 commands. The report-leaf `--schema` flags described in [GA4 Data](tools/ga4-data.md) are available in 0.5.1. Earlier 0.2.0 installations should use the existing `ga4datactl sdk schema --command "reports run"` route instead.
+This guide describes the released 0.6.0 commands. The report-leaf `--schema` flags described in [GA4 Data](/tools/ga4-data/) are available in 0.5.1. Earlier 0.2.0 installations should use the existing `ga4datactl sdk schema --command "reports run"` route instead.
 
-Start with [installation](install.md), then choose an [authentication method](auth/_index.md). A fresh user can discover the installed command tree without a product-specific skill:
+Start with [installation](/install/), then choose an [authentication method](/auth/). A fresh user can discover the installed command tree without a product-specific skill:
 
 ```bash
 ga4datactl --help
@@ -21,7 +20,7 @@ ga4datactl reports --help
 ga4datactl reports run --help
 ```
 
-Use the same root → group → leaf `--help` pattern for `ga4adminctl` and `gtmctl`. Root help also links to authentication and the relevant official API; [tool behavior](tools/_index.md) explains JSON output, schemas, and safety boundaries.
+Use the same root → group → leaf `--help` pattern for `ga4adminctl` and `gtmctl`. Root help also links to authentication and the relevant official API; [tool behavior](/tools/) explains JSON output, schemas, and safety boundaries.
 
 ## Choose a command
 

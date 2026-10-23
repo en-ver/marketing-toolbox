@@ -1,11 +1,10 @@
 ---
 title: GA4 Data
-weight: 10
 ---
 
 # GA4 Data
 
-`ga4datactl` queries the [Google Analytics Data API](https://developers.google.com/analytics/devguides/reporting/data/v1). Its native OAuth tier is `read`; see [authentication](../auth/_index.md) for credential selection and the separate resource-permission requirement.
+`ga4datactl` queries the [Google Analytics Data API](https://developers.google.com/analytics/devguides/reporting/data/v1). Its native OAuth tier is `read`; see [authentication](/auth/) for credential selection and the separate resource-permission requirement.
 
 Start with the installed request descriptor when composing a request. This route is local, credential-free, and network-free:
 
@@ -48,4 +47,4 @@ JSON
 ga4datactl reports run --property properties/1234 --body report.json
 ```
 
-The command returns one response page. Use `rowCount` plus the request's `offset` and `limit` to page through a larger report. Property-specific metadata is live Google data, so it requires an authorized property and is separate from local schema discovery. Return to [tool behavior](_index.md) for shared output and safety conventions.
+The command returns one response page. Use `rowCount` plus the request's `offset` and `limit` to page through a larger report. Property-specific metadata is live Google data, so it requires an authorized property and is separate from local schema discovery. Return to [tool behavior](/tools/) for shared output and safety conventions.
