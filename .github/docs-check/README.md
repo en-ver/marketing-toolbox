@@ -51,7 +51,10 @@ seccomp. Limits are 2 CPUs, 4 GiB memory, 256 processes, a 512 MiB cache,
 a 2 GiB work tree, and 256 MiB temporary storage. The browser also uses private
 256 MiB shared memory and a separate 256 MiB evidence mount. No container mounts
 the checkout, home, credentials, Docker socket, or host namespaces. Only the
-allowlisted eight pages, configuration, and npm inputs enter the build tree.
+eight baseline pages, configuration, npm inputs, and one added page enter the
+build tree: `docs/user/changelog/index.md`. The addition uses an exact path,
+an ordinary file, a 1 MiB input limit, and the existing no-symlink boundary.
+No directory tree or arbitrary JSON enters the build.
 
 `probe.py` checks identity, Python version, effective sandbox flags, absent
 credential variables/socket/private sentinel, denied root writes, and external
@@ -61,8 +64,9 @@ Malformed acquisition fixtures must fail before any download directory exists.
 After the producer stops, directory-relative no-follow copying rejects links,
 hardlinks, special files, excessive entries, oversized files, and unexpected
 output paths or types. The ordinary-file copy is hash-checked and read-only.
-`check_html.py` permits the eight indexes and normal 404 page. It checks all 33
-baseline heading IDs and all local page and fragment links. Each HTML file is
+`check_html.py` permits the eight baseline indexes, `changelog/index.html`,
+and the normal 404 page. It checks all 33 baseline heading IDs, eight separately
+specified release anchors, and all local page and fragment links. Each HTML file is
 at most 8 MiB. A fresh parser receives exactly one `feed()` call per file.
 An unfinished buffer or embedded document/media fails inspection. This avoids
 the multi-feed unfinished-construct trigger assessed for CPython issue 153030.
@@ -104,6 +108,15 @@ external-network denial in the browser boundary. Failure stops the run without
 privileged mode or relaxed flags. The smoke check covers direct requests and
 reloads, all headings, three required fragment reloads, clickable sidebar parents,
 back/forward navigation, and table/code layout at 1440×1000 and 390×844.
+The changelog checks use eight explicit native headings and readable content
+witnesses. They cover direct anchor reloads, native outline and sidebar
+navigation, keyboard focus, the skip link, GitHub and appearance controls,
+light/dark views, and wrapping at both sizes. Four viewport/theme screenshots
+and recorded theme colors support visual review. A JavaScript-disabled context
+checks all eight server-rendered sections, readable changes, and stable anchors.
+The page has no filter controls. No runtime release data enters the browser tool.
+These assertions still require a successful hosted run. Local Python fixtures
+and source inspection do not prove browser behavior.
 
 ## Evidence and acceptance
 
@@ -112,6 +125,8 @@ route and heading identities only. It derives from published HTML at source
 revision `3850475b56cf18b54d32dfca642845819ef2a4a3`. The verified original
 inventory SHA256 is
 `68f7c6a920a06fe98b7082adb6eb54a861c6585bf1ebca30eb9805f209501ff1`.
+The old baseline stays byte-identical. The ninth route and eight release
+anchors are separate explicit expectations, not a regenerated baseline.
 No fetched HTML, credentials, or runtime handoff is checked in.
 
 The workflow uploads inspected site files through the existing Pages artifact

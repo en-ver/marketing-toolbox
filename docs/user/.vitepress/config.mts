@@ -6,9 +6,17 @@ export default defineConfig({
   base: '/',
   cleanUrls: false,
   themeConfig: {
+    socialLinks: [
+      {
+        icon: 'github',
+        link: 'https://github.com/en-ver/marketing-toolbox',
+        ariaLabel: 'Marketing Toolbox on GitHub'
+      }
+    ],
     sidebar: [
       { text: 'Marketing Toolbox', link: '/' },
       { text: 'Installation', link: '/install/' },
+      { text: 'Changelog', link: '/changelog/' },
       {
         text: 'Authentication', link: '/auth/',
         items: [{ text: 'Desktop OAuth setup', link: '/auth/desktop-oauth/' }]

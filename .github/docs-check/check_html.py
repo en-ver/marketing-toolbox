@@ -13,6 +13,16 @@ assert len(base_bytes) < 65536
 baseline = json.loads(base_bytes)
 assert len(baseline) == 8 and sum(len(x["headings"]) for x in baseline) == 33
 expected = {x["route"].lstrip("/") + "index.html": x for x in baseline}
+changelog_anchors = {
+    "release-0-6-0",
+    "release-0-5-1",
+    "release-0-5-0",
+    "release-0-4-0",
+    "release-0-3-1",
+    "release-0-3-0",
+    "release-0-2-0",
+    "release-0-1-0",
+}
 assert not root.is_symlink() and root.is_dir()
 files = {}
 total = 0
@@ -51,7 +61,10 @@ for p in root.rglob("*"):
         or rel == ".nojekyll"
     )
     files[rel] = p
-assert {n for n in files if n.endswith(".html")} == set(expected) | {"404.html"}
+assert {n for n in files if n.endswith(".html")} == set(expected) | {
+    "404.html",
+    "changelog/index.html",
+}
 
 
 class Page(HTMLParser):
@@ -118,6 +131,7 @@ for name, p in files.items():
     pages[name] = parser
 for name, old in expected.items():
     assert {h["id"] for h in old["headings"]} <= pages[name].headings
+assert changelog_anchors <= pages["changelog/index.html"].headings
 for name, page in pages.items():
     route = "/" + name[:-10] if name.endswith("index.html") else "/" + name
     for href in page.links:
@@ -148,6 +162,8 @@ print(
         {
             "routes": [x["route"] for x in baseline],
             "heading_count": 33,
+            "changelog_route": "/changelog/",
+            "release_anchors": sorted(changelog_anchors),
             "files": len(files),
             "bytes": total,
         }

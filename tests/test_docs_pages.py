@@ -15,6 +15,9 @@ import yaml
 ROOT = Path(__file__).parents[1]
 HELPERS = ROOT / ".github/docs-check"
 BASELINE = ROOT / "tests/data/docs-pages-baseline.yaml"
+CHANGELOG = "docs/user/changelog/index.md"
+VERSIONS = ["0.6.0", "0.5.1", "0.5.0", "0.4.0", "0.3.1", "0.3.0", "0.2.0", "0.1.0"]
+RELEASE_ANCHORS = [f"release-{version.replace('.', '-')}" for version in VERSIONS]
 
 
 def test_pages_workflow_preserves_deployment_and_credential_boundaries() -> None:
@@ -107,7 +110,7 @@ def test_build_only_manifest_routes_and_original_heading_fixture() -> None:
     site = ROOT / "docs/user"
     assert {p.relative_to(site).as_posix() for p in site.rglob("*.md")} == {
         page["route"].lstrip("/") + "index.md" for page in pages
-    }
+    } | {"changelog/index.md"}
     for page in pages:
         source = site / page["route"].lstrip("/") / "index.md"
         text = source.read_text()
@@ -126,6 +129,76 @@ def test_build_only_manifest_routes_and_original_heading_fixture() -> None:
     assert "ignoreDeadLinks" not in config and "rewrites" not in config
     assert "text: 'Authentication', link: '/auth/'" in config
     assert "text: 'Tool behavior', link: '/tools/'" in config
+
+
+def test_native_changelog_page_and_credential_json_protection() -> None:
+    page = (ROOT / CHANGELOG).read_text()
+    assert re.findall(
+        r"^## ([0-9.]+) \{#(release-[0-9-]+)\}$", page, re.MULTILINE
+    ) == list(zip(VERSIONS, RELEASE_ANCHORS, strict=True))
+    assert "# Changelog" in page
+    for obsolete in ("<script", "<style", "<ReleaseChangelog", "outline: false"):
+        assert obsolete not in page
+    assert not (ROOT / "docs/user/.vitepress/components/ReleaseChangelog.vue").exists()
+    credentials = [
+        "credentials.json",
+        "docs/user/.vitepress/changelog/credentials.json",
+        "docs/user/.vitepress/changelog/releases.json",
+    ]
+    result = subprocess.run(
+        ["git", "-C", str(ROOT), "check-ignore", "--no-index", "--stdin"],
+        input="\n".join([CHANGELOG, *credentials]) + "\n",
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0
+    assert result.stdout.splitlines() == credentials
+
+
+@pytest.mark.parametrize("linked", [False, True])
+def test_finite_changelog_inputs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, linked: bool
+) -> None:
+    monkeypatch.setenv("RUNNER_TEMP", str(tmp_path))
+    spec = importlib.util.spec_from_file_location("docs_check", HELPERS / "run.py")
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    expected = (CHANGELOG,)
+    assert module.CHANGELOG_INPUTS == expected
+    source, destination = tmp_path / "source", tmp_path / "destination"
+    for name in expected:
+        target = source / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes((ROOT / name).read_bytes())
+    (source / "credentials.json").write_text("must not enter build")
+    if linked:
+        # Each exact input and its directory ancestors retain no-follow protection.
+        for name in expected:
+            target = source / name
+            data = target.read_bytes()
+            target.unlink()
+            target.symlink_to(ROOT / name)
+            with pytest.raises(AssertionError):
+                module.copy_changelog_inputs(source, destination)
+            target.unlink()
+            target.write_bytes(data)
+        directory = source / "docs/user/changelog"
+        outside = tmp_path / "outside"
+        directory.rename(outside)
+        directory.symlink_to(outside, target_is_directory=True)
+        with pytest.raises(AssertionError):
+            module.copy_changelog_inputs(source, destination)
+    else:
+        module.copy_changelog_inputs(source, destination)
+        assert {
+            p.relative_to(destination).as_posix()
+            for p in destination.rglob("*")
+            if p.is_file()
+        } == set(expected)
+        for name in expected:
+            assert (destination / name).read_bytes() == (source / name).read_bytes()
 
 
 def test_offline_execution_configuration_is_explicit_not_runtime_proof() -> None:
@@ -337,7 +410,14 @@ def test_output_copy_rejects_each_dist_path_symlink(
 
 @pytest.mark.parametrize(
     "rejected",
-    [None, "other.css", "nested/vp-icons.css", "private.json", "bad\nname.css"],
+    [
+        None,
+        "other.css",
+        "nested/vp-icons.css",
+        "private.json",
+        "changelog/extra.html",
+        "bad\nname.css",
+    ],
 )
 def test_output_paths_allow_vitepress_icons_but_reject_other_paths(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, rejected: str | None
@@ -347,7 +427,12 @@ def test_output_paths_allow_vitepress_icons_but_reject_other_paths(
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    expected_html = {"index.html", "auth/index.html", "404.html"}
+    expected_html = {
+        "index.html",
+        "auth/index.html",
+        "404.html",
+        "changelog/index.html",
+    }
     names = expected_html | {
         "hashmap.json",
         ".nojekyll",
@@ -409,6 +494,14 @@ def test_static_checker_requires_baseline_headings_and_local_fragments(
             for h in page["headings"]
         )
         path.write_text(f"<html><body>{headings}</body></html>")
+    changelog = site / "changelog/index.html"
+    changelog.parent.mkdir()
+    changelog_html = (
+        "<html><body>"
+        + "".join(f'<h2 id="{anchor}">{anchor}</h2>' for anchor in RELEASE_ANCHORS)
+        + "</body></html>"
+    )
+    changelog.write_text(changelog_html)
     (site / "404.html").write_text("<html><body>Not found</body></html>")
     args = [
         sys.executable,
@@ -419,6 +512,11 @@ def test_static_checker_requires_baseline_headings_and_local_fragments(
     ]
     valid = subprocess.run(args, capture_output=True, text=True, check=False)
     assert valid.returncode == 0, valid.stderr
+    changelog.unlink()
+    assert subprocess.run(args, capture_output=True, check=False).returncode != 0
+    changelog.write_text(changelog_html.replace('id="release-0-1-0"', 'id="missing"'))
+    assert subprocess.run(args, capture_output=True, check=False).returncode != 0
+    changelog.write_text(changelog_html)
     home = site / "index.html"
     original = home.read_text()
     home.write_text(

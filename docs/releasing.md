@@ -39,6 +39,41 @@ uvx twine check dist/*
 Do not rebuild between validation and publication. The workflow uploads the
 wheel and source distribution for each project from this single build.
 
+## Release notes
+
+`docs/user/changelog/index.md` is the single maintained source for release
+notes. Start each normal release in a Markdown version section, newest first.
+Record the version, date and date basis, tag, target commit, comparison base,
+user-visible changes, affected packages, and compatibility assessment.
+State breaking changes and required user actions explicitly.
+
+Within each version, use package groups and `Added`, `Changed`, or `Fixed`
+categories. Order groups as shared, `ga4datactl`, `ga4adminctl`, `gtmctl`, then
+`marketing-toolbox` only. Omit empty groups and categories. Show each change
+once, with its exact `Packages:` list, including `marketing-toolbox`.
+Place multiple-launcher changes in shared, not under every affected launcher.
+Place umbrella-plus-one-launcher changes under that launcher.
+Keep umbrella-only changes under `marketing-toolbox`.
+Preserve relative change order within each group and category.
+Launcher headings identify affected behavior, not separate release versions.
+
+Prepare proposed GitHub notes from the canonical version section through a
+reviewed direct copy or one-off temporary projection. Preserve all editorial
+content: metadata, notices, caveats, compatibility text, categories, breaking
+labels, package lists, actions, change wording, and displayed provenance links.
+Only heading depth, package/category grouping, and website navigation can
+differ. Escape Markdown without changing displayed meaning.
+Compare the proposed body before publication and the fetched body afterward.
+Do not add a permanent generator, synchronization service, or release-policy gate.
+
+For the Markdown migration, keep all seven published bodies byte-identical to
+their approved witnesses. Compare the regrouped page semantically against
+those witnesses, not by Markdown byte equality. The preserved accepted JSON
+is an immutable migration witness, not a second maintained source.
+Do not automatically reconcile published bodies with the new page layout.
+Later published-note corrections require separate reconciliation authority and review.
+Notes guidance does not grant tagging, publication, or recovery permission.
+
 ## Normal release
 
 The `.github/workflows/release.yml` workflow publishes a tag matching

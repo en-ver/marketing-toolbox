@@ -9,7 +9,36 @@ const browserName = 'chromium';
 const origin = 'http://127.0.0.1:8765';
 const baseline = JSON.parse(fs.readFileSync('/tools/baseline.json', 'utf8'));
 assert.equal(baseline.length, 8);
-const routes = baseline.map(x => x.route);
+const routes = [...baseline.map(x => x.route), '/changelog/'];
+const releaseAnchors = ['release-0-6-0','release-0-5-1','release-0-5-0','release-0-4-0','release-0-3-1','release-0-3-0','release-0-2-0','release-0-1-0'];
+// Independent readable-content witnesses, not runtime records or comment IDs.
+const releaseWitnesses = [
+  'GTM resource paths reject dot components',
+  'Native OAuth storage uses a shared per-user lock across tools.',
+  'GTM removes accounts containers combine and accounts containers move-tag-id.',
+  'Nine destructive GA4 Admin commands require --confirm-resource',
+  'Explicit empty credential environment variables fail',
+  'User guides cover installation, authentication, the three command families',
+  'Native OAuth adds auth login, status, forget, and revoke.',
+  'ga4datactl provides GA4 reports and audience exports'
+];
+const themeResults = [];
+async function assertNativeReleases(page) {
+  assert.equal(await page.locator('.vp-doc h2').count(), 8);
+  for (const [index, id] of releaseAnchors.entries()) {
+    const heading = page.locator(`h2[id="${id}"]`);
+    assert.equal(await heading.count(), 1);
+    assert((await heading.innerText()).includes(id.slice(8).replaceAll('-','.')));
+    const content = await heading.evaluate(node => {
+      let text = '';
+      for (let next = node.nextElementSibling; next && next.tagName !== 'H2'; next = next.nextElementSibling) text += next.innerText + '\n';
+      return text;
+    });
+    assert(content.includes(releaseWitnesses[index]), id);
+    assert(content.includes('Text:') && content.includes('Evidence:'), id);
+  }
+  assert.equal(await page.locator('.vp-doc select, .vp-doc input, .vp-doc button').count(), 0);
+}
 const fragments = ['/auth/#credential-precedence','/tools/#output-and-requests','/tools/ga4-admin/#destructive-admin-mutations'];
 (async () => {
   const context = await playwright[browserName].launchPersistentContext('/tmp/isolated-profile', {
@@ -84,7 +113,82 @@ const fragments = ['/auth/#credential-precedence','/tools/#output-and-requests',
       assert.equal(new URL(page.url()).pathname,'/auth/');
       await page.screenshot({path:`/evidence/auth-${viewport.width}.png`,fullPage:true});
     }
+    // A separate context proves that build-produced HTML works without hydration.
+    const noJS = await context.browser().newContext({javaScriptEnabled:false,serviceWorkers:'block',viewport:{width:390,height:844}});
+    try {
+      await noJS.route('**/*', route => new URL(route.request().url()).origin===origin ? route.continue() : route.abort('blockedbyclient'));
+      const plain = await noJS.newPage();
+      await plain.goto(origin+'/changelog/#release-0-1-0',{waitUntil:'networkidle'});
+      await assertNativeReleases(plain);
+      assert.equal((await plain.reload({waitUntil:'networkidle'})).status(),200);
+      assert.equal(new URL(plain.url()).hash,'#release-0-1-0');
+      assert.equal(await plain.locator('main').count(),1);
+      assert.equal(await plain.locator('h1').count(),1);
+    } finally { await noJS.close(); }
+    for (const viewport of [{width:1440,height:1000},{width:390,height:844}]) {
+      await page.setViewportSize(viewport);
+      await page.goto(origin+'/auth/',{waitUntil:'networkidle'});
+      if (viewport.width<600) await page.locator('.VPLocalNav button.menu').click();
+      await page.locator('.VPSidebar a[href="/changelog/"]').first().click();
+      await page.waitForURL(origin+'/changelog/');
+      await page.waitForLoadState('networkidle');
+      await assertNativeReleases(page);
+      assert.equal(await page.locator('main').count(),1);
+      assert.equal(await page.locator('h1').count(),1);
+      const skip = page.locator('.VPSkipLink');
+      assert.equal(await skip.count(),1);
+      await skip.focus();
+      assert(await skip.evaluate(node=>node===document.activeElement));
+      const skipBox = await skip.boundingBox();
+      assert(skipBox && skipBox.x>=0 && skipBox.y>=0);
+      await page.keyboard.press('Tab');
+      assert(await page.evaluate(()=>document.activeElement.tagName==='A'));
+      await page.keyboard.press('Shift+Tab');
+      assert(await skip.evaluate(node=>node===document.activeElement));
+      const skipTarget = await skip.getAttribute('href');
+      await skip.press('Enter');
+      assert.equal(new URL(page.url()).hash,skipTarget);
+      assert.equal(await page.locator(skipTarget).count(),1);
+      if (viewport.width>=600) {
+        const outline = page.locator('.VPDocAsideOutline');
+        for (const id of releaseAnchors) assert.equal(await outline.locator(`a[href="#${id}"]`).count(),1);
+        const link = outline.locator('a[href="#release-0-1-0"]');
+        await link.focus();
+        assert(await link.evaluate(node=>node===document.activeElement));
+        await link.press('Enter');
+        await page.waitForURL(origin+'/changelog/#release-0-1-0');
+      }
+      for (const id of releaseAnchors) {
+        await page.goto(origin+'/changelog/#'+id,{waitUntil:'networkidle'});
+        assert.equal((await page.reload({waitUntil:'networkidle'})).status(),200);
+        assert.equal(new URL(page.url()).hash,'#'+id);
+        assert(await page.locator('h2#'+id).isVisible());
+      }
+      await page.goto(origin+'/changelog/#release-0-6-0',{waitUntil:'networkidle'});
+      for (const theme of ['light','dark']) {
+        if (viewport.width<600) await page.locator('.VPNavBarHamburger').click();
+        const nav = page.locator(viewport.width<600 ? '.VPNavScreen' : '.VPNavBar');
+        const github = nav.getByRole('link',{name:'Marketing Toolbox on GitHub',exact:true});
+        assert(await github.isVisible());
+        assert.equal(await github.getAttribute('href'),'https://github.com/en-ver/marketing-toolbox');
+        assert(await github.locator('.vpi-social-github').isVisible());
+        await github.focus();
+        assert(await github.evaluate(node=>node===document.activeElement));
+        const appearance = nav.locator('button.VPSwitchAppearance');
+        assert(await appearance.isVisible());
+        if (await page.locator('html').evaluate(node=>node.classList.contains('dark')) !== (theme==='dark')) {
+          await appearance.focus();
+          await appearance.press('Space');
+        }
+        await page.waitForFunction(dark=>document.documentElement.classList.contains('dark')===dark,theme==='dark');
+        if (viewport.width<600) await page.locator('.VPNavBarHamburger').click();
+        assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2));
+        assert(await page.locator('.vp-doc').evaluate(node=>[...node.querySelectorAll('li,p')].every(n=>n.getBoundingClientRect().right<=innerWidth+2)));
+        themeResults.push({width:viewport.width,theme,colors:await page.locator('.vp-doc').evaluate(node=>({text:getComputedStyle(node).color,background:getComputedStyle(document.body).backgroundColor}))});
+        await page.screenshot({path:`/evidence/changelog-${viewport.width}-${theme}.png`});
+      }
+    }
     assert.deepEqual(errors,[]);
-    fs.writeFileSync('/evidence/browser-result.json',JSON.stringify({routes,fragments,viewports:[[1440,1000],[390,844]],browserVersion:context.browser().version(),nodeVersion:process.versions.node,sandbox:true,errors},null,2));
+    fs.writeFileSync('/evidence/browser-result.json',JSON.stringify({routes,fragments,viewports:[[1440,1000],[390,844]],browserVersion:context.browser().version(),nodeVersion:process.versions.node,sandbox:true,releaseAnchors,themeResults,noJavaScript:true,errors},null,2));
   } finally { await context.close(); }
 })().catch(e => {console.error(e);process.exitCode=1;});

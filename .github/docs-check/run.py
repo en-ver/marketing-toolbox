@@ -43,6 +43,7 @@ HELPERS = ROOT / ".github/docs-check"
 RUN = Path(os.environ["RUNNER_TEMP"]) / "docs-validation"
 EVIDENCE = RUN / "evidence"
 ENV = {"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8"}
+CHANGELOG_INPUTS = ("docs/user/changelog/index.md",)
 containers: list[str] = []
 mounts: list[Path] = []
 
@@ -284,6 +285,19 @@ def validate_site_paths(hashes: dict[str, str], expected_html: set[str]) -> None
         )
 
 
+def copy_changelog_inputs(source: Path, destination: Path) -> None:
+    """Copy only the reviewed Markdown addition, never a source tree."""
+    for name in CHANGELOG_INPUTS:
+        path = source / name
+        assert path.resolve() == path
+        info = path.stat()
+        assert stat.S_ISREG(info.st_mode) and info.st_nlink == 1
+        assert info.st_size <= 1024**2
+        target = destination / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(path, target)
+
+
 def sandbox_probe(cid: str, sentinel: str) -> None:
     """Inspect actual renderer namespaces and kernel sandbox, not launch success."""
     records = []
@@ -380,6 +394,7 @@ def main() -> None:
             ROOT / "package-lock.json",
             ROOT / "README.md",
             ROOT / "uv.lock",
+            *[ROOT / name for name in CHANGELOG_INPUTS],
         ]
     }
     save(
@@ -502,7 +517,8 @@ def main() -> None:
     assert len(baseline) == 8 and sum(len(page["headings"]) for page in baseline) == 33
     assert all(re.fullmatch(r"/(?:[a-z0-9-]+/)*", page["route"]) for page in baseline)
     expected_html = {page["route"].lstrip("/") + "index.html" for page in baseline} | {
-        "404.html"
+        "404.html",
+        "changelog/index.html",
     }
     (tools / "baseline.json").write_text(json.dumps(baseline))
     sentinel = str(RUN / "runner-private-sentinel")
@@ -539,6 +555,7 @@ def main() -> None:
         ROOT / "docs/user/.vitepress/config.mts"
     ).resolve() == ROOT / "docs/user/.vitepress/config.mts"
     shutil.copyfile(ROOT / "docs/user/.vitepress/config.mts", config / "config.mts")
+    copy_changelog_inputs(ROOT, work)
     command("sudo", "chown", "-R", "10001:10001", str(work))
     build = create(
         PYTHON,
@@ -615,6 +632,10 @@ def main() -> None:
         "browser-result.json",
         "auth-1440.png",
         "auth-390.png",
+        "changelog-1440-light.png",
+        "changelog-1440-dark.png",
+        "changelog-390-light.png",
+        "changelog-390-dark.png",
     }
     save("browser-sha256.json", browser_hashes)
     # Only the inspected ordinary-file copy enters artifact handling.
