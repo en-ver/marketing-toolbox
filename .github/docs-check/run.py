@@ -240,6 +240,18 @@ def copy_site(
     return hashes
 
 
+def validate_site_paths(hashes: dict[str, str], expected_html: set[str]) -> None:
+    for name in sorted(hashes):
+        # VitePress 1.6.4 writes and links this stylesheet at the output root.
+        assert name in expected_html | {
+            "hashmap.json",
+            ".nojekyll",
+            "vp-icons.css",
+        } or name.startswith("assets/"), (
+            f"unexpected generated-output path: {json.dumps(name, ensure_ascii=True)}"
+        )
+
+
 def sandbox_probe(cid: str, sentinel: str) -> None:
     """Inspect actual renderer namespaces and kernel sandbox, not launch success."""
     records = []
@@ -498,11 +510,7 @@ def main() -> None:
     # A stopped container cannot race this directory-relative output copy.
     site = RUN / "site"
     hashes = copy_site(work, Path("docs/user/.vitepress/dist"), site)
-    assert all(
-        name in expected_html | {"hashmap.json", ".nojekyll"}
-        or name.startswith("assets/")
-        for name in hashes
-    )
+    validate_site_paths(hashes, expected_html)
     save("site-sha256.json", hashes)
     static = create(
         PYTHON,

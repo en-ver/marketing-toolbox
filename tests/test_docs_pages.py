@@ -233,6 +233,38 @@ def test_output_copy_rejects_each_dist_path_symlink(
     assert not list(destination.iterdir())
 
 
+@pytest.mark.parametrize(
+    "rejected",
+    [None, "other.css", "nested/vp-icons.css", "private.json", "bad\nname.css"],
+)
+def test_output_paths_allow_vitepress_icons_but_reject_other_paths(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, rejected: str | None
+) -> None:
+    monkeypatch.setenv("RUNNER_TEMP", str(tmp_path))
+    spec = importlib.util.spec_from_file_location("docs_check", HELPERS / "run.py")
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    expected_html = {"index.html", "auth/index.html", "404.html"}
+    names = expected_html | {
+        "hashmap.json",
+        ".nojekyll",
+        "vp-icons.css",
+        "assets/app.js",
+        "assets/style.css",
+    }
+    hashes = dict.fromkeys(names, "fixture-digest")
+    module.validate_site_paths(hashes, expected_html)
+    if rejected is not None:
+        hashes[rejected] = "fixture-digest"
+        with pytest.raises(AssertionError) as error:
+            module.validate_site_paths(hashes, expected_html)
+        message = str(error.value)
+        assert json.dumps(rejected, ensure_ascii=True) in message
+        assert "\n" not in message and str(tmp_path) not in message
+        assert "fixture-digest" not in message
+
+
 def test_work_mount_allows_runner_population_before_ownership_transfer(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
