@@ -218,7 +218,28 @@ const fragments = ['/auth/#credential-precedence','/tools/#output-and-requests',
           await appearance.press('Space');
         }
         await page.waitForFunction(dark=>document.documentElement.classList.contains('dark')===dark,theme==='dark');
-        if (viewport.width<600) await page.locator('.VPNavBarHamburger').click();
+        if (viewport.width<600) {
+          await page.locator('.VPNavBarHamburger').click();
+          // Vue keeps the full-screen menu mounted during its leave transition.
+          await page.locator('#VPNavScreen.VPNavScreen').waitFor({state:'detached',timeout:15000});
+          await page.locator('.vp-doc').waitFor({state:'visible',timeout:15000});
+          await page.locator('.vp-doc h2#release-0-6-0').scrollIntoViewIfNeeded();
+          // Visible geometry alone can pass beneath an overlay. Hit-test the
+          // native release heading in the viewport before measuring or capturing.
+          await page.waitForFunction(() => {
+            const toggles = document.querySelectorAll('.VPNavBarHamburger');
+            const articles = document.querySelectorAll('.vp-doc');
+            const headings = document.querySelectorAll('.vp-doc h2#release-0-6-0');
+            if (location.pathname !== '/changelog/' || location.hash !== '#release-0-6-0' ||
+                toggles.length !== 1 || toggles[0].getAttribute('aria-expanded') !== 'false' ||
+                document.querySelectorAll('.VPNavScreen').length !== 0 ||
+                articles.length !== 1 || headings.length !== 1) return false;
+            const heading = headings[0], box = heading.getBoundingClientRect();
+            const x = box.x+box.width/2, y = box.y+box.height/2;
+            return box.width>0 && box.height>0 && x>0 && x<innerWidth && y>0 && y<innerHeight &&
+              heading.contains(document.elementFromPoint(x,y));
+          }, null, {timeout:15000});
+        }
         assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2));
         assert(await page.locator('.vp-doc').evaluate(node=>[...node.querySelectorAll('li,p')].every(n=>n.getBoundingClientRect().right<=innerWidth+2)));
         themeResults.push({width:viewport.width,theme,colors:await page.locator('.vp-doc').evaluate(node=>({text:getComputedStyle(node).color,background:getComputedStyle(document.body).backgroundColor}))});
