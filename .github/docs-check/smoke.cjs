@@ -201,14 +201,17 @@ const fragments = ['/auth/#credential-precedence','/tools/#output-and-requests',
       await page.goto(origin+'/changelog/#release-0-6-0',{waitUntil:'networkidle'});
       for (const theme of ['light','dark']) {
         if (viewport.width<600) await page.locator('.VPNavBarHamburger').click();
-        const nav = page.locator(viewport.width<600 ? '.VPNavScreen' : '.VPNavBar');
-        const github = nav.getByRole('link',{name:'Marketing Toolbox on GitHub',exact:true});
+        const nav = page.locator(viewport.width<600 ? '.VPNavScreen:visible' : '.VPNavBar:visible');
+        // The desktop navbar also contains hidden responsive copies of these controls.
+        const github = nav.locator(viewport.width<600 ? '.VPNavScreenSocialLinks:visible' : '.VPNavBarSocialLinks:visible')
+          .getByRole('link',{name:'Marketing Toolbox on GitHub',exact:true});
         assert(await github.isVisible());
         assert.equal(await github.getAttribute('href'),'https://github.com/en-ver/marketing-toolbox');
         assert(await github.locator('.vpi-social-github').isVisible());
         await github.focus();
         assert(await github.evaluate(node=>node===document.activeElement));
-        const appearance = nav.locator('button.VPSwitchAppearance');
+        const appearance = nav.locator(viewport.width<600 ? '.VPNavScreenAppearance:visible' : '.VPNavBarAppearance:visible')
+          .getByRole('switch');
         assert(await appearance.isVisible());
         if (await page.locator('html').evaluate(node=>node.classList.contains('dark')) !== (theme==='dark')) {
           await appearance.focus();
