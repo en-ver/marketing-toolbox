@@ -7,7 +7,6 @@ mkdir -p /tmp/home
 node --version | grep -x v24.22.1
 npm --version | grep -x 11.19.1
 cd /work
-sha256sum package.json package-lock.json > /tmp/inputs.sha256
 # Prove Linux native dependencies and the offline cache without lifecycle scripts.
 mkdir /work/probe
 cp package.json package-lock.json /work/probe/
@@ -20,4 +19,3 @@ cd /work
 rm -rf /work/probe
 npm ci --offline --include=optional --no-audit --no-fund --foreground-scripts
 npm run docs:build
-sha256sum --check /tmp/inputs.sha256

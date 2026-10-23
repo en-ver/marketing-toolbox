@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 import json
+import os
 import re
 import subprocess
 import sys
@@ -151,7 +152,8 @@ def test_offline_execution_configuration_is_explicit_not_runtime_proof() -> None
     assert "npm ci --offline --ignore-scripts --include=optional" in build
     assert "npm ci --offline --include=optional" in build
     assert "npm run docs:build" in build
-    assert "sha256sum --check /tmp/inputs.sha256" in build
+    assert "/tmp/inputs.sha256" not in build
+    assert "verify_npm_inputs(work, npm_inputs)" in source
     smoke = (HELPERS / "smoke.cjs").read_text()
     assert "const browserName = 'chromium'" in smoke
     assert "headless: true, chromiumSandbox: true" in smoke
@@ -228,6 +230,62 @@ def test_acquisition_rejects_unreviewed_inputs_before_requests(tmp_path: Path) -
             check=False,
         )
         assert result.returncode != 0 and not destination.exists()
+
+
+@pytest.mark.parametrize(
+    "replacement",
+    [None, "symlink", "root-symlink", "fifo", "directory", "oversize", "changed"],
+)
+def test_host_npm_inputs_require_bounded_ordinary_unchanged_files(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, replacement: str | None
+) -> None:
+    monkeypatch.setenv("RUNNER_TEMP", str(tmp_path))
+    spec = importlib.util.spec_from_file_location("docs_check", HELPERS / "run.py")
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    work = tmp_path / "work"
+    work.mkdir()
+    expected = {
+        name: (ROOT / name).read_bytes()
+        for name in ("package.json", "package-lock.json")
+    }
+    for name, data in expected.items():
+        (work / name).write_bytes(data)
+    if replacement is None:
+        module.verify_npm_inputs(work, expected)
+        return
+    # Exercise both npm inputs. The manifest's valid read precedes lock rejection.
+    for name, original in expected.items():
+        target = work / name
+        if replacement == "root-symlink":
+            outside = tmp_path / "outside"
+            work.rename(outside)
+            work.symlink_to(outside, target_is_directory=True)
+        else:
+            target.unlink()
+            if replacement == "symlink":
+                outside = tmp_path / "outside-input"
+                outside.write_bytes(original)
+                target.symlink_to(outside)
+            elif replacement == "fifo":
+                os.mkfifo(target)
+            elif replacement == "directory":
+                target.mkdir()
+            elif replacement == "oversize":
+                with target.open("wb") as stream:
+                    stream.truncate(1024**3)
+            else:
+                target.write_bytes(b"x" + original[1:])
+        with pytest.raises((OSError, AssertionError)):
+            module.verify_npm_inputs(work, expected)
+        if replacement == "root-symlink":
+            break
+        if target.is_dir():
+            target.rmdir()
+        else:
+            target.unlink()
+        target.write_bytes(original)
 
 
 def test_output_copy_rejects_links_and_preserves_bytes(

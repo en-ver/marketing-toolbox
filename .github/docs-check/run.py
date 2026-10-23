@@ -56,6 +56,24 @@ def digest(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def verify_npm_inputs(trusted_root: Path, expected: dict[str, bytes]) -> None:
+    """Compare stopped-build inputs to host-held bytes without following links."""
+    fd = os.open(trusted_root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+        for name in ("package.json", "package-lock.json"):
+            original = expected[name]
+            child = os.open(
+                name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=fd
+            )
+            with os.fdopen(child, "rb") as stream:
+                info = os.fstat(stream.fileno())
+                assert stat.S_ISREG(info.st_mode) and info.st_nlink == 1
+                assert info.st_size == len(original)
+                assert stream.read(len(original) + 1) == original
+    finally:
+        os.close(fd)
+
+
 def save(name: str, value: object) -> None:
     (EVIDENCE / name).write_text(json.dumps(value, indent=2) + "\n")
 
@@ -350,6 +368,11 @@ def main() -> None:
     assert manifest["devDependencies"] == {"vitepress": "1.6.4"}
     assert manifest["private"] is True and manifest["packageManager"] == "npm@11.19.1"
     assert manifest["engines"] == {"node": "24.22.1", "npm": "11.19.1"}
+    # Keep the comparison bytes on the host before any package execution.
+    npm_inputs = {
+        name: (ROOT / name).read_bytes()
+        for name in ("package.json", "package-lock.json")
+    }
     inputs = {
         str(p.relative_to(ROOT)): digest(p)
         for p in [
@@ -523,8 +546,9 @@ def main() -> None:
         common + bind(cache, "/cache", False) + bind(work, "/work", False),
     )
     execute(build, "build")
-    for filename in ("package.json", "package-lock.json"):
-        assert digest(work / filename) == inputs[filename]
+    # No writable container checksum is trusted. The build is stopped, so it
+    # cannot race these directory-relative, bounded host reads or the copy below.
+    verify_npm_inputs(work, npm_inputs)
     # A stopped container cannot race this directory-relative output copy.
     site = RUN / "site"
     hashes = copy_site(work, Path("docs/user/.vitepress/dist"), site)
