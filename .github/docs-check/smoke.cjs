@@ -13,14 +13,25 @@ const routes = [...baseline.map(x => x.route), '/changelog/'];
 const releaseAnchors = ['release-0-6-0','release-0-5-1','release-0-5-0','release-0-4-0','release-0-3-1','release-0-3-0','release-0-2-0','release-0-1-0'];
 // Independent readable-content witnesses, not runtime records or comment IDs.
 const releaseWitnesses = [
-  'GTM resource paths reject dot components',
-  'Native OAuth storage uses a shared per-user lock across tools.',
-  'GTM removes accounts containers combine and accounts containers move-tag-id.',
-  'Nine destructive GA4 Admin commands require --confirm-resource',
-  'Explicit empty credential environment variables fail',
+  'Supply canonical, unescaped resource IDs.',
+  'All three tools share a per-user lock.',
+  'Stop invoking accounts containers combine and accounts containers move-tag-id.',
+  'Add --confirm-resource with the exact resource name to destructive apply scripts.',
+  'Explicit empty credential environment variables now fail instead of selecting another credential source.',
   'User guides cover installation, authentication, the three command families',
-  'Native OAuth adds auth login, status, forget, and revoke.',
+  'Native OAuth adds auth login, auth status, auth forget, and auth revoke.',
   'ga4datactl provides GA4 reports and audience exports'
+];
+// Independent warning/limit witnesses in the same release order, in both JS modes.
+const releaseWarnings = [
+  'Inspect GTM state before retrying a mutation',
+  'Compatibility review is incomplete. Migration impact for existing custom profiles remains uncertain.',
+  'This CLI provides no replacement.',
+  'Inspect current state before retrying uncertain creates.',
+  'Inspect existing audience exports before retrying an uncertain create.',
+  'Site publication success was not verified.',
+  'A selected invalid source fails instead of switching identity.',
+  'There is no tag or GitHub Release for this interval.'
 ];
 const themeResults = [];
 async function waitForRouteContent(page, route) {
@@ -68,7 +79,7 @@ async function assertNativeReleases(page) {
       return text;
     });
     assert(content.includes(releaseWitnesses[index]), id);
-    assert(content.includes('Text:') && content.includes('Evidence:'), id);
+    assert(content.includes(releaseWarnings[index]), id);
   }
   assert.equal(await page.locator('.vp-doc select, .vp-doc input, .vp-doc button').count(), 0);
 }

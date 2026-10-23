@@ -35,6 +35,7 @@ packages = ["src/ga4datactl", "src/ga4adminctl", "src/gtmctl", "src/marketing_co
 [tool.hatch.build.targets.sdist]
 exclude = [
     "/docs/user",
+    "/docs/changelog-provenance.md",
     "/package.json",
     "/package-lock.json",
     "/.node-version",

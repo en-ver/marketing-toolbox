@@ -129,6 +129,7 @@ def test_core_sdist_excludes_release_output_directories(tmp_path: Path) -> None:
         ".node-version",
         "node_modules/tool/package.json",
         "nested/node_modules/tool/file.js",
+        "docs/changelog-provenance.md",
         "docs/user/index.md",
         "docs/user/.vitepress/config.mts",
         "docs/user/.vitepress/cache/cache.json",

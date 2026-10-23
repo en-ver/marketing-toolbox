@@ -41,37 +41,72 @@ wheel and source distribution for each project from this single build.
 
 ## Release notes
 
-`docs/user/changelog/index.md` is the single maintained source for release
-notes. Start each normal release in a Markdown version section, newest first.
-Record the version, date and date basis, tag, target commit, comparison base,
-user-visible changes, affected packages, and compatibility assessment.
-State breaking changes and required user actions explicitly.
+`docs/user/changelog/index.md` is the sole maintained source of user-facing
+release prose. The same maintainer owns `docs/changelog-provenance.md`, the
+maintained audit mapping, not a second editorial changelog or website route.
+Update both together. Keep accepted JSON and original words as immutable
+historical witnesses, not alternative maintained notes.
 
-Within each version, use package groups and `Added`, `Changed`, or `Fixed`
-categories. Order groups as shared, `ga4datactl`, `ga4adminctl`, `gtmctl`, then
-`marketing-toolbox` only. Omit empty groups and categories. Show each change
-once, with its exact `Packages:` list, including `marketing-toolbox`.
-Place multiple-launcher changes in shared, not under every affected launcher.
-Place umbrella-plus-one-launcher changes under that launcher.
-Keep umbrella-only changes under `marketing-toolbox`.
-Preserve relative change order within each group and category.
-Launcher headings identify affected behavior, not separate release versions.
+Start each release in a Markdown version section, newest first. Preserve the
+explicit version anchor and each stable, non-rendered `change-id` comment
+beside its bullet. These comments are internal identities, not public DOM
+anchors or runtime data. Keep plain Markdown without new rendering machinery.
+Show the date and its basis, a short non-enumerative summary, and relevant
+compatibility uncertainty. Do not infer publication dates or historical test
+success from tag dates or source assertions.
 
-Prepare proposed GitHub notes from the canonical version section through a
-reviewed direct copy or one-off temporary projection. Preserve all editorial
-content: metadata, notices, caveats, compatibility text, categories, breaking
-labels, package lists, actions, change wording, and displayed provenance links.
-Only heading depth, package/category grouping, and website navigation can
-differ. Escape Markdown without changing displayed meaning.
-Compare the proposed body before publication and the fetched body afterward.
-Do not add a permanent generator, synchronization service, or release-policy gate.
+Put complete confirmed-breaking bullets before potential-breaking bullets in
+“Before upgrading.” Put remaining bullets in “Other changes,” when needed.
+State the required action before the risk or changed behavior. Keep every
+user-facing fact, number, identifier, affected-tool meaning, warning, and limit
+visible. Do not repeat facts or actions in summaries or other bullets.
+Do not turn absence of an identified break into a compatibility guarantee.
 
-For the Markdown migration, keep all seven published bodies byte-identical to
-their approved witnesses. Compare the regrouped page semantically against
-those witnesses, not by Markdown byte equality. The preserved accepted JSON
-is an immutable migration witness, not a second maintained source.
-Do not automatically reconcile published bodies with the new page layout.
+Within each set, order tool groups as shared, `ga4datactl`, `ga4adminctl`,
+`gtmctl`, then `marketing-toolbox` only. Omit empty sets and groups.
+Explain lockstep membership once: a tool heading means that launcher and the
+umbrella implementation. Launchers do not have separate release histories.
+Show shared changes once. If only some launchers are affected, name them in
+ordinary prose. Keep umbrella-only changes distinct. Preserve relative order
+unless upgrade priority requires a move, and record the reason in provenance.
+Do not require repeated `Packages:`, `Text:`, `Action:`, or `Evidence:` labels,
+or an `Added`/`Changed`/`Fixed` hierarchy in human prose.
+
+In provenance, retain original accepted words, categories, exact package lists,
+breaking assessments, actions or their original absence, and every evidence
+destination. Retain per-version dates and bases, retrospective notices,
+caveats, naming and attribution, tag names/objects/timestamps with offsets,
+targets, and exclusive/inclusive comparison boundaries. Retain verified
+Release IDs, URLs, and body hashes. Map each record to its website section and
+adjacent stable comment. Record original/current order, wording and placement
+changes, and the disposition and reason for every audit-only field.
+Only original phrasing and audit metadata leave the reading flow, never user
+behavior or required actions. Link each release to its provenance section.
+Keep separate tag and verified Release links for tagged history. Add a Release
+URL only after confirming that the matching Release exists.
+
+Historical website equivalence means factual and action equivalence, not exact
+wording, visible metadata, or Markdown bytes. Human semantic review must account
+for every accepted fact, action, scope, breaking strength, and uncertainty.
+Keep all seven published GitHub bodies byte-identical to approved witnesses.
+Their older wording, categories, and inline audit fields intentionally differ
+from the rewritten website. Do not regenerate or overwrite them. Preserve
+Release identities, flags, assets, latest designation, and tag identities.
+Unexpected differences require parent resolution, not automatic repair.
 Later published-note corrections require separate reconciliation authority and review.
+
+For future unpublished releases, derive the proposed GitHub body from the
+canonical human-oriented website section through a reviewed copy or one-off
+temporary projection. Preserve every user-facing fact, warning, action,
+uncertainty, and affected-tool meaning. Only heading depth, navigation, and
+meaning-preserving Markdown adaptation can differ. Include an appropriate
+source-controlled provenance link when evidence is separate. Audit fields do
+not become mandatory inline body labels. Review the proposed body before any
+separately authorized publication. Fetch and compare the body afterward.
+If a Release already exists, read its tag identity and body first. Stop on an
+unexpected difference. Creation permission does not permit an existing-body edit.
+Do not add a permanent generator, parser, synchronization service, bundled
+script, or release-policy CI gate.
 Notes guidance does not grant tagging, publication, or recovery permission.
 
 ## Normal release
