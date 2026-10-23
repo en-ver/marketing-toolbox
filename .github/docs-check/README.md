@@ -79,6 +79,25 @@ Neither container publishes a port. `smoke.cjs` uses matching Chromium, headless
 mode, an isolated profile, blocked service workers, and `chromiumSandbox: true`.
 There is no channel, executable override, remote browser, or sandbox-disable flag.
 
+The browser uses the checksummed Playwright seccomp profile with one added
+`SCMP_ACT_ALLOW` rule for `chroot`. Docker selects the upstream `chroot` rule
+only when the container bounding set includes `CAP_SYS_CHROOT`. Dropping all
+container capabilities removes that rule before Chromium starts. Chromium
+156.0.8078.4 enters a child user namespace before it uses `chroot` to remove
+filesystem access. The added rule permits that native sandbox step without
+adding container capabilities. The kernel still requires `CAP_SYS_CHROOT` in
+the caller's user namespace. All other profile rules remain unchanged.
+
+This rule permits the syscall, not a specific path. It increases the browser
+container's syscall access but grants no host capability or mount access.
+Seccomp cannot inspect the pathname string. No other container uses this
+modified profile. Evidence retains both `seccomp-upstream.json` and
+`browser-seccomp.json`. This policy correction does not prove hosted browser
+startup or renderer isolation. The runtime probes below must still pass.
+See [Chromium's matching sandbox code](https://chromium.googlesource.com/chromium/src/+/156.0.8078.4/sandbox/policy/linux/sandbox_linux.cc),
+[Docker's profile loader](https://github.com/moby/moby/blob/v28.0.4/profiles/seccomp/seccomp_linux.go),
+and [the kernel's chroot requirements](https://www.kernel.org/doc/man-pages/online/pages/man2/chroot.2.html).
+
 Before site navigation, the host inspects actual renderer user/PID namespaces,
 seccomp, no-new-privileges, and capability state. It also proves private-file and
 external-network denial in the browser boundary. Failure stops the run without

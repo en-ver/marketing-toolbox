@@ -85,6 +85,17 @@ def bind(source: Path, target: str, readonly: bool = True) -> list[str]:
     ]
 
 
+def prepare_browser_seccomp(source: Path, destination: Path) -> None:
+    """Retain the verified upstream profile, allowing Chromium's namespace chroot."""
+    profile = json.loads(source.read_text())
+    # Docker resolves includes.caps against the container's bounding set before
+    # launch. With cap-drop ALL it omits upstream's CAP_SYS_CHROOT-gated rule,
+    # even after Chromium gains capabilities in its own child user namespace.
+    # The kernel still requires CAP_SYS_CHROOT in the caller's user namespace.
+    profile["syscalls"].append({"names": ["chroot"], "action": "SCMP_ACT_ALLOW"})
+    destination.write_text(json.dumps(profile, indent=2) + "\n")
+
+
 def create(
     image: str,
     args: list[str],
@@ -94,7 +105,10 @@ def create(
 ) -> str:
     security = ["--security-opt", "no-new-privileges"]
     if browser:
-        security += ["--security-opt", "seccomp=" + str(RUN / "seccomp_profile.json")]
+        security += [
+            "--security-opt",
+            "seccomp=" + str(EVIDENCE / "browser-seccomp.json"),
+        ]
     dns = (
         []
         if network.startswith("container:")
@@ -429,6 +443,10 @@ def main() -> None:
         assert (
             code == "200" and path.stat().st_size == size and digest(path) == expected
         )
+    shutil.copyfile(RUN / "seccomp_profile.json", EVIDENCE / "seccomp-upstream.json")
+    prepare_browser_seccomp(
+        EVIDENCE / "seccomp-upstream.json", EVIDENCE / "browser-seccomp.json"
+    )
     for image in (PYTHON, BROWSER):
         command("docker", "pull", "--platform", "linux/amd64", image)
     node = RUN / "node"

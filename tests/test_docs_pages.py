@@ -158,6 +158,50 @@ def test_offline_execution_configuration_is_explicit_not_runtime_proof() -> None
     assert "channel:" not in smoke and "executablePath:" not in smoke
 
 
+def test_browser_seccomp_only_adds_namespace_chroot(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("RUNNER_TEMP", str(tmp_path))
+    spec = importlib.util.spec_from_file_location("docs_check", HELPERS / "run.py")
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    original = {
+        "defaultAction": "SCMP_ACT_ERRNO",
+        "archMap": [{"architecture": "SCMP_ARCH_X86_64"}],
+        "syscalls": [
+            {"names": ["clone", "setns", "unshare"], "action": "SCMP_ACT_ALLOW"},
+            {
+                "names": ["chroot"],
+                "action": "SCMP_ACT_ALLOW",
+                "includes": {"caps": ["CAP_SYS_CHROOT"]},
+            },
+            {
+                "names": ["mount"],
+                "action": "SCMP_ACT_ALLOW",
+                "includes": {"caps": ["CAP_SYS_ADMIN"]},
+            },
+        ],
+    }
+    upstream = tmp_path / "upstream.json"
+    upstream.write_text(json.dumps(original))
+    before = upstream.read_bytes()
+    destination = tmp_path / "browser.json"
+    module.prepare_browser_seccomp(upstream, destination)
+    expected = json.loads(before)
+    expected["syscalls"].append({"names": ["chroot"], "action": "SCMP_ACT_ALLOW"})
+    assert json.loads(destination.read_text()) == expected
+    assert upstream.read_bytes() == before
+    # Configuration coverage only. Docker and Chromium do not execute locally.
+    source = (HELPERS / "run.py").read_text()
+    assert '"seccomp=" + str(EVIDENCE / "browser-seccomp.json")' in source
+    assert (
+        source.index('code == "200"')
+        < source.index("    prepare_browser_seccomp(")
+        < source.index("    browser = create(")
+    )
+
+
 def test_acquisition_rejects_unreviewed_inputs_before_requests(tmp_path: Path) -> None:
     original = json.loads((ROOT / "package-lock.json").read_text())
     for field, value in (
